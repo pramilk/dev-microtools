@@ -1,0 +1,362 @@
+/*
+ * Design tokens and base styles.
+ *
+ * Typography note: this site deliberately uses system font stacks rather than web fonts.
+ * A tool site is judged on how fast it responds, and system fonts cost zero bytes and
+ * cause zero layout shift. Character comes from the type scale, tracking and hierarchy
+ * below, not from a downloaded typeface.
+ *
+ * Theming: three states are supported — explicit light, explicit dark, and "system"
+ * (no data-theme attribute, resolved by prefers-color-scheme). Every color is defined
+ * as a token on :root first so nothing depends on a media query alone.
+ */
+
+/* ---------------------------------------------------------------- tokens */
+
+:root {
+  /* Neutrals — slight cool bias so they read as chosen, not default grey */
+  --bg: #fbfbfd;
+  --surface: #ffffff;
+  --surface-2: #f2f4f8;
+  --surface-3: #e8ebf1;
+  --border: #e2e6ee;
+  --border-strong: #c8cfdb;
+
+  --text: #0f151c;
+  --text-muted: #57636f;
+  --text-subtle: #7c8794;
+
+  /* Accent — deep teal-cyan: technical without being the default framework blue */
+  --accent: #0b6e80;
+  --accent-hover: #095a69;
+  --accent-active: #074a56;
+  --accent-contrast: #ffffff;
+  --accent-subtle: #e2f2f5;
+  --accent-border: #9fd3dd;
+
+  /* Semantic — kept distinct from the accent hue */
+  --success: #1a7f45;
+  --success-subtle: #e3f5ea;
+  --success-border: #a8dcbd;
+  --danger: #b3261e;
+  --danger-subtle: #fdeceb;
+  --danger-border: #f0b4b0;
+  --warning: #8a5a10;
+  --warning-subtle: #fdf2df;
+  --warning-border: #e8cf9b;
+
+  --focus-ring: #0b6e80;
+
+  /* Type scale — 1.2 minor third, clamped for fluid sizing */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: clamp(1.5rem, 1.3rem + 1vw, 1.875rem);
+  --text-3xl: clamp(1.875rem, 1.5rem + 1.8vw, 2.5rem);
+
+  /* Spacing — 4px base */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  --radius-sm: 4px;
+  --radius: 7px;
+  --radius-lg: 11px;
+
+  --shadow-sm: 0 1px 2px rgb(15 21 28 / 6%);
+  --shadow: 0 2px 8px rgb(15 21 28 / 8%);
+
+  --content-width: 72rem;
+  --prose-width: 68ch;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI",
+    system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "SF Mono", "JetBrains Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1117;
+    --surface: #151b23;
+    --surface-2: #1b222c;
+    --surface-3: #232c37;
+    --border: #2a3441;
+    --border-strong: #3d4957;
+
+    --text: #e6edf3;
+    --text-muted: #9aa7b4;
+    --text-subtle: #7d8b99;
+
+    --accent: #3cbcd4;
+    --accent-hover: #5bcde2;
+    --accent-active: #7adcee;
+    --accent-contrast: #04222a;
+    --accent-subtle: #10303a;
+    --accent-border: #21596a;
+
+    --success: #4ec97e;
+    --success-subtle: #10301d;
+    --success-border: #26593a;
+    --danger: #f28b82;
+    --danger-subtle: #331917;
+    --danger-border: #6b332e;
+    --warning: #e0b558;
+    --warning-subtle: #332a14;
+    --warning-border: #5f4d20;
+
+    --focus-ring: #5bcde2;
+
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+    --shadow: 0 2px 10px rgb(0 0 0 / 45%);
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0d1117;
+  --surface: #151b23;
+  --surface-2: #1b222c;
+  --surface-3: #232c37;
+  --border: #2a3441;
+  --border-strong: #3d4957;
+
+  --text: #e6edf3;
+  --text-muted: #9aa7b4;
+  --text-subtle: #7d8b99;
+
+  --accent: #3cbcd4;
+  --accent-hover: #5bcde2;
+  --accent-active: #7adcee;
+  --accent-contrast: #04222a;
+  --accent-subtle: #10303a;
+  --accent-border: #21596a;
+
+  --success: #4ec97e;
+  --success-subtle: #10301d;
+  --success-border: #26593a;
+  --danger: #f28b82;
+  --danger-subtle: #331917;
+  --danger-border: #6b332e;
+  --warning: #e0b558;
+  --warning-subtle: #332a14;
+  --warning-border: #5f4d20;
+
+  --focus-ring: #5bcde2;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow: 0 2px 10px rgb(0 0 0 / 45%);
+
+  color-scheme: dark;
+}
+
+/* ------------------------------------------------------------------ base */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.018em;
+  text-wrap: balance;
+  font-weight: 650;
+}
+
+h1 {
+  font-size: var(--text-3xl);
+  letter-spacing: -0.028em;
+}
+h2 {
+  font-size: var(--text-2xl);
+}
+h3 {
+  font-size: var(--text-xl);
+}
+h4 {
+  font-size: var(--text-lg);
+}
+
+p,
+ul,
+ol {
+  margin: 0;
+}
+
+a {
+  color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+:where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Respect reduced-motion for every transition defined in this file */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --------------------------------------------------------------- layout */
+
+.container {
+  width: 100%;
+  max-width: var(--content-width);
+  margin-inline: auto;
+  padding-inline: var(--space-4);
+}
+
+@media (min-width: 48rem) {
+  .container {
+    padding-inline: var(--space-5);
+  }
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--space-3);
+  top: var(--space-3);
+  z-index: 100;
+  padding: var(--space-2) var(--space-4);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+  color: var(--accent-contrast);
+}
+
+main {
+  flex: 1;
+}
+
+/* ----------------------------------------------------------- typography */
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  font-weight: 600;
+}
+
+.lede {
+  font-size: var(--text-lg);
+  color: var(--text-muted);
+  max-width: var(--prose-width);
+}
+
+.prose {
+  max-width: var(--prose-width);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.prose h2 {
+  margin-top: var(--space-5);
+}
+
+.prose h3 {
+  margin-top: var(--space-3);
+}
+
+.prose ul,
+.prose ol {
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.prose code:not(pre code) {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.1em 0.35em;
+}
+
+.prose pre {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  overflow-x: auto;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* -------------------------------------------------------------- surfaces */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Tabular numerals wherever digits are compared or aligned */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}

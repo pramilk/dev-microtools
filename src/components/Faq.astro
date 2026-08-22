@@ -1,0 +1,85 @@
+---
+interface Props {
+  items: { q: string; a: string }[];
+}
+
+const { items } = Astro.props;
+---
+
+<section class="faq" aria-labelledby="faq-heading">
+  <h2 id="faq-heading">Frequently asked questions</h2>
+  <div class="faq__list">
+    {
+      items.map((item, index) => (
+        <details class="faq__item" open={index === 0}>
+          <summary class="faq__q">{item.q}</summary>
+          <p class="faq__a">{item.a}</p>
+        </details>
+      ))
+    }
+  </div>
+</section>
+
+<style>
+  .faq {
+    margin-top: var(--space-6);
+    max-width: var(--prose-width);
+  }
+
+  .faq h2 {
+    margin-bottom: var(--space-4);
+  }
+
+  .faq__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .faq__item {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .faq__q {
+    padding: var(--space-3) var(--space-4);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: var(--text-base);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  /* Replace the default marker with one that reflects open state */
+  .faq__q::-webkit-details-marker {
+    display: none;
+  }
+
+  .faq__q::after {
+    content: '+';
+    font-family: var(--font-mono);
+    color: var(--accent);
+    font-weight: 400;
+    font-size: 1.2em;
+    flex-shrink: 0;
+  }
+
+  .faq__item[open] .faq__q::after {
+    content: '−';
+  }
+
+  .faq__q:hover {
+    background: var(--surface-2);
+  }
+
+  .faq__a {
+    padding: 0 var(--space-4) var(--space-4);
+    color: var(--text-muted);
+    margin: 0;
+  }
+</style>

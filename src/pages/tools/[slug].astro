@@ -1,0 +1,192 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import AdSlot from '../../components/AdSlot.astro';
+import RelatedTools from '../../components/RelatedTools.astro';
+import Faq from '../../components/Faq.astro';
+import ToolIsland from '../../components/ToolIsland.astro';
+import { SITE } from '../../lib/site';
+import '../../styles/tool.css';
+
+export async function getStaticPaths() {
+  const tools = await getCollection('tools');
+  return tools.map((tool) => ({ params: { slug: tool.id }, props: { tool } }));
+}
+
+const { tool } = Astro.props;
+const data = tool.data;
+const { Content } = await render(tool);
+
+const path = `/tools/${tool.id}/`;
+const pageUrl = new URL(path, Astro.site ?? SITE.url).href;
+
+const schema = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: data.title,
+    description: data.description,
+    url: pageUrl,
+    applicationCategory: 'DeveloperApplication',
+    operatingSystem: 'Any',
+    browserRequirements: 'Requires JavaScript',
+    dateModified: data.updated.toISOString(),
+    // Free and no sign-up: both are true and both are what people search for.
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    publisher: { '@type': 'Organization', name: SITE.name, url: SITE.url },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Tools', item: new URL('/', Astro.site ?? SITE.url).href },
+      { '@type': 'ListItem', position: 2, name: data.title, item: pageUrl },
+    ],
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: data.faq.map((item) => ({
+      '@type': 'Question',
+      name: item.q,
+      acceptedAnswer: { '@type': 'Answer', text: item.a },
+    })),
+  },
+];
+---
+
+<BaseLayout
+  title={data.headline}
+  description={data.description}
+  canonicalPath={path}
+  schema={schema}
+>
+  <div class="container tool-page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="/">Tools</a>
+      <span aria-hidden="true">/</span>
+      <span aria-current="page">{data.title}</span>
+    </nav>
+
+    <header class="tool-page__header">
+      <p class="eyebrow">{data.category}</p>
+      <h1>{data.headline}</h1>
+      <p class="lede">{data.summary}</p>
+      <p class="privacy-note">
+        <span aria-hidden="true">🔒</span>
+        Runs entirely in your browser — nothing you paste is uploaded or stored.
+      </p>
+    </header>
+
+    {/*
+      The widget is the reason the page exists, so it renders before the prose and is
+      the only thing hydrated eagerly. Everything else on the page is static HTML.
+    */}
+    <section class="tool-page__widget" aria-label={`${data.title} tool`}>
+      <ToolIsland slug={tool.id} />
+    </section>
+
+    <AdSlot placement="in-content" />
+
+    <div class="prose">
+      <section>
+        <h2>What is {data.title.toLowerCase()}?</h2>
+        <p>{data.whatIsIt}</p>
+      </section>
+
+      <section>
+        <h2>When to use it</h2>
+        <ul>
+          {data.useCases.map((useCase) => <li>{useCase}</li>)}
+        </ul>
+      </section>
+
+      <section>
+        <h2>How to use this tool</h2>
+        <ol>
+          {data.howTo.map((step) => <li>{step}</li>)}
+        </ol>
+      </section>
+
+      <section>
+        <h2>Example</h2>
+        <p>{data.example.label}</p>
+        <h3>Input</h3>
+        <pre><code>{data.example.input}</code></pre>
+        <h3>Output</h3>
+        <pre><code>{data.example.output}</code></pre>
+        {data.example.note && <p>{data.example.note}</p>}
+      </section>
+
+      {/* Any additional prose the .mdx body carries. */}
+      <Content />
+    </div>
+
+    <Faq items={data.faq} />
+
+    <AdSlot placement="footer" />
+
+    <RelatedTools slugs={data.related} currentSlug={tool.id} />
+  </div>
+</BaseLayout>
+
+<style>
+  .tool-page {
+    padding-block: var(--space-5) var(--space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--text-subtle);
+  }
+
+  .breadcrumb a {
+    color: var(--text-muted);
+    text-decoration: none;
+  }
+
+  .breadcrumb a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+
+  .tool-page__header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .privacy-note {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 0.3rem 0.85rem;
+    align-self: flex-start;
+    margin-top: var(--space-2);
+  }
+
+  .tool-page__widget {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    box-shadow: var(--shadow-sm);
+  }
+
+  @media (min-width: 48rem) {
+    .tool-page__widget {
+      padding: var(--space-5);
+    }
+  }
+</style>

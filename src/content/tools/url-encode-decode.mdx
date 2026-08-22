@@ -1,0 +1,55 @@
+---
+title: URL Encoder
+headline: URL Encoder and Decoder
+description: Percent-encode and decode URLs and query parameters in your browser, with a breakdown of URL components. Nothing is uploaded. Free, no sign-up.
+summary: Percent-encode or decode URLs, and break one down into its parts.
+category: Convert
+order: 7
+updated: 2026-08-22
+whatIsIt: >-
+  URL encoding, also called percent-encoding, replaces characters that have special
+  meaning in a URL — or that are not allowed in one at all — with a percent sign followed
+  by their hexadecimal byte value. A space becomes %20, an ampersand becomes %26. This
+  tool converts in both directions and, importantly, distinguishes between encoding a
+  single query-parameter value and encoding a whole URL, which need different rules and
+  are the source of most percent-encoding bugs.
+useCases:
+  - Building a query string by hand and needing a value escaped so that its ampersands or equals signs do not break the parameter parsing.
+  - Reading a percent-encoded redirect URL out of an OAuth callback or an analytics link to see where it actually points.
+  - Debugging why a link with a space or a plus sign in it resolves to the wrong place.
+  - Breaking an unfamiliar URL into scheme, host, path and query parameters to see its structure at a glance.
+howTo:
+  - Choose Encode or Decode.
+  - 'Choose the scope: "Component" for a single parameter value, or "Whole URL" to escape a complete address while leaving its structure intact.'
+  - Paste your input on the left; the result appears immediately on the right.
+  - If the input is a complete URL, a breakdown of its parts and query parameters appears below.
+example:
+  label: Encoding a query-parameter value that itself contains URL syntax.
+  input: 'redirect=https://app.example.com/home?tab=1'
+  output: 'redirect%3Dhttps%3A%2F%2Fapp.example.com%2Fhome%3Ftab%3D1'
+  note: In Component mode the colons, slashes, question mark and equals signs are all escaped, so the whole thing survives as a single parameter value instead of being parsed as extra parameters.
+faq:
+  - q: What is the difference between Component and Whole URL mode?
+    a: >-
+      Component mode (encodeURIComponent) escapes the reserved delimiters — & = ? / : — because inside a parameter value those characters would otherwise be read as URL structure. Whole URL mode (encodeURI) leaves them alone, because in a complete URL they are structure and escaping them would break it. Using the wrong one is the single most common URL-encoding mistake.
+  - q: Should a space be %20 or a plus sign?
+    a: >-
+      In the path portion of a URL, always %20. In a query string, both appear in the wild: %20 is always correct, while "+" means a space only under the older application/x-www-form-urlencoded convention used by HTML form submissions. This tool always produces %20, which is safe everywhere. When decoding, be aware that a "+" in a query string may have been intended as a space.
+  - q: Why did my decode fail with an error about a stray percent?
+    a: A percent sign in encoded text must be followed by exactly two hexadecimal digits. If your input contains a literal "%" that was never escaped — or was truncated mid-sequence — the decoder cannot tell how many bytes to read. Check for a "%" that is not followed by two valid hex characters.
+  - q: Does this handle non-English characters?
+    a: Yes. Characters outside ASCII are encoded as their UTF-8 bytes, each written as a percent triplet — so "é" becomes %C3%A9 and an emoji becomes four triplets. This matches what browsers and standards-compliant servers expect.
+  - q: Is percent-encoding a security measure?
+    a: No. It ensures a URL is syntactically valid and parses into the parts you intended; it does nothing to sanitise content. URL-encoding user input does not protect against SQL injection, cross-site scripting, or open redirects. Those need their own defences at the point where the value is actually used.
+related:
+  - base64-encode-decode
+  - json-formatter
+  - regex-tester
+---
+
+## Double encoding
+
+If you see `%253A` in a URL, that is a double-encoded colon: `:` became `%3A`, and then the
+`%` of that sequence was itself encoded to `%25`. It usually means a value was escaped
+twice by two different layers of code. The fix is to find the layer that is escaping
+redundantly, not to decode twice at the far end.

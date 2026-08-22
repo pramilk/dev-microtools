@@ -1,0 +1,108 @@
+---
+import { SITE, NAV_LINKS } from '../lib/site';
+import ThemeToggle from './ThemeToggle.astro';
+
+const path = Astro.url.pathname;
+const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
+---
+
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a href="/" class="wordmark" aria-label={`${SITE.name} home`}>
+      <span class="wordmark__bracket" aria-hidden="true">&lt;</span>
+      <span class="wordmark__text">{SITE.name}</span>
+      <span class="wordmark__bracket" aria-hidden="true">/&gt;</span>
+    </a>
+
+    <nav aria-label="Main">
+      <ul class="nav">
+        {
+          NAV_LINKS.map((link) => (
+            <li>
+              <a
+                href={link.href}
+                class="nav__link"
+                aria-current={isActive(link.href) ? 'page' : undefined}
+              >
+                {link.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    <ThemeToggle />
+  </div>
+</header>
+
+<style>
+  .site-header {
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+
+  .site-header__inner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    min-height: 3.5rem;
+  }
+
+  .wordmark {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.15em;
+    font-family: var(--font-mono);
+    font-size: var(--text-base);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    text-decoration: none;
+    margin-right: auto;
+  }
+
+  .wordmark:hover {
+    color: var(--text);
+  }
+
+  .wordmark__bracket {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .wordmark:hover .wordmark__text {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .nav__link {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: var(--text-sm);
+    font-weight: 550;
+    padding: var(--space-2) 0;
+    border-bottom: 2px solid transparent;
+  }
+
+  .nav__link:hover {
+    color: var(--text);
+  }
+
+  .nav__link[aria-current='page'] {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+</style>

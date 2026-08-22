@@ -1,0 +1,56 @@
+---
+title: Color Converter
+headline: Color Converter — HEX, RGB, HSL and OKLCH
+description: Convert colours between HEX, RGB, HSL and OKLCH, with live preview and WCAG contrast ratios. Runs in your browser. Free, no sign-up required.
+summary: Convert between HEX, RGB, HSL and OKLCH, with WCAG contrast checking.
+category: Convert
+order: 9
+updated: 2026-08-22
+whatIsIt: >-
+  The same colour can be written several ways, and different tools prefer different ones —
+  a design file gives you HEX, a CSS variable might be HSL, and modern CSS increasingly
+  uses OKLCH. This converter reads any of these formats and shows all of them at once, with
+  a live preview. It also reports the WCAG contrast ratio against both white and black,
+  which is usually the question you actually need answered when picking a colour for text.
+useCases:
+  - Converting a HEX value from a design handoff into HSL so you can derive a lighter or darker variant by adjusting one number.
+  - Checking whether a brand colour has enough contrast to be used for body text, before it ships and fails an accessibility audit.
+  - Translating an existing palette into OKLCH, where perceptual uniformity makes generating consistent shades much easier.
+  - Reading an unfamiliar rgb() or hsl() value from a stylesheet and seeing what colour it actually is.
+howTo:
+  - Type or paste a colour in any supported format — HEX with or without the hash, rgb(), rgba(), hsl() or hsla().
+  - Use the colour picker beside the input to choose visually instead, or click one of the presets.
+  - All four notations appear below with individual copy buttons.
+  - Check the contrast panel to see the ratios against white and black, with the WCAG level each one achieves.
+example:
+  label: One colour expressed in every supported notation.
+  input: '#3cbcd4'
+  output: |-
+    HEX    #3cbcd4
+    RGB    rgb(60 188 212)
+    HSL    hsl(189.5 62.9% 53.3%)
+    OKLCH  oklch(74.02% 0.1076 214.51)
+  note: The contrast panel reports 2.13:1 against white and 9.85:1 against black — meaning this colour works for text on a dark background but not a light one.
+faq:
+  - q: What is OKLCH and why would I use it?
+    a: OKLCH is a perceptually uniform colour space, meaning equal numeric changes look like equal visual changes — which is not true of HSL. In HSL, yellow at 50% lightness looks far brighter than blue at 50% lightness. In OKLCH they genuinely match. That makes it much easier to build a palette where every colour has consistent perceived weight, and it is supported in all current browsers.
+  - q: What contrast ratio do I need?
+    a: WCAG AA requires 4.5:1 for normal body text and 3:1 for large text (roughly 24px, or 19px bold). AAA raises that to 7:1 and 4.5:1 respectively. The tool labels each ratio with the level it reaches. Note these are minimums for legibility, not targets to design toward — comfortable reading usually wants more.
+  - q: Why does my HEX colour come back with slightly different HSL numbers than another tool gives?
+    a: Rounding. HEX has 8 bits per channel while HSL is continuous, so the conversion rarely lands on round numbers, and different tools round at different precision. The values are equivalent to within a rounding error; converting back to HEX returns exactly what you started with.
+  - q: Does it handle transparency?
+    a: Yes. Eight-digit HEX values, rgba() and hsla() are all parsed, and the alpha channel is carried through to every output notation using the modern slash syntax. Note that contrast ratios are computed on the opaque colour, since the real contrast of a translucent colour depends on whatever is behind it.
+  - q: Are named CSS colours supported?
+    a: Not currently — the tool accepts HEX, rgb() and hsl() notation. Named colours like "rebeccapurple" resolve to specific HEX values that you can look up in the CSS specification and paste in directly.
+related:
+  - hash-generator
+  - json-formatter
+  - diff-checker
+---
+
+## Contrast is about the pair, not the colour
+
+A colour is never "accessible" on its own — only a foreground and background together have
+a contrast ratio. The white and black figures shown here are the two most common cases and
+a useful shorthand, but if your text sits on a coloured panel rather than pure white, that
+is the pair you need to check.

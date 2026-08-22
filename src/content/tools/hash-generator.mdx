@@ -1,0 +1,53 @@
+---
+title: Hash Generator
+headline: MD5, SHA-1 and SHA-256 Hash Generator
+description: Generate MD5, SHA-1, SHA-256, SHA-384 and SHA-512 hashes in your browser, and verify a checksum against them. Nothing is uploaded. Free, no sign-up.
+summary: Compute MD5, SHA-1 and SHA-2 digests, and verify a checksum against them.
+category: Generate
+order: 6
+updated: 2026-08-22
+whatIsIt: >-
+  A cryptographic hash function turns input of any length into a fixed-size fingerprint.
+  The same input always produces the same digest, and changing even one character produces
+  a completely different one, which is what makes hashes useful for detecting whether data
+  has changed. This tool computes five common digests at once — MD5, SHA-1, SHA-256,
+  SHA-384 and SHA-512 — and can check a checksum you paste against all of them to tell you
+  which algorithm it came from.
+useCases:
+  - Verifying that a file or string you received matches a published checksum, confirming it downloaded intact and was not modified.
+  - Working out which algorithm produced an unlabelled hash, by pasting it into the compare field and seeing which one matches.
+  - Generating a deterministic cache key or content fingerprint from a string.
+  - Reproducing a hash that appears in a test fixture, log or database column while debugging.
+howTo:
+  - Type or paste your text into the input box. All five digests compute as you type.
+  - Copy any individual digest with the button beside it.
+  - To identify or verify a checksum, paste it into the compare field — the tool highlights whichever algorithm matches.
+  - 'Note the "insecure" badges: MD5 and SHA-1 are shown because you will encounter them, not because you should choose them.'
+example:
+  label: The SHA-256 digest of the string "abc" — a standard published test vector.
+  input: 'abc'
+  output: 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
+  note: This exact value appears in NIST's SHA-256 test vectors, so it is a reliable way to confirm any implementation is behaving correctly.
+faq:
+  - q: Can a hash be reversed back into the original text?
+    a: Not by any direct computation — hash functions are designed to be one-way. However, for short or common inputs an attacker can simply hash enormous numbers of candidate strings and look for a match, which is how password cracking works. A hash of a common password offers essentially no protection, which is why passwords need a slow, salted algorithm rather than a plain digest.
+  - q: Why are MD5 and SHA-1 marked insecure?
+    a: Both are broken against collision attacks — it is computationally practical to construct two different inputs that produce the same digest. MD5 collisions can be generated in seconds on a laptop, and SHA-1 collisions were demonstrated publicly in 2017. Neither should be used for signatures, certificates or anything where an adversary might benefit from forging a match. They remain fine for non-adversarial checks like detecting accidental file corruption.
+  - q: Which algorithm should I use?
+    a: SHA-256 is the sensible default for general-purpose hashing — widely supported, fast, and with no known practical weaknesses. Use SHA-512 if you specifically want a longer digest. Do not use any of these for password storage; that requires a deliberately slow function such as Argon2, scrypt or bcrypt, which are designed to make brute-force attacks expensive.
+  - q: Is my input sent anywhere to be hashed?
+    a: No. SHA digests are computed by your browser's built-in Web Crypto API, and MD5 by a small library that loads into the page. Nothing you type leaves your device, so it is safe to hash values you would not want to transmit.
+  - q: Why does the same text give a different hash elsewhere?
+    a: Almost always a difference in what exactly is being hashed. A trailing newline, different line endings between Windows and Unix, or a different text encoding all change the bytes and therefore the digest. This tool hashes the UTF-8 bytes of exactly the characters in the box, with no trailing newline added.
+related:
+  - uuid-generator
+  - base64-encode-decode
+  - jwt-decoder
+---
+
+## Hashing files versus text
+
+This tool hashes text. To check a downloaded file against a published checksum, use your
+operating system's built-in command instead — `sha256sum file` on Linux,
+`shasum -a 256 file` on macOS, or `Get-FileHash file` in PowerShell on Windows. Those read
+the file's actual bytes, which is what the published checksum was computed over.

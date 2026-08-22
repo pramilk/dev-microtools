@@ -1,0 +1,45 @@
+---
+import JsonFormatter from '../islands/JsonFormatter';
+import RegexTester from '../islands/RegexTester';
+import Base64Tool from '../islands/Base64Tool';
+import UuidGenerator from '../islands/UuidGenerator';
+import JwtDebugger from '../islands/JwtDebugger';
+import HashGenerator from '../islands/HashGenerator';
+import UrlTool from '../islands/UrlTool';
+import TimestampConverter from '../islands/TimestampConverter';
+import ColorConverter from '../islands/ColorConverter';
+import DiffChecker from '../islands/DiffChecker';
+import { registeredSlugs } from '../lib/toolRegistry';
+
+interface Props {
+  slug: string;
+}
+
+const { slug } = Astro.props;
+
+/*
+ * Dispatch has to be written out rather than looked up from a map, because Astro's
+ * compiler resolves hydration imports statically — a component pulled from an object
+ * at runtime has no import for the client bundle to reference.
+ *
+ * The registry in lib/toolRegistry.ts stays the single source of truth for *which*
+ * slugs exist; this file is the rendering counterpart. The guard below fails the
+ * build if the two ever drift apart, so a tool can never silently render nothing.
+ */
+if (!registeredSlugs().includes(slug)) {
+  throw new Error(
+    `Tool "${slug}" has content but no island. Add it to src/lib/toolRegistry.ts and to the dispatch in src/components/ToolIsland.astro.`
+  );
+}
+---
+
+{slug === 'json-formatter' && <JsonFormatter client:load />}
+{slug === 'regex-tester' && <RegexTester client:load />}
+{slug === 'base64-encode-decode' && <Base64Tool client:load />}
+{slug === 'uuid-generator' && <UuidGenerator client:load />}
+{slug === 'jwt-decoder' && <JwtDebugger client:load />}
+{slug === 'hash-generator' && <HashGenerator client:load />}
+{slug === 'url-encode-decode' && <UrlTool client:load />}
+{slug === 'timestamp-converter' && <TimestampConverter client:load />}
+{slug === 'color-converter' && <ColorConverter client:load />}
+{slug === 'diff-checker' && <DiffChecker client:load />}

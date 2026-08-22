@@ -1,0 +1,98 @@
+---
+import { getCollection } from 'astro:content';
+
+interface Props {
+  /** Slugs to link to. Unknown slugs are skipped rather than rendering dead links. */
+  slugs: string[];
+  currentSlug: string;
+}
+
+const { slugs, currentSlug } = Astro.props;
+
+const all = await getCollection('tools');
+const related = slugs
+  .filter((slug) => slug !== currentSlug)
+  .map((slug) => all.find((tool) => tool.id === slug))
+  .filter((tool): tool is (typeof all)[number] => tool !== undefined);
+---
+
+{
+  related.length > 0 && (
+    <nav class="related" aria-labelledby="related-heading">
+      <h2 id="related-heading" class="related__heading">
+        Related tools
+      </h2>
+      <ul class="related__list">
+        {related.map((tool) => (
+          <li>
+            <a href={`/tools/${tool.id}/`} class="related__card">
+              <span class="related__name">{tool.data.title}</span>
+              <span class="related__summary">{tool.data.summary}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
+
+<style>
+  .related {
+    margin-top: var(--space-7);
+  }
+
+  .related__heading {
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: var(--font-mono);
+    color: var(--text-subtle);
+    font-weight: 600;
+    margin-bottom: var(--space-3);
+  }
+
+  .related__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  }
+
+  .related__card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    height: 100%;
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    text-decoration: none;
+    transition:
+      border-color 0.12s ease,
+      background-color 0.12s ease;
+  }
+
+  .related__card:hover {
+    border-color: var(--accent);
+    background: var(--surface-2);
+  }
+
+  .related__name {
+    font-weight: 600;
+    color: var(--text);
+    font-size: var(--text-sm);
+  }
+
+  .related__card:hover .related__name {
+    color: var(--accent);
+  }
+
+  .related__summary {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+</style>

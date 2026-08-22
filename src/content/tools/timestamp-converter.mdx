@@ -1,0 +1,56 @@
+---
+title: Timestamp Converter
+headline: Unix Timestamp and Epoch Converter
+description: Convert Unix timestamps to human-readable dates and back, in seconds or milliseconds, with a live clock. Runs in your browser. Free, no sign-up.
+summary: Convert Unix epoch timestamps to dates and back, with a live current time.
+category: Convert
+order: 8
+updated: 2026-08-22
+whatIsIt: >-
+  A Unix timestamp counts the seconds elapsed since midnight UTC on 1 January 1970. It is
+  how most systems store a moment in time internally, because it is a single number with
+  no time zone or formatting ambiguity — but it is unreadable to humans. This tool
+  converts in both directions, auto-detects whether a value is in seconds or
+  milliseconds, and shows the result in ISO 8601, RFC 1123, your local time zone, and as
+  a relative description like "3 days ago".
+useCases:
+  - Reading a timestamp out of a log line or database column to find out when an event actually happened.
+  - Working out the exact expiry moment of a token or cache entry whose TTL is stored as an epoch value.
+  - Producing a timestamp for a test fixture or API request that expects epoch seconds.
+  - Grabbing the current Unix time to paste into a query or a configuration value.
+howTo:
+  - The current Unix time is shown live at the top of the page — copy it in seconds or milliseconds with one click.
+  - To convert a timestamp, leave the mode on "Timestamp → date" and paste your number in. The unit is auto-detected.
+  - To go the other way, switch to "Date → timestamp" and enter a date; ISO 8601 is parsed most reliably.
+  - Every row of the result has its own copy button, so you can take just the format you need.
+example:
+  label: Converting a ten-digit epoch value.
+  input: '1700000000'
+  output: |-
+    ISO 8601 (UTC):  2023-11-14T22:13:20.000Z
+    Unix ms:         1700000000000
+    Day of week:     Tuesday
+  note: Ten digits is seconds and thirteen is milliseconds; the tool detects which you pasted, and you can override it if a value is ambiguous.
+faq:
+  - q: Is my timestamp in seconds or milliseconds?
+    a: Count the digits. A present-day timestamp in seconds has ten digits; in milliseconds it has thirteen. This tool auto-detects using that rule, treating anything of magnitude one trillion or more as milliseconds. Mixing the two up by a factor of a thousand is an extremely common bug — a seconds value read as milliseconds lands in January 1970.
+  - q: Why does the displayed local time differ from what I expected?
+    a: The local time row uses your computer's time zone setting, while the ISO and RFC rows are always UTC. If they seem inconsistent, check your system's time zone. A Unix timestamp itself carries no time zone at all — it is always an absolute moment, and the time zone only affects how it is displayed.
+  - q: What happens after the year 2038?
+    a: Systems that store timestamps in a signed 32-bit integer overflow on 19 January 2038, wrapping to a negative number and appearing to jump back to 1901. This is the "Year 2038 problem". Modern systems use 64-bit values and are unaffected for billions of years. This tool handles any value JavaScript can represent as a date.
+  - q: Can I convert a date from before 1970?
+    a: Yes. Timestamps before the epoch are simply negative — -86400 is 31 December 1969. The tool accepts negative values and converts them correctly, which is occasionally useful when working with historical dates in systems that store epoch values.
+  - q: Does leap-second handling matter here?
+    a: Not for Unix time. The Unix timestamp specification deliberately ignores leap seconds, treating every day as exactly 86,400 seconds. This means Unix time is not a true count of elapsed SI seconds since 1970, but it does keep the arithmetic simple and consistent, which is the trade-off nearly every system has chosen.
+related:
+  - uuid-generator
+  - jwt-decoder
+  - json-formatter
+---
+
+## ISO 8601 is the format to prefer
+
+When you control the format, write dates as ISO 8601 with an explicit UTC offset —
+`2026-03-14T09:26:53Z`. It sorts correctly as a plain string, it is unambiguous about time
+zone, and every language's date library parses it. Formats like `03/14/2026` are ambiguous
+between American and European conventions and cause real bugs.

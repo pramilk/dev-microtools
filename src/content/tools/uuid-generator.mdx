@@ -1,0 +1,54 @@
+---
+title: UUID Generator
+headline: UUID Generator — v4 and v7
+description: Generate random v4 or time-ordered v7 UUIDs in bulk, and inspect existing ones. Runs in your browser using the native crypto API. Free, no sign-up.
+summary: Generate v4 or time-ordered v7 UUIDs in bulk, and inspect existing ones.
+category: Generate
+order: 4
+updated: 2026-08-22
+whatIsIt: >-
+  A UUID is a 128-bit identifier designed to be unique without any central coordination,
+  which is what makes it useful across distributed systems where two machines must be
+  able to mint IDs independently without ever colliding. This tool generates two
+  versions: v4, which is entirely random, and v7, which puts a millisecond timestamp in
+  the leading bits so that IDs sort chronologically. It also inspects an existing UUID to
+  report its version and, for v7, the moment it was created.
+useCases:
+  - Creating a batch of identifiers for test fixtures or seed data, where you need many distinct IDs quickly.
+  - Choosing v7 for database primary keys, where the time ordering keeps B-tree indexes from fragmenting the way random v4 keys do.
+  - Generating a correlation ID for tracing a request across several services.
+  - Checking whether an unfamiliar identifier is a valid UUID, which version it is, and when a v7 was generated.
+howTo:
+  - Pick v4 for pure randomness, or v7 if you want identifiers that sort by creation time.
+  - Set how many you need — up to 1000 at once — and press Generate.
+  - Use "Copy all" to place the whole batch on your clipboard, one per line.
+  - To examine an existing identifier, paste it into the inspect field at the bottom of the tool.
+example:
+  label: A v7 UUID, with its embedded timestamp decoded.
+  input: '019284f1-8c40-7a3e-b9d2-1f4c8a2e5b71'
+  output: 'Valid UUID, version 7 (RFC 4122), created 2026-03-14T09:26:53.000Z'
+  note: The first twelve hexadecimal digits of a v7 UUID are a Unix millisecond timestamp, which is why the creation time can be read back out of the identifier itself.
+faq:
+  - q: Should I use v4 or v7?
+    a: Use v7 for anything stored in a database index, and v4 when you specifically want no information leaked by the identifier. v7's time ordering means new rows are appended near each other in the index rather than scattered randomly, which measurably improves insert performance and reduces index bloat on large tables. The trade-off is that a v7 UUID reveals roughly when it was created.
+  - q: Can two generated UUIDs ever be the same?
+    a: In practice, no. A v4 UUID has 122 random bits, giving about 5.3 undecillion possibilities. You would need to generate billions per second for many years before a collision became likely. This tool uses the browser's cryptographically secure random number generator, not Math.random, so the randomness is genuine rather than predictable.
+  - q: Are these UUIDs generated on a server?
+    a: No. They are produced in your browser by the native crypto.randomUUID and crypto.getRandomValues APIs. Nothing is transmitted, and no server ever sees the identifiers you generate — which matters if you are producing IDs that will become secrets or tokens in your system.
+  - q: What does the version digit mean?
+    a: The thirteenth hexadecimal digit of a UUID identifies its version — how it was generated. Version 4 means random, version 7 means time-ordered, version 1 means it was derived from a MAC address and timestamp, and so on. The tool reads this digit when you inspect a UUID and reports what it found.
+  - q: Is a UUID safe to use as a security token?
+    a: A v4 UUID from a cryptographically secure source has 122 bits of entropy, which is more than enough to be unguessable. A v7 UUID is not, because most of its leading bits are a predictable timestamp — do not use v7 where unguessability matters. In general, if a value is a security token, generate it as a dedicated random secret rather than reaching for a UUID.
+related:
+  - hash-generator
+  - timestamp-converter
+  - jwt-decoder
+---
+
+## Why v7 exists
+
+For years the standard advice was to avoid UUIDs as database primary keys, because random
+v4 values scatter inserts across the whole index and destroy write locality. Version 7,
+standardised in RFC 9562, fixes exactly that by making the identifier monotonic in time
+while keeping enough randomness to stay unique. If you were previously reaching for an
+auto-incrementing integer purely for index performance, v7 is worth reconsidering.

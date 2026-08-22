@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Update the host once the real domain is live.
+Sitemap: https://example.com/sitemap-index.xml

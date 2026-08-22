@@ -1,0 +1,20 @@
+{
+  // Cloudflare Workers static-assets deployment.
+  //
+  // The site is fully static (`output: 'static'` in astro.config.mjs), so no
+  // @astrojs/cloudflare adapter is needed — `astro build` writes plain files to
+  // dist/ and Workers serves them directly.
+  //
+  // Deploy with:  npx wrangler deploy
+  // Preview with: npx wrangler dev
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dev-microtools",
+  "compatibility_date": "2026-08-22",
+  "assets": {
+    "directory": "./dist",
+    // Serve /tools/foo/ from /tools/foo/index.html, matching Astro's
+    // trailingSlash: 'always' + build.format: 'directory' output.
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  }
+}

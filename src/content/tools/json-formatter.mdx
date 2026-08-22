@@ -1,0 +1,63 @@
+---
+title: JSON Formatter
+headline: JSON Formatter and Validator
+description: Format, minify, validate and sort JSON in your browser. Nothing is uploaded — paste API responses and config files safely. Free, no sign-up.
+summary: Beautify, minify, validate and sort JSON entirely in your browser.
+category: Format
+order: 1
+updated: 2026-08-22
+whatIsIt: >-
+  A JSON formatter takes JSON that is hard to read — a minified API response, a config
+  file with inconsistent indentation, a log line containing an embedded payload — and
+  re-prints it with consistent indentation so the structure is obvious at a glance. This
+  tool also validates as it goes: if the JSON is malformed, it tells you what is wrong
+  and where, rather than silently producing nothing. It can minify in the other
+  direction, and sort object keys alphabetically so two documents can be compared
+  meaningfully.
+useCases:
+  - Reading a minified API response that arrived as one enormous single line, where finding a particular field by eye is otherwise impossible.
+  - Checking whether a config file is valid JSON before deploying it, so a missing comma fails on your machine rather than in production.
+  - Minifying a JSON payload before embedding it somewhere size-sensitive, such as a data attribute or an environment variable.
+  - Sorting keys on two versions of the same document so that a diff shows real changes instead of key-order noise.
+howTo:
+  - Paste your JSON into the input pane on the left. Formatting happens as you type — there is no button to press.
+  - Choose Beautify, Minify or Sort keys, and pick the indentation you prefer (2 spaces, 4 spaces, or tabs).
+  - If the JSON is invalid, an error appears explaining the problem and the character position where the parser gave up.
+  - Use the Copy button to put the result on your clipboard.
+example:
+  label: A minified API response, beautified with 2-space indentation.
+  input: '{"id":42,"name":"Ada","roles":["admin","dev"],"active":true}'
+  output: |-
+    {
+      "id": 42,
+      "name": "Ada",
+      "roles": [
+        "admin",
+        "dev"
+      ],
+      "active": true
+    }
+  note: The tool also reports structural statistics — key count, nesting depth and total nodes — which is often the fastest way to sanity-check an unfamiliar payload.
+faq:
+  - q: Is my JSON sent to a server?
+    a: No. The formatting, validation and sorting all happen in JavaScript inside your own browser tab. No network request is made with your data, which means it is safe to paste API responses containing tokens or personal information. You can confirm this yourself by opening your browser's Network tab while using the tool — you will see no outbound requests.
+  - q: Why does sorting keys leave my arrays in the original order?
+    a: Because array order is data, not formatting. Reordering the elements of an array changes what the document means, so this tool deliberately never touches it. Only the keys within objects are sorted, since JSON object key order carries no semantic meaning per the specification.
+  - q: What does the error message mean when it mentions a position?
+    a: The position is the character offset in your input where the JSON parser encountered something it could not handle. It is usually a few characters after the actual mistake — a missing comma or an unclosed bracket earlier in the document often only becomes unparseable later on. Look slightly before the reported position.
+  - q: Can it handle very large JSON files?
+    a: It handles files of a few megabytes comfortably. Because everything runs in your browser tab, extremely large documents (tens of megabytes) may make the page feel sluggish while parsing, since the work competes with rendering on the same thread. For files that size, a command-line tool such as jq is a better fit.
+  - q: Does it support JSON5, comments, or trailing commas?
+    a: No. This tool validates against the strict JSON specification, which does not permit comments or trailing commas. That is deliberate — if your document parses here, it will parse in any standards-compliant JSON parser. If you need comments in configuration, JSONC or YAML are better formats for that purpose.
+related:
+  - diff-checker
+  - base64-encode-decode
+  - jwt-decoder
+---
+
+## A note on validation
+
+"Valid JSON" is a narrower category than most people expect. Single quotes around strings,
+unquoted object keys, trailing commas and `//` comments are all common in JavaScript object
+literals and all invalid in JSON. If you are hand-writing a JSON file and it will not parse,
+those four are worth checking before anything else.

@@ -1,0 +1,112 @@
+---
+// A three-state theme control (system -> light -> dark -> system).
+// Deliberately a tiny inline script rather than a Preact island: it is a few lines
+// of DOM work and does not justify shipping a component framework to every page.
+---
+
+<button
+  type="button"
+  class="theme-toggle"
+  data-theme-toggle
+  aria-label="Change colour theme"
+  title="Change colour theme"
+>
+  <span class="theme-toggle__icon" data-theme-icon aria-hidden="true">◐</span>
+  <span class="sr-only" data-theme-label>System theme</span>
+</button>
+
+<style>
+  .theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.125rem;
+    height: 2.125rem;
+    padding: 0;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.95rem;
+    line-height: 1;
+    transition:
+      background-color 0.12s ease,
+      color 0.12s ease,
+      border-color 0.12s ease;
+  }
+
+  .theme-toggle:hover {
+    background: var(--surface-2);
+    color: var(--text);
+    border-color: var(--text-subtle);
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+
+<script>
+  const MODES = ['system', 'light', 'dark'] as const;
+  type Mode = (typeof MODES)[number];
+
+  const ICONS: Record<Mode, string> = { system: '◐', light: '☀', dark: '☾' };
+  const LABELS: Record<Mode, string> = {
+    system: 'System theme',
+    light: 'Light theme',
+    dark: 'Dark theme',
+  };
+
+  function readMode(): Mode {
+    try {
+      const saved = localStorage.getItem('theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch {
+      // localStorage blocked (private mode) — fall through to system default.
+    }
+    return 'system';
+  }
+
+  function applyMode(mode: Mode): void {
+    const root = document.documentElement;
+    if (mode === 'system') {
+      root.removeAttribute('data-theme');
+    } else {
+      root.setAttribute('data-theme', mode);
+    }
+
+    try {
+      if (mode === 'system') localStorage.removeItem('theme');
+      else localStorage.setItem('theme', mode);
+    } catch {
+      // Persisting is best-effort; the theme still applies for this page view.
+    }
+
+    for (const button of document.querySelectorAll<HTMLElement>('[data-theme-toggle]')) {
+      const icon = button.querySelector<HTMLElement>('[data-theme-icon]');
+      const label = button.querySelector<HTMLElement>('[data-theme-label]');
+      if (icon) icon.textContent = ICONS[mode];
+      if (label) label.textContent = LABELS[mode];
+      button.setAttribute('title', `${LABELS[mode]} — click to change`);
+    }
+  }
+
+  let current: Mode = readMode();
+  applyMode(current);
+
+  for (const button of document.querySelectorAll<HTMLElement>('[data-theme-toggle]')) {
+    button.addEventListener('click', () => {
+      current = MODES[(MODES.indexOf(current) + 1) % MODES.length]!;
+      applyMode(current);
+    });
+  }
+</script>

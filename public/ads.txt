@@ -1,0 +1,8 @@
+# Authorized Digital Sellers (IAB ads.txt)
+#
+# PLACEHOLDER — replace this entire file with the line Google AdSense gives you
+# after your account is approved. It looks like:
+#
+#   google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
+#
+# Until then this file intentionally declares no authorized sellers.

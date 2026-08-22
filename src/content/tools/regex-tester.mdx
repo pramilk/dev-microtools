@@ -1,0 +1,57 @@
+---
+title: Regex Tester
+headline: Regex Tester with Live Match Highlighting
+description: Test JavaScript regular expressions with live highlighting, capture groups and replace preview. Runs in your browser, nothing uploaded. Free, no sign-up.
+summary: Test regular expressions with live highlighting, groups and replace preview.
+category: Inspect
+order: 2
+updated: 2026-08-22
+whatIsIt: >-
+  A regular expression describes a pattern of text, and getting one right almost always
+  takes several attempts against real input. This tester runs your pattern as you type,
+  highlights every match in the subject text, and lists each match with its position and
+  captured groups — both numbered and named. It also previews replacements, so you can
+  confirm a substitution does what you intend before running it against anything that
+  matters. The engine is your browser's own, so behaviour matches JavaScript exactly.
+useCases:
+  - Building a validation pattern and checking it against a list of inputs that should match and inputs that should not.
+  - Extracting a field from semi-structured text such as log lines, and confirming the capture group grabs exactly the right part.
+  - Working out why an existing pattern fails on a particular input, by watching the highlighting change as you adjust it.
+  - Previewing a find-and-replace with back-references before applying it across a codebase.
+howTo:
+  - Type your pattern into the expression field — write it without the surrounding slashes.
+  - Toggle the flags you need. Global finds every match rather than just the first; ignore case does what it says.
+  - Paste your test string below. Matches highlight live, and each one is listed with its position and groups.
+  - Tick "Show replace" to add a replacement field, where $1 or $&lt;name&gt; insert captured groups.
+example:
+  label: Extracting the user and domain from email addresses with named groups.
+  input: '(?<user>[\w.+-]+)@(?<domain>[\w-]+\.[\w.]+)'
+  output: |-
+    Match #1  ada@example.com        user=ada          domain=example.com
+    Match #2  grace.hopper@navy.mil  user=grace.hopper domain=navy.mil
+  note: Named groups make a pattern far easier to read six months later than $1 and $2 do, and every modern JavaScript engine supports them.
+faq:
+  - q: Which regex flavour does this use?
+    a: JavaScript's, because the pattern runs in your browser's native engine. Most syntax is shared across languages, but there are real differences — JavaScript has no atomic groups or possessive quantifiers, and its lookbehind support is newer than some engines'. If your pattern is destined for Python, PCRE or Go, test it there too before relying on it.
+  - q: Why does my pattern match nothing when it works elsewhere?
+    a: >-
+      The most common cause is a missing global flag, which limits you to the first match. The second is escaping: if you copied the pattern out of a string literal in code, it may contain doubled backslashes that need reducing to single ones here. Enter the raw pattern, not the quoted string version of it.
+  - q: What does the warning about matching an empty string mean?
+    a: Your pattern can succeed while consuming no characters — typically because a quantifier like * or ? allows zero repetitions. This is usually a mistake; the fix is often changing * to +. It also causes infinite loops in naive matching code, which is why the tool flags it explicitly.
+  - q: Is my test data sent anywhere?
+    a: No. The pattern and the subject text stay in your browser and are executed by its built-in regular expression engine. Nothing is transmitted, so you can safely test patterns against real log excerpts or production data.
+  - q: Why is my regex extremely slow on some inputs?
+    a: Probably catastrophic backtracking. Nested quantifiers such as (a+)+ can cause the engine to explore exponentially many ways to match a failing input, hanging for seconds or longer on a string of modest length. This is a real denial-of-service risk if the pattern runs on user input. Simplify the nesting, or anchor the pattern so it fails fast.
+related:
+  - json-formatter
+  - diff-checker
+  - url-encode-decode
+---
+
+## Validating email addresses
+
+The pattern in the example above is a reasonable approximation, not a correct email
+validator — the actual grammar in RFC 5322 permits quoted strings, comments and nested
+constructs that no readable regex handles. For real validation, check that the address
+contains an `@` with something plausible on each side, then send a confirmation email.
+That is the only test that establishes what you actually care about.

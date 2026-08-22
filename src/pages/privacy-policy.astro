@@ -1,0 +1,101 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE } from '../lib/site';
+
+const updated = '22 August 2026';
+---
+
+<BaseLayout
+  title="Privacy Policy"
+  description={`How ${SITE.name} handles data: tool input never leaves your browser, and what the analytics and advertising do collect.`}
+  canonicalPath="/privacy-policy/"
+>
+  <div class="container page">
+    <h1>Privacy Policy</h1>
+    <p class="eyebrow">Last updated {updated}</p>
+
+    <div class="prose">
+      <h2>The short version</h2>
+      <p>
+        Anything you type or paste into a tool on this site stays in your browser. It is
+        never transmitted to us or to anyone else, and we could not read it if we wanted
+        to. Separately, like most websites, we collect basic anonymous traffic statistics
+        and show advertising — both are described in full below.
+      </p>
+
+      <h2>Data you enter into tools</h2>
+      <p>
+        Every tool on this site runs as JavaScript inside your own browser. There is no
+        server-side processing, no database, and no logging of tool input. When you paste
+        JSON, a token, a password to hash, or any other content into a tool:
+      </p>
+      <ul>
+        <li>It is processed locally by your browser and then discarded when you close or reload the page.</li>
+        <li>It is never sent over the network to this site or any third party.</li>
+        <li>It is never stored, logged, or retained in any form.</li>
+      </ul>
+      <p>
+        You can verify this independently by opening your browser's developer tools, going
+        to the Network tab, and using any tool on the site.
+      </p>
+
+      <h2>Analytics</h2>
+      <p>
+        We use Cloudflare Web Analytics to understand which pages are used and how quickly
+        they load. It is cookieless and does not fingerprint or track individuals across
+        sites. It records aggregate information such as page URL, referring site, country,
+        browser type, and page-load timings. It does not record anything you type.
+      </p>
+
+      <h2>Advertising</h2>
+      <p>
+        This site is funded by display advertising served by Google AdSense. Third-party
+        vendors, including Google, use cookies to serve ads based on your prior visits to
+        this and other websites. Google's use of advertising cookies enables it and its
+        partners to serve ads based on your visit to this and other sites.
+      </p>
+      <p>
+        You can opt out of personalised advertising by visiting
+        <a href="https://www.google.com/settings/ads" rel="nofollow noopener">Google Ads Settings</a>,
+        or opt out of third-party vendors' use of cookies for personalised advertising at
+        <a href="https://www.aboutads.info/choices/" rel="nofollow noopener">aboutads.info</a>.
+      </p>
+      <p>
+        If you are in the European Economic Area, the United Kingdom or Switzerland, you
+        will be asked for consent before any personalised advertising cookies are set, and
+        you can change or withdraw that consent at any time.
+      </p>
+
+      <h2>Local storage</h2>
+      <p>
+        The site stores a single value in your browser's local storage: your light or dark
+        theme preference. It never leaves your device and is not used to identify you. If
+        you have not chosen a theme, nothing is stored at all.
+      </p>
+
+      <h2>Your rights</h2>
+      <p>
+        Because we do not collect personal data through the tools, there is generally no
+        personal data of yours for us to access, correct, or delete. For the advertising
+        cookies described above, your choices are managed through the consent controls and
+        the opt-out links in that section.
+      </p>
+
+      <h2>Changes</h2>
+      <p>
+        If this policy changes materially, the "last updated" date above will change. The
+        commitment that tool input never leaves your browser is architectural — the site
+        has no server capable of receiving it — and is not something we intend to alter.
+      </p>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .page {
+    padding-block: var(--space-6) var(--space-7);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+</style>

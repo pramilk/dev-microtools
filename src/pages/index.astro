@@ -1,17 +1,189 @@
 ---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE } from '../lib/site';
 
+const tools = (await getCollection('tools')).sort((a, b) => a.data.order - b.data.order);
+
+// Group by category so the index has structure rather than being one long list.
+const categories = [...new Set(tools.map((tool) => tool.data.category))];
+
+const schema = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE.name,
+    url: SITE.url,
+    description: SITE.description,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    itemListElement: tools.map((tool, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: tool.data.title,
+      url: new URL(`/tools/${tool.id}/`, Astro.site ?? SITE.url).href,
+    })),
+  },
+];
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<BaseLayout title={SITE.name} description={SITE.description} canonicalPath="/" schema={schema}>
+  <div class="container home">
+    <section class="hero">
+      <p class="eyebrow">{tools.length} tools · no sign-up · no uploads</p>
+      <h1>{SITE.tagline}</h1>
+      <p class="lede">
+        Small, focused utilities for everyday development work — formatting, decoding,
+        hashing, comparing. Every one runs entirely in your browser, so nothing you paste
+        is ever sent to a server.
+      </p>
+    </section>
+
+    {
+      categories.map((category) => (
+        <section class="group">
+          <h2 class="group__title">{category}</h2>
+          <ul class="grid">
+            {tools
+              .filter((tool) => tool.data.category === category)
+              .map((tool) => (
+                <li>
+                  <a href={`/tools/${tool.id}/`} class="card tool-card">
+                    <span class="tool-card__name">{tool.data.title}</span>
+                    <span class="tool-card__summary">{tool.data.summary}</span>
+                  </a>
+                </li>
+              ))}
+          </ul>
+        </section>
+      ))
+    }
+
+    <section class="why">
+      <h2>Why these tools are different</h2>
+      <div class="why__grid">
+        <div class="why__item">
+          <h3>Nothing leaves your browser</h3>
+          <p>
+            Every tool is pure client-side JavaScript. There is no backend and no database,
+            so pasting a JWT, an API response or a config file here does not transmit it
+            anywhere. Open your browser's Network tab and check — you will see no requests.
+          </p>
+        </div>
+        <div class="why__item">
+          <h3>Fast, because there is nothing to load</h3>
+          <p>
+            Pages are static HTML with one small interactive component. No framework
+            bundle, no tracking scripts, no cookie wall between you and the thing you came
+            to do.
+          </p>
+        </div>
+        <div class="why__item">
+          <h3>No sign-up, no limits</h3>
+          <p>
+            No account, no rate limit, no "upgrade to process files over 1MB". These are
+            small utilities and they should just work.
+          </p>
+        </div>
+      </div>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .home {
+    padding-block: var(--space-7) var(--space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-7);
+  }
+
+  .hero {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    max-width: 46rem;
+  }
+
+  .group__title {
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: var(--font-mono);
+    color: var(--text-subtle);
+    font-weight: 600;
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: var(--space-4);
+  }
+
+  .grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  }
+
+  .tool-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    height: 100%;
+    padding: var(--space-4);
+    text-decoration: none;
+    transition:
+      border-color 0.12s ease,
+      transform 0.12s ease,
+      box-shadow 0.12s ease;
+  }
+
+  .tool-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow);
+  }
+
+  .tool-card__name {
+    font-weight: 650;
+    color: var(--text);
+    font-size: var(--text-base);
+  }
+
+  .tool-card:hover .tool-card__name {
+    color: var(--accent);
+  }
+
+  .tool-card__summary {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .why {
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-6);
+  }
+
+  .why h2 {
+    margin-bottom: var(--space-4);
+  }
+
+  .why__grid {
+    display: grid;
+    gap: var(--space-5);
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  }
+
+  .why__item h3 {
+    font-size: var(--text-base);
+    margin-bottom: var(--space-2);
+  }
+
+  .why__item p {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+</style>

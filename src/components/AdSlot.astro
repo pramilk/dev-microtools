@@ -1,0 +1,63 @@
+---
+import { SITE } from '../lib/site';
+
+interface Props {
+  /** Where on the page this unit sits, used only for labelling in the markup. */
+  placement: 'in-content' | 'footer';
+}
+
+const { placement } = Astro.props;
+
+// Ads render only once a publisher ID is configured. Until then the slot reserves
+// its space and nothing else — so enabling AdSense later cannot shift the layout,
+// and the pre-AdSense site is not shipping empty ad markup to visitors.
+const enabled = SITE.adsensePublisherId !== null;
+---
+
+{
+  enabled && (
+    <aside class="ad-slot" data-placement={placement} aria-label="Advertisement">
+      <span class="ad-slot__label">Advertisement</span>
+      <ins
+        class="adsbygoogle"
+        style="display:block"
+        data-ad-client={SITE.adsensePublisherId}
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      />
+    </aside>
+  )
+}
+
+<style>
+  /*
+   * The reserved height is the point of this component: an ad that loads late must
+   * never push content down. Cumulative Layout Shift is both a ranking signal and
+   * the most irritating thing a tool site can do to someone mid-task.
+   */
+  .ad-slot {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-height: 100px;
+    margin-block: var(--space-5);
+    padding: var(--space-2);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+  }
+
+  .ad-slot__label {
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-subtle);
+    font-family: var(--font-mono);
+  }
+
+  @media (min-width: 48rem) {
+    .ad-slot {
+      min-height: 90px;
+    }
+  }
+</style>

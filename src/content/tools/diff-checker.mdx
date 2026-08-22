@@ -1,0 +1,57 @@
+---
+title: Diff Checker
+headline: Text and JSON Diff Checker
+description: Compare two texts or JSON documents line by line, word by word or character by character. Runs in your browser, nothing uploaded. Free, no sign-up.
+summary: Compare two texts or JSON documents and see exactly what changed.
+category: Compare
+order: 10
+updated: 2026-08-22
+whatIsIt: >-
+  A diff checker takes two versions of the same text and shows precisely what changed
+  between them, which is far more reliable than reading both and trying to spot the
+  difference by eye. This tool compares by line, by word or by character, and has a
+  dedicated JSON mode that normalises both documents first — so reformatting and key
+  reordering are ignored and only genuine value changes are reported. Everything runs in
+  your browser.
+useCases:
+  - Comparing two API responses to find the one field that differs between a working request and a failing one.
+  - Checking a config file against its known-good version before deploying, to confirm only the intended lines changed.
+  - Finding the difference between two error messages or log excerpts that look identical at a glance.
+  - Verifying that a reformatting change altered only whitespace and not any actual values.
+howTo:
+  - Paste the original text into the left pane and the changed version into the right.
+  - Choose Text or JSON. JSON mode sorts keys and normalises indentation on both sides first, so only real differences show.
+  - In Text mode, pick the granularity — by line for code and config, by word for prose, by character for short strings.
+  - Additions appear in green and removals in red, with a count of each above the result.
+example:
+  label: Two JSON documents that differ only in formatting and key order.
+  input: |-
+    Left:   {"b":2,"a":1}
+    Right:  {
+              "a": 1,
+              "b": 2
+            }
+  output: 'These two documents are equivalent JSON — only the formatting differs.'
+  note: A plain text diff would report every line as changed here. JSON mode recognises that nothing meaningful is different.
+faq:
+  - q: What is the difference between line, word and character mode?
+    a: Line mode treats each line as a unit, which is right for code and configuration where changes are naturally line-shaped. Word mode is better for prose, where a single reworded sentence would otherwise show as one whole line deleted and another added. Character mode is for short strings where you need to spot a single differing character, such as a mistyped identifier.
+  - q: Why does JSON mode say two documents are identical when they clearly look different?
+    a: Because in JSON they are equivalent. Object key order carries no meaning in the JSON specification, and whitespace between tokens is insignificant, so two documents that differ only in those respects encode exactly the same data. JSON mode normalises both sides before comparing so you see semantic differences rather than cosmetic ones.
+  - q: Does reordering an array count as a change?
+    a: Yes, deliberately. Unlike object keys, array order is meaningful data — [1,2] and [2,1] are different values, and a system consuming them may well behave differently. JSON mode sorts object keys but never touches array order.
+  - q: What does "ignore indentation" actually ignore?
+    a: Leading and trailing whitespace on each line, so a block that was re-indented does not show as changed. Whitespace inside a line is still significant, because a change from one space to two between words is often a real difference. If you want indentation ignored on structured data, JSON mode is usually the better choice.
+  - q: Is there a size limit?
+    a: No hard limit, but the comparison runs on your browser's main thread, so very large inputs — hundreds of thousands of lines — will make the page unresponsive while it works. For files that size, git diff or a dedicated diff tool will serve you better.
+related:
+  - json-formatter
+  - regex-tester
+  - hash-generator
+---
+
+## When a hash is faster than a diff
+
+If you only need to know *whether* two things differ, not *how*, hashing both and comparing
+the digests is far quicker — especially for large inputs. Reach for the diff when the
+answer to "are these different?" is yes and the next question is "where?".

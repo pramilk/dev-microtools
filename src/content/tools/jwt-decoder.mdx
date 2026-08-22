@@ -1,0 +1,58 @@
+---
+title: JWT Debugger
+headline: JWT Decoder, Verifier and Signer
+description: Decode JWT headers and claims, verify HS256 signatures, and sign new tokens — all in your browser. Your tokens are never uploaded. Free, no sign-up.
+summary: Decode, verify and sign JSON Web Tokens without uploading them anywhere.
+category: Inspect
+order: 5
+updated: 2026-08-22
+whatIsIt: >-
+  A JSON Web Token packs a set of claims into three base64url-encoded segments — a header
+  describing the signing algorithm, a payload carrying the claims, and a signature over
+  the first two. This tool decodes all three so you can read what a token actually
+  contains, interprets the standard time-based claims to tell you whether it has expired,
+  verifies HS256 signatures against a secret you supply, and can sign new tokens for
+  testing. Every operation happens in your browser using the native Web Crypto API.
+useCases:
+  - Reading the claims inside a token your API rejected, to find out whether the problem is a missing scope, a wrong audience, or an expiry that has already passed.
+  - Confirming that a token was signed with the secret you expect, and has not been altered in transit.
+  - Checking exactly when a token expires, without doing epoch arithmetic in your head.
+  - Minting a test token with specific claims so you can exercise an endpoint's authorisation logic locally.
+howTo:
+  - Paste a token into the JWT field. The header and payload decode immediately and appear side by side.
+  - Read the registered claims panel to see the issuer, subject, audience and expiry translated into readable dates.
+  - To check the signature, enter the shared secret. The tool verifies HS256 locally and reports whether it matches.
+  - Switch to "Create & sign" to build a new token — edit the payload JSON, supply a secret, and press Sign.
+example:
+  label: Decoding the header of a standard HS256 token.
+  input: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
+  output: |-
+    {
+      "alg": "HS256",
+      "typ": "JWT"
+    }
+  note: Anyone can perform this decode — it requires no secret at all. That is the single most important thing to understand about JWTs.
+faq:
+  - q: Is it safe to paste a production token here?
+    a: The decoding, verification and signing all happen inside your browser tab, and no network request carries your token anywhere. That said, a valid production token is a live credential — anyone who can see your screen, or who later reads your browser history or clipboard, has your session. Prefer expired or test tokens where you can, and treat a real one with the same care you would a password.
+  - q: What is the difference between decoding and verifying?
+    a: Decoding just base64-decodes the token and shows you what is inside; it proves nothing, because the payload is not encrypted and anybody can read it. Verifying recomputes the signature using a secret and checks it matches, which is what actually proves the token was issued by who it claims and has not been tampered with. A decoded token you have not verified should be treated as untrusted input.
+  - q: Why can this tool only verify HS256?
+    a: HS256 is symmetric — the same secret signs and verifies — so verification only needs a string you already have. RS256 and ES256 are asymmetric and verify with a public key, which would be fine, but signing with them requires a private key. Asking people to paste private keys into a web page is a habit worth not encouraging, even on a page that never uploads anything.
+  - q: My token shows as expired but the API still accepts it. Why?
+    a: Expiry is interpreted against your computer's clock, and the "exp" claim is in UTC seconds. If your system clock is wrong, the verdict here will be too. It is also possible the API allows a small amount of clock skew, or simply does not check the expiry claim — which would be a bug in the API worth reporting.
+  - q: Should JWTs contain sensitive data?
+    a: No. The payload is base64-encoded, not encrypted, so every claim is readable by anyone holding the token — including the end user it was issued to. Never put passwords, personal data or internal identifiers you would not want disclosed in a JWT payload. If you need confidentiality as well as integrity, you want JWE rather than JWS.
+related:
+  - base64-encode-decode
+  - hash-generator
+  - timestamp-converter
+---
+
+## The "alg: none" problem
+
+Early JWT libraries accepted tokens whose header declared `"alg": "none"`, treating them
+as valid without checking any signature — which let an attacker strip the signature and
+forge arbitrary claims. Modern libraries reject this, but the lesson generalises: never
+let the token itself decide how it should be verified. Your server should decide which
+algorithm it accepts and refuse anything else.

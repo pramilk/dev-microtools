@@ -1,0 +1,62 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const tools = (await getCollection('tools')).sort((a, b) => a.data.order - b.data.order);
+---
+
+<BaseLayout
+  title="Page not found"
+  description="That page does not exist. Browse the full list of developer tools instead."
+  noindex
+>
+  <div class="container page">
+    <p class="eyebrow">Error 404</p>
+    <h1>That page does not exist</h1>
+    <p class="lede">
+      The link may be out of date, or the address may have a typo. Every tool on the site
+      is listed below.
+    </p>
+
+    <ul class="list">
+      {
+        tools.map((tool) => (
+          <li>
+            <a href={`/tools/${tool.id}/`}>{tool.data.title}</a>
+            <span>{tool.data.summary}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</BaseLayout>
+
+<style>
+  .page {
+    padding-block: var(--space-7);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .list {
+    list-style: none;
+    margin: var(--space-4) 0 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  }
+
+  .list li {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    font-size: var(--text-sm);
+  }
+
+  .list span {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+</style>
