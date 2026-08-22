@@ -40,6 +40,7 @@ export default function UuidGenerator() {
             class="seg__btn"
             aria-pressed={version === 'v4'}
             onClick={() => setVersion('v4')}
+            title="Fully random UUIDs — reveal nothing about when they were created"
           >
             v4 (random)
           </button>
@@ -48,12 +49,13 @@ export default function UuidGenerator() {
             class="seg__btn"
             aria-pressed={version === 'v7'}
             onClick={() => setVersion('v7')}
+            title="UUIDs that sort by creation time — better for database primary keys"
           >
             v7 (time-ordered)
           </button>
         </div>
 
-        <label class="checkbox">
+        <label class="checkbox" title="How many UUIDs to create the next time you press Generate">
           <span class="field__hint">How many</span>
           <input
             type="number"
@@ -67,7 +69,12 @@ export default function UuidGenerator() {
           />
         </label>
 
-        <button type="button" class="btn btn--primary" onClick={generate}>
+        <button
+          type="button"
+          class="btn btn--primary"
+          onClick={generate}
+          title="Create a new batch of UUIDs"
+        >
           <span aria-hidden="true">↻</span> Generate
         </button>
 

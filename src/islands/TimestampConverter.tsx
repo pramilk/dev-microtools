@@ -25,7 +25,9 @@ function Row({ label, value }: { label: string; value: string }) {
 
 export default function TimestampConverter() {
   const [mode, setMode] = useState<Mode>('epoch');
-  const [input, setInput] = useState('');
+  // Seeded with the current time rather than empty, so a result is visible the
+  // instant the tool loads — nobody has to click anything to see it working.
+  const [input, setInput] = useState(() => String(nowBreakdown().seconds));
   const [unit, setUnit] = useState<TimestampUnit | 'auto'>('auto');
   const [now, setNow] = useState<TimestampBreakdown>(() => nowBreakdown());
 
@@ -42,6 +44,24 @@ export default function TimestampConverter() {
 
   const value = result?.ok ? result.value : null;
   const error = result && !result.ok ? result.error : null;
+
+  /**
+   * Switches direction without losing the result: if the current input is a valid
+   * value, it's rewritten into the other mode's representation, so flipping the
+   * toggle keeps showing a conversion instead of an error from feeding, say, a raw
+   * timestamp to the date parser. If the input was invalid, it's replaced with
+   * "now" for the new mode — carrying forward text that already didn't parse would
+   * just produce a different error.
+   */
+  const switchMode = (nextMode: Mode) => {
+    if (nextMode === mode) return;
+    if (value) {
+      setInput(nextMode === 'epoch' ? String(value.seconds) : value.iso);
+    } else {
+      setInput(nextMode === 'epoch' ? String(now.seconds) : new Date().toISOString());
+    }
+    setMode(nextMode);
+  };
 
   return (
     <div class="tool">
@@ -67,7 +87,8 @@ export default function TimestampConverter() {
             type="button"
             class="seg__btn"
             aria-pressed={mode === 'epoch'}
-            onClick={() => setMode('epoch')}
+            onClick={() => switchMode('epoch')}
+            title="Convert a Unix timestamp into a readable date"
           >
             Timestamp → date
           </button>
@@ -75,7 +96,8 @@ export default function TimestampConverter() {
             type="button"
             class="seg__btn"
             aria-pressed={mode === 'date'}
-            onClick={() => setMode('date')}
+            onClick={() => switchMode('date')}
+            title="Convert a date into a Unix timestamp"
           >
             Date → timestamp
           </button>
@@ -88,6 +110,7 @@ export default function TimestampConverter() {
               class="select"
               value={unit}
               aria-label="Timestamp unit"
+              title="Whether to read the input as seconds or milliseconds since the epoch"
               onChange={(event) =>
                 setUnit((event.target as HTMLSelectElement).value as TimestampUnit | 'auto')
               }
@@ -106,10 +129,17 @@ export default function TimestampConverter() {
           onClick={() =>
             setInput(mode === 'epoch' ? String(now.seconds) : new Date().toISOString())
           }
+          title="Replace the input with the current moment"
         >
           Use now
         </button>
-        <button type="button" class="btn" onClick={() => setInput('')} disabled={input === ''}>
+        <button
+          type="button"
+          class="btn"
+          onClick={() => setInput('')}
+          disabled={input === ''}
+          title="Clear the input"
+        >
           Clear
         </button>
       </div>

@@ -73,7 +73,13 @@ export default function HashGenerator() {
       </div>
 
       <div class="tool-bar">
-        <button type="button" class="btn" onClick={() => setInput('')} disabled={input === ''}>
+        <button
+          type="button"
+          class="btn"
+          onClick={() => setInput('')}
+          disabled={input === ''}
+          title="Clear the input and start over"
+        >
           Clear
         </button>
         {busy && <span class="field__hint">Hashing…</span>}

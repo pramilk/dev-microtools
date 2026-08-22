@@ -35,6 +35,7 @@ export default function UrlTool() {
             class="seg__btn"
             aria-pressed={direction === 'encode'}
             onClick={() => setDirection('encode')}
+            title="Percent-encode plain text or a URL"
           >
             Encode
           </button>
@@ -43,6 +44,7 @@ export default function UrlTool() {
             class="seg__btn"
             aria-pressed={direction === 'decode'}
             onClick={() => setDirection('decode')}
+            title="Decode a percent-encoded string back to plain text"
           >
             Decode
           </button>
@@ -79,10 +81,17 @@ export default function UrlTool() {
             setDirection(direction === 'encode' ? 'decode' : 'encode');
           }}
           disabled={output === ''}
+          title="Copy the result into the input and flip direction — useful for checking a round trip"
         >
           <span aria-hidden="true">⇄</span> Use result as input
         </button>
-        <button type="button" class="btn" onClick={() => setInput('')} disabled={input === ''}>
+        <button
+          type="button"
+          class="btn"
+          onClick={() => setInput('')}
+          disabled={input === ''}
+          title="Clear the input and start over"
+        >
           Clear
         </button>
       </div>

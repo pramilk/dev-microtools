@@ -106,6 +106,7 @@ export default function JwtDebugger() {
             class="seg__btn"
             aria-pressed={tab === 'decode'}
             onClick={() => setTab('decode')}
+            title="Paste an existing JWT to read its claims and check its signature"
           >
             Decode &amp; verify
           </button>
@@ -114,6 +115,7 @@ export default function JwtDebugger() {
             class="seg__btn"
             aria-pressed={tab === 'encode'}
             onClick={() => setTab('encode')}
+            title="Build a new JWT from a payload you write and sign it with HS256"
           >
             Create &amp; sign
           </button>
@@ -122,10 +124,21 @@ export default function JwtDebugger() {
         <span class="tool-bar__spacer" />
         {tab === 'decode' && (
           <>
-            <button type="button" class="btn" onClick={() => setToken(SAMPLE)}>
+            <button
+              type="button"
+              class="btn"
+              onClick={() => setToken(SAMPLE)}
+              title="Load a sample HS256 token to try the tool"
+            >
               Load sample
             </button>
-            <button type="button" class="btn" onClick={() => setToken('')} disabled={token === ''}>
+            <button
+              type="button"
+              class="btn"
+              onClick={() => setToken('')}
+              disabled={token === ''}
+              title="Clear the token and start over"
+            >
               Clear
             </button>
           </>
@@ -294,7 +307,12 @@ export default function JwtDebugger() {
           </div>
 
           <div class="tool-bar">
-            <button type="button" class="btn btn--primary" onClick={() => void sign()}>
+            <button
+              type="button"
+              class="btn btn--primary"
+              onClick={() => void sign()}
+              title="Sign the payload above with HS256 using the secret entered"
+            >
               Sign token
             </button>
           </div>

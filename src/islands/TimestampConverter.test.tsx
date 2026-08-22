@@ -55,4 +55,46 @@ describe('<TimestampConverter />', () => {
 
     expect(await screen.findByText('Tuesday')).toBeInTheDocument();
   });
+
+  it('shows a conversion result immediately on load, with no click required', () => {
+    render(<TimestampConverter />);
+    // The input is pre-seeded with the current time, so a result row is already visible.
+    expect(screen.getByText(/ISO 8601 \(UTC\)/i)).toBeInTheDocument();
+  });
+
+  it('carries a valid value across when switching direction, instead of erroring', async () => {
+    render(<TimestampConverter />);
+    typeInto(screen.getByLabelText(/unix timestamp/i), '1700000000');
+    await screen.findByText('2023-11-14T22:13:20.000Z');
+
+    fireEvent.click(screen.getByRole('button', { name: /date → timestamp/i }));
+
+    const dateInput = screen.getByPlaceholderText('2026-03-14T09:26:53Z') as HTMLInputElement;
+    expect(dateInput.value).toBe('2023-11-14T22:13:20.000Z');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText('1700000000')).toBeInTheDocument();
+  });
+
+  it('replaces an invalid value with "now" when switching direction', async () => {
+    render(<TimestampConverter />);
+    typeInto(screen.getByLabelText(/unix timestamp/i), 'not a timestamp');
+    await screen.findByRole('alert');
+
+    fireEvent.click(screen.getByRole('button', { name: /date → timestamp/i }));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(await screen.findByText(/ISO 8601 \(UTC\)/i)).toBeInTheDocument();
+  });
+
+  it('switching direction and back again keeps a valid, roughly-consistent result', async () => {
+    render(<TimestampConverter />);
+    typeInto(screen.getByLabelText(/unix timestamp/i), '1700000000');
+    await screen.findByText('2023-11-14T22:13:20.000Z');
+
+    fireEvent.click(screen.getByRole('button', { name: /date → timestamp/i }));
+    await screen.findByText('1700000000');
+
+    fireEvent.click(screen.getByRole('button', { name: /timestamp → date/i }));
+    expect(await screen.findByText('2023-11-14T22:13:20.000Z')).toBeInTheDocument();
+  });
 });

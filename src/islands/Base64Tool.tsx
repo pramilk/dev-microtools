@@ -34,6 +34,7 @@ export default function Base64Tool() {
             class="seg__btn"
             aria-pressed={direction === 'encode'}
             onClick={() => setDirection('encode')}
+            title="Convert plain text into base64"
           >
             Encode
           </button>
@@ -42,6 +43,7 @@ export default function Base64Tool() {
             class="seg__btn"
             aria-pressed={direction === 'decode'}
             onClick={() => setDirection('decode')}
+            title="Convert base64 back into plain text"
           >
             Decode
           </button>
@@ -60,10 +62,22 @@ export default function Base64Tool() {
 
         <span class="tool-bar__spacer" />
 
-        <button type="button" class="btn" onClick={swap} disabled={output === ''}>
+        <button
+          type="button"
+          class="btn"
+          onClick={swap}
+          disabled={output === ''}
+          title="Copy the result into the input and flip direction — useful for checking a round trip"
+        >
           <span aria-hidden="true">⇄</span> Use result as input
         </button>
-        <button type="button" class="btn" onClick={() => setInput('')} disabled={input === ''}>
+        <button
+          type="button"
+          class="btn"
+          onClick={() => setInput('')}
+          disabled={input === ''}
+          title="Clear the input and start over"
+        >
           Clear
         </button>
       </div>

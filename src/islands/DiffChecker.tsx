@@ -55,6 +55,7 @@ export default function DiffChecker() {
             class="seg__btn"
             aria-pressed={kind === 'text'}
             onClick={() => setKind('text')}
+            title="Compare as plain text, respecting exact formatting"
           >
             Text
           </button>
@@ -78,6 +79,13 @@ export default function DiffChecker() {
                 class="seg__btn"
                 aria-pressed={mode === value}
                 onClick={() => setMode(value)}
+                title={
+                  value === 'line'
+                    ? 'Treat each line as one unit — best for code and config'
+                    : value === 'word'
+                      ? 'Treat each word as one unit — best for prose'
+                      : 'Treat each character as one unit — best for short strings'
+                }
               >
                 By {value}
               </button>
@@ -94,6 +102,7 @@ export default function DiffChecker() {
             setRight('');
           }}
           disabled={left === '' && right === ''}
+          title="Clear both panes and start over"
         >
           Clear both
         </button>
@@ -101,7 +110,7 @@ export default function DiffChecker() {
 
       {kind === 'text' && (
         <div class="tool-bar">
-          <label class="checkbox">
+          <label class="checkbox" title="Treat uppercase and lowercase letters as equivalent">
             <input
               type="checkbox"
               checked={ignoreCase}
@@ -109,7 +118,10 @@ export default function DiffChecker() {
             />
             Ignore case
           </label>
-          <label class="checkbox">
+          <label
+            class="checkbox"
+            title="Ignore leading/trailing whitespace on each line — internal spacing still counts"
+          >
             <input
               type="checkbox"
               checked={ignoreWhitespace}

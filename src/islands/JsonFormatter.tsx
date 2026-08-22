@@ -107,17 +107,18 @@ export default function JsonFormatter() {
         <div class="seg" role="group" aria-label="Action">
           {(
             [
-              ['format', 'Beautify'],
-              ['minify', 'Minify'],
-              ['sort', 'Sort keys'],
+              ['format', 'Beautify', 'Pretty-print with indentation so the structure is easy to read'],
+              ['minify', 'Minify', 'Collapse to a single line with no extra whitespace'],
+              ['sort', 'Sort keys', 'Alphabetise object keys, so two documents compare cleanly'],
             ] as const
-          ).map(([value, label]) => (
+          ).map(([value, label, hint]) => (
             <button
               key={value}
               type="button"
               class="seg__btn"
               aria-pressed={action === value}
               onClick={() => setAction(value)}
+              title={hint}
             >
               {label}
             </button>
@@ -135,6 +136,7 @@ export default function JsonFormatter() {
               setIndent(next === 'tab' ? 'tab' : (Number(next) as 2 | 4));
             }}
             aria-label="Indentation"
+            title="Choose the indentation width used when beautifying or sorting"
           >
             <option value="2">2 spaces</option>
             <option value="4">4 spaces</option>
@@ -153,7 +155,12 @@ export default function JsonFormatter() {
 
         <span class="tool-bar__spacer" />
 
-        <button type="button" class="btn" onClick={() => setInput(SAMPLE)}>
+        <button
+          type="button"
+          class="btn"
+          onClick={() => setInput(SAMPLE)}
+          title="Load a small example document to try the tool"
+        >
           Load sample
         </button>
         <button
@@ -164,7 +171,13 @@ export default function JsonFormatter() {
         >
           Load broken sample
         </button>
-        <button type="button" class="btn" onClick={() => setInput('')} disabled={input === ''}>
+        <button
+          type="button"
+          class="btn"
+          onClick={() => setInput('')}
+          disabled={input === ''}
+          title="Clear the input and start over"
+        >
           Clear
         </button>
       </div>

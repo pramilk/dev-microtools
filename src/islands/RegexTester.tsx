@@ -88,6 +88,7 @@ export default function RegexTester() {
             setSubject(SAMPLE_TEXT);
             setFlags('g');
           }}
+          title="Load an example pattern and text to try the tool"
         >
           Load sample
         </button>
@@ -185,7 +186,7 @@ export default function RegexTester() {
         </div>
       )}
 
-      <label class="checkbox">
+      <label class="checkbox" title="Preview a find-and-replace using this pattern, without changing anything">
         <input
           type="checkbox"
           checked={showReplace}
