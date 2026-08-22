@@ -22,7 +22,7 @@ const tools = (await getCollection('tools')).sort((a, b) => a.data.order - b.dat
       {
         tools.map((tool) => (
           <li>
-            <a href={`/tools/${tool.id}/`}>{tool.data.title}</a>
+            <a href={`/${tool.id}/`}>{tool.data.title}</a>
             <span>{tool.data.summary}</span>
           </li>
         ))

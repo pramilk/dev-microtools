@@ -1,32 +1,105 @@
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { formatJson, minifyJson, sortJsonKeys, parseJson, analyseJson, type IndentStyle } from '../lib/tools/json';
+import type { RepairedJson } from '../lib/tools/jsonRepair';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { OutputPane } from './shared/OutputPane';
 
 const SAMPLE = '{"name":"ada","langs":["js","ts"],"active":true,"meta":{"id":42,"tags":null}}';
+const BROKEN_SAMPLE = `{
+  // trailing commas, comments and single quotes are all invalid JSON
+  name: 'api-server',
+  port: 8080,
+  debug: True,
+  hosts: ['a.dev', 'b.dev',],
+}`;
 
 type Action = 'format' | 'minify' | 'sort';
+
+/** Runs the selected action over a source document. */
+const applyAction = (source: string, action: Action, indent: IndentStyle) => {
+  if (action === 'minify') return minifyJson(source);
+  if (action === 'sort') return sortJsonKeys(source, indent);
+  return formatJson(source, indent);
+};
 
 export default function JsonFormatter() {
   const [input, setInput] = useState('');
   const [indent, setIndent] = useState<IndentStyle>(2);
   const [action, setAction] = useState<Action>('format');
+  const [autoFix, setAutoFix] = useState(true);
 
-  const result = useMemo(() => {
+  /** The result of running the action over exactly what the user typed. */
+  const rawResult = useMemo(() => {
     if (input.trim() === '') return null;
-    if (action === 'minify') return minifyJson(input);
-    if (action === 'sort') return sortJsonKeys(input, indent);
-    return formatJson(input, indent);
+    return applyAction(input, action, indent);
   }, [input, indent, action]);
 
+  const [repair, setRepair] = useState<RepairedJson | null>(null);
+
+  /*
+   * When the input will not parse, work out whether it can be salvaged.
+   *
+   * The repair parser is loaded on demand: most visits format JSON that is already
+   * valid, and those should not pay for code they never run.
+   */
+  useEffect(() => {
+    if (input.trim() === '' || rawResult === null || rawResult.ok) {
+      setRepair(null);
+      return;
+    }
+
+    let cancelled = false;
+    void import('../lib/tools/jsonRepair')
+      .then(({ repairJson }) => {
+        // Discard a stale result if the input changed while the module was loading.
+        if (cancelled) return;
+        const attempt = repairJson(input);
+        setRepair(attempt.ok ? attempt.value : null);
+      })
+      .catch(() => {
+        // A failed module load must not leave a stale repair offer on screen.
+        if (!cancelled) setRepair(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [input, rawResult]);
+
+  const inputIsBroken = rawResult !== null && !rawResult.ok;
+
+  /*
+   * With auto-fix on, a broken document is repaired before formatting so the output
+   * pane is useful immediately. The original input is deliberately left untouched —
+   * rewriting what someone typed as they type is disorienting, and the repair notes
+   * below make it explicit that the output is not a faithful copy of the input.
+   */
+  const usingRepair = autoFix && inputIsBroken && repair !== null;
+
+  const result = useMemo(() => {
+    if (!usingRepair || !repair) return rawResult;
+    return applyAction(repair.json, action, indent);
+  }, [usingRepair, repair, rawResult, action, indent]);
+
+  const applyRepair = () => {
+    if (!repair) return;
+    // Write the repair back into the input, formatted the way the user has it set,
+    // so it becomes ordinary editable input rather than a one-off preview.
+    const formatted = formatJson(repair.json, indent);
+    setInput(formatted.ok ? formatted.value : repair.json);
+  };
+
   const stats = useMemo(() => {
-    if (input.trim() === '') return null;
-    const parsed = parseJson(input);
+    const source = usingRepair && repair ? repair.json : input;
+    if (source.trim() === '') return null;
+    const parsed = parseJson(source);
     return parsed.ok ? analyseJson(parsed.value) : null;
-  }, [input]);
+  }, [input, usingRepair, repair]);
 
   const output = result?.ok ? result.value : '';
-  const error = result && !result.ok ? result.error : null;
+  // Once auto-fix has produced a usable result, the parse error is no longer the
+  // headline — the repair panel explains what happened instead.
+  const error = !usingRepair && result && !result.ok ? result.error : null;
 
   return (
     <div class="tool">
@@ -69,10 +142,27 @@ export default function JsonFormatter() {
           </select>
         </label>
 
+        <label class="checkbox" title="Repair invalid JSON automatically instead of only showing an error">
+          <input
+            type="checkbox"
+            checked={autoFix}
+            onChange={(event) => setAutoFix((event.target as HTMLInputElement).checked)}
+          />
+          Auto-fix
+        </label>
+
         <span class="tool-bar__spacer" />
 
         <button type="button" class="btn" onClick={() => setInput(SAMPLE)}>
           Load sample
+        </button>
+        <button
+          type="button"
+          class="btn"
+          title="Load an example with common JSON mistakes, to try the repair feature"
+          onClick={() => setInput(BROKEN_SAMPLE)}
+        >
+          Load broken sample
         </button>
         <button type="button" class="btn" onClick={() => setInput('')} disabled={input === ''}>
           Clear
@@ -113,6 +203,54 @@ export default function JsonFormatter() {
         <ErrorMessage message={error} />
       </div>
 
+      {repair && (
+        <div class={`repair${usingRepair ? ' repair--applied' : ''}`} role="status">
+          <div class="repair__head">
+            <span class="repair__title">
+              <span aria-hidden="true">{usingRepair ? '✓' : '🔧'}</span>{' '}
+              {usingRepair
+                ? 'The output above was repaired automatically'
+                : 'This looks fixable'}
+            </span>
+            <button
+              type="button"
+              class={usingRepair ? 'btn' : 'btn btn--primary'}
+              onClick={applyRepair}
+              title="Replace the input with the repaired JSON"
+            >
+              {usingRepair ? 'Apply to input' : 'Fix it'}
+            </button>
+          </div>
+          <p class="repair__intro">
+            {usingRepair
+              ? 'Your input is still shown unchanged on the left. These changes were made to produce the output:'
+              : 'Applying the fix would make these changes:'}
+          </p>
+          <ul class="repair__list">
+            {repair.notes.map((note) => (
+              <li key={note.kind}>
+                {note.description}
+                {note.count > 1 && <span class="repair__count"> ×{note.count}</span>}
+              </li>
+            ))}
+            {repair.notes.length === 0 && <li>Rebuilt the structure as valid JSON.</li>}
+          </ul>
+          <p class="repair__caveat">
+            Check the result before relying on it — a repair is a best guess at what you
+            meant, not a guarantee.
+          </p>
+        </div>
+      )}
+
+      {autoFix && inputIsBroken && repair === null && (
+        <p class="msg msg--warning">
+          <span class="msg__icon" aria-hidden="true">
+            !
+          </span>
+          <span>Auto-fix could not salvage this input — the error above explains why.</span>
+        </p>
+      )}
+
       {stats && (
         <p class="stats">
           <span class="stats__item">
@@ -131,6 +269,35 @@ export default function JsonFormatter() {
           )}
         </p>
       )}
+
+      <style>{`
+        .repair {
+          border: 1px solid var(--warning-border);
+          background: var(--warning-subtle);
+          border-radius: var(--radius);
+          padding: var(--space-3) var(--space-4);
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-2);
+        }
+        .repair__head {
+          display: flex; align-items: center; justify-content: space-between;
+          gap: var(--space-3); flex-wrap: wrap;
+        }
+        .repair__title {
+          font-weight: 650; font-size: var(--text-sm); color: var(--warning);
+        }
+        .repair__intro { margin: 0; font-size: var(--text-sm); color: var(--text); }
+        .repair__list {
+          margin: 0; padding-left: var(--space-5);
+          display: flex; flex-direction: column; gap: var(--space-1);
+          font-size: var(--text-sm); color: var(--text);
+        }
+        .repair__count {
+          font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted);
+        }
+        .repair__caveat { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
+      `}</style>
     </div>
   );
 }

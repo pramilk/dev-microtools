@@ -124,15 +124,17 @@ code that stays easy to extend as the tool count grows from 10 to 30+.
 ```
 src/
   layouts/BaseLayout.astro   # head/meta/JSON-LD, header, footer, analytics
-  components/                # Header, Footer, ToolCard, RelatedTools, AdSlot, Faq
-  content/
-    config.ts                # Zod schema — content fields are REQUIRED, not optional
-    tools/<slug>.mdx         # per-tool metadata + written content
+  components/                # Header, Footer, ToolCard, RelatedTools, AdSlot, Faq,
+                              # ToolIsland (slug -> component dispatch, see below)
+  content.config.ts          # Zod schema — content fields are REQUIRED, not optional
+  content/tools/<slug>.mdx   # per-tool metadata + written content
   islands/<Tool>.tsx         # one Preact component per tool (the interactive widget)
   lib/tools/<name>.ts        # pure, framework-free, unit-tested logic
+  lib/toolRegistry.ts        # slug -> logical registration (see below)
   pages/
     index.astro              # tool directory
-    tools/[slug].astro       # single dynamic route over the content collection
+    [slug].astro             # single dynamic route over the content collection —
+                              # tools live at the site root (/<slug>/), not /tools/<slug>/
 public/                      # robots.txt, ads.txt, favicon
 ```
 

@@ -23,7 +23,7 @@ const schema = [
       '@type': 'ListItem',
       position: index + 1,
       name: tool.data.title,
-      url: new URL(`/tools/${tool.id}/`, Astro.site ?? SITE.url).href,
+      url: new URL(`/${tool.id}/`, Astro.site ?? SITE.url).href,
     })),
   },
 ];
@@ -50,7 +50,7 @@ const schema = [
               .filter((tool) => tool.data.category === category)
               .map((tool) => (
                 <li>
-                  <a href={`/tools/${tool.id}/`} class="card tool-card">
+                  <a href={`/${tool.id}/`} class="card tool-card">
                     <span class="tool-card__name">{tool.data.title}</span>
                     <span class="tool-card__summary">{tool.data.summary}</span>
                   </a>

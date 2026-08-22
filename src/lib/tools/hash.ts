@@ -23,12 +23,24 @@ export async function hashText(
 ): Promise<ToolResult<string>> {
   if (input === '') return err('Nothing to hash — enter some text first.');
 
-  try {
-    if (algorithm === 'MD5') {
-      const { default: md5 } = await import('blueimp-md5');
-      return ok(md5(input));
+  if (algorithm === 'MD5') {
+    // Loaded separately so a failed module fetch reports something actionable
+    // rather than the bundler's internal error text.
+    let md5: (value: string) => string;
+    try {
+      md5 = (await import('blueimp-md5')).default;
+    } catch {
+      return err('Could not load the MD5 implementation. Check your connection and reload the page.');
     }
 
+    try {
+      return ok(md5(input));
+    } catch (error) {
+      return err(messageFrom(error, 'Could not compute the MD5 hash.'));
+    }
+  }
+
+  try {
     const bytes = new TextEncoder().encode(input);
     const digest = await crypto.subtle.digest(algorithm, bytes);
     return ok(toHex(digest));

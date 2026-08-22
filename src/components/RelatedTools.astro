@@ -25,7 +25,7 @@ const related = slugs
       <ul class="related__list">
         {related.map((tool) => (
           <li>
-            <a href={`/tools/${tool.id}/`} class="related__card">
+            <a href={`/${tool.id}/`} class="related__card">
               <span class="related__name">{tool.data.title}</span>
               <span class="related__summary">{tool.data.summary}</span>
             </a>

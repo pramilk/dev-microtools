@@ -31,9 +31,18 @@ export async function compareTexts(
     return err('Paste text into both panes to compare them.');
   }
 
+  // Loaded separately from the comparison itself so a failed module fetch reports
+  // something actionable rather than the bundler's internal error text.
+  let diff: typeof import('diff');
   try {
-    const diff = await import('diff');
+    diff = await import('diff');
+  } catch {
+    return err(
+      'Could not load the comparison engine. Check your connection and reload the page.'
+    );
+  }
 
+  try {
     const config = { ignoreCase: options.ignoreCase ?? false };
     const changes =
       mode === 'line'

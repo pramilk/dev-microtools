@@ -1,8 +1,8 @@
 ---
 title: JSON Formatter
-headline: JSON Formatter and Validator
-description: Format, minify, validate and sort JSON in your browser. Nothing is uploaded — paste API responses and config files safely. Free, no sign-up.
-summary: Beautify, minify, validate and sort JSON entirely in your browser.
+headline: JSON Formatter, Validator and Repair
+description: Format, validate and repair broken JSON in your browser. Fixes trailing commas, single quotes and comments. Nothing is uploaded. Free, no sign-up.
+summary: Beautify, minify, validate and repair broken JSON entirely in your browser.
 category: Format
 order: 1
 updated: 2026-08-22
@@ -11,7 +11,8 @@ whatIsIt: >-
   file with inconsistent indentation, a log line containing an embedded payload — and
   re-prints it with consistent indentation so the structure is obvious at a glance. This
   tool also validates as it goes: if the JSON is malformed, it tells you what is wrong
-  and where, rather than silently producing nothing. It can minify in the other
+  and where, rather than silently producing nothing — and where the problem is one of the
+  familiar ones, it offers to repair the document for you. It can minify in the other
   direction, and sort object keys alphabetically so two documents can be compared
   meaningfully.
 useCases:
@@ -19,10 +20,12 @@ useCases:
   - Checking whether a config file is valid JSON before deploying it, so a missing comma fails on your machine rather than in production.
   - Minifying a JSON payload before embedding it somewhere size-sensitive, such as a data attribute or an environment variable.
   - Sorting keys on two versions of the same document so that a diff shows real changes instead of key-order noise.
+  - Rescuing a hand-edited config file or a JavaScript object literal that is almost JSON but has trailing commas, comments or single quotes.
 howTo:
   - Paste your JSON into the input pane on the left. Formatting happens as you type — there is no button to press.
   - Choose Beautify, Minify or Sort keys, and pick the indentation you prefer (2 spaces, 4 spaces, or tabs).
   - If the JSON is invalid, an error appears explaining the problem and the character position where the parser gave up.
+  - If the document can be salvaged, a panel lists exactly what would change and offers a "Fix it" button. Nothing is altered until you press it.
   - Use the Copy button to put the result on your clipboard.
 example:
   label: A minified API response, beautified with 2-space indentation.
@@ -48,16 +51,36 @@ faq:
   - q: Can it handle very large JSON files?
     a: It handles files of a few megabytes comfortably. Because everything runs in your browser tab, extremely large documents (tens of megabytes) may make the page feel sluggish while parsing, since the work competes with rendering on the same thread. For files that size, a command-line tool such as jq is a better fit.
   - q: Does it support JSON5, comments, or trailing commas?
-    a: No. This tool validates against the strict JSON specification, which does not permit comments or trailing commas. That is deliberate — if your document parses here, it will parse in any standards-compliant JSON parser. If you need comments in configuration, JSONC or YAML are better formats for that purpose.
+    a: Validation is against the strict JSON specification, which permits neither — so if a document passes here, it will parse in any standards-compliant parser. But the repair feature accepts all of these as input and converts them to strict JSON, which is usually what you want when a file was hand-written or copied out of JavaScript source.
+  - q: What can the repair feature actually fix?
+    a: The common causes of invalid JSON — trailing commas, single-quoted strings, unquoted object keys, // and /* */ comments, curly "smart" quotes pasted from a word processor, Python's True/False/None, NaN and Infinity, missing commas or colons, unclosed brackets, and surrounding text such as a log-line prefix. It also finds JSON embedded in a longer line and wraps newline-delimited documents into an array.
+  - q: Is it safe to trust the repaired output?
+    a: Treat it as a well-informed guess, not a certainty. The repair is done by a real parser rather than find-and-replace, so it will not corrupt braces, commas or comment-like text that appear inside string values, and the result is always verified to be valid JSON before it is offered. But recovering a truncated or badly mangled document involves inferring intent, so check the result before relying on it. Nothing is changed until you press "Fix it", and every change is listed first.
+  - q: Why does the repair remove one of my duplicate keys?
+    a: Because every JSON parser already does. When an object contains the same key twice, the specification leaves the behaviour undefined and in practice parsers keep the last occurrence — meaning the earlier value was already being silently discarded. The repair makes that explicit rather than leaving a document whose meaning depends on which parser reads it.
 related:
   - diff-checker
   - base64-encode-decode
   - jwt-decoder
 ---
 
-## A note on validation
+## The most common ways JSON breaks
 
-"Valid JSON" is a narrower category than most people expect. Single quotes around strings,
-unquoted object keys, trailing commas and `//` comments are all common in JavaScript object
-literals and all invalid in JSON. If you are hand-writing a JSON file and it will not parse,
-those four are worth checking before anything else.
+"Valid JSON" is a narrower category than most people expect. In rough order of how often
+they turn up:
+
+1. **Trailing commas** — `[1, 2, 3,]`. Legal in JavaScript, never in JSON.
+2. **Single-quoted strings** — `{'a': 1}`. JSON strings must use double quotes.
+3. **Unquoted keys** — `{a: 1}`. Object keys are strings and need quoting.
+4. **Comments** — `//` and `/* */` are not part of the format, however useful they are.
+5. **Smart quotes** — `{"a": "b"}` with curly quotes, usually from pasting through a word
+   processor, chat client or ticket description.
+6. **Python literals** — `True`, `False` and `None` instead of `true`, `false` and `null`.
+7. **`NaN`, `Infinity` and `undefined`** — JSON has no representation for any of them, so a
+   serialiser that emits them has produced something no parser will read back.
+8. **Truncation** — a log line or clipboard copy that cut off mid-document.
+9. **Unescaped newlines** inside a string value.
+10. **Duplicate keys** — technically parseable, but the earlier value is silently lost.
+
+The repair feature handles all of these. The first four are worth learning to spot by eye,
+because they account for the large majority of "why won't this parse" moments.

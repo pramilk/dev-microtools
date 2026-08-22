@@ -27,4 +27,19 @@ export default defineConfig({
     prefetchAll: true,
     defaultStrategy: 'hover',
   },
+  vite: {
+    optimizeDeps: {
+      /*
+       * These are loaded with a dynamic import() so they stay out of the initial
+       * bundle. In dev that means Vite does not see them at startup, discovers them
+       * the first time a user triggers the import, and then re-optimizes — which
+       * invalidates the module URL the browser is mid-way through fetching and
+       * surfaces as "Failed to fetch dynamically imported module".
+       *
+       * Listing them here pre-bundles them when the dev server boots instead.
+       * Production builds are unaffected; this is purely a dev-server fix.
+       */
+      include: ['diff', 'blueimp-md5'],
+    },
+  },
 });
