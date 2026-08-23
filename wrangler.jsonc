@@ -5,8 +5,12 @@
   // @astrojs/cloudflare adapter is needed — `astro build` writes plain files to
   // dist/ and Workers serves them directly.
   //
-  // Deploy with:  npx wrangler deploy
-  // Preview with: npx wrangler dev
+  // Deploy to production: npx wrangler deploy
+  // Deploy to staging:    npx wrangler deploy --env staging
+  // Preview with:         npx wrangler dev
+  //
+  // Staging is a separate Worker (dev-microtools-staging) with its own
+  // workers.dev URL, so it never touches production traffic.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "dev-microtools",
   "compatibility_date": "2026-08-22",
@@ -16,5 +20,10 @@
     // trailingSlash: 'always' + build.format: 'directory' output.
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page"
+  },
+  "env": {
+    "staging": {
+      "name": "dev-microtools-s"
+    }
   }
 }

@@ -12,7 +12,9 @@
     "astro": "astro",
     "check": "astro check",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "deploy": "npm run test && npx astro check && npx astro build && npx wrangler deploy --env staging",
+    "deploy:prod": "npm run test && npx astro check && npx astro build && npx wrangler deploy"
   },
   "dependencies": {
     "@astrojs/mdx": "^7.0.5",
