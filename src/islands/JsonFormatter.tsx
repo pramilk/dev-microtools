@@ -232,7 +232,14 @@ export default function JsonFormatter() {
           ))}
         </div>
 
-        <label class="checkbox">
+        <label
+          class="checkbox"
+          title={
+            action === 'minify'
+              ? 'Minify strips all whitespace, so indentation does not apply'
+              : 'Choose the indentation width used when beautifying or sorting'
+          }
+        >
           <span class="field__hint">Indent</span>
           <select
             class="select"
@@ -243,7 +250,6 @@ export default function JsonFormatter() {
               setIndent(next === 'tab' ? 'tab' : (Number(next) as 2 | 4));
             }}
             aria-label="Indentation"
-            title="Choose the indentation width used when beautifying or sorting"
           >
             <option value="2">2 spaces</option>
             <option value="4">4 spaces</option>
@@ -327,20 +333,24 @@ export default function JsonFormatter() {
                 >
                   Text
                 </button>
-                <button
-                  type="button"
-                  class="seg__btn"
-                  aria-pressed={view === 'tree'}
-                  disabled={treeValue === undefined}
-                  onClick={() => setView('tree')}
+                <span
+                  class="seg__tip"
                   title={
                     treeValue === undefined
                       ? 'Valid JSON is needed to show the tree view'
                       : 'Browse the document as a collapsible tree — useful for large or deeply nested JSON'
                   }
                 >
-                  Tree
-                </button>
+                  <button
+                    type="button"
+                    class="seg__btn"
+                    aria-pressed={view === 'tree'}
+                    disabled={treeValue === undefined}
+                    onClick={() => setView('tree')}
+                  >
+                    Tree
+                  </button>
+                </span>
               </div>
               <CopyButton value={output} describe="JSON" />
               <DownloadButton value={output} filename="data.json" mimeType="application/json" describe="JSON" />

@@ -336,11 +336,11 @@
     color 0.12s ease;
 }
 
-.seg__btn + .seg__btn {
+.seg > :not(:first-child) {
   border-left: 1px solid var(--border-strong);
 }
 
-.seg__btn:hover {
+.seg__btn:hover:not(:disabled) {
   background: var(--surface-2);
   color: var(--text);
 }
@@ -348,6 +348,23 @@
 .seg__btn[aria-pressed='true'] {
   background: var(--accent);
   color: var(--accent-contrast);
+}
+
+.seg__btn:disabled {
+  color: var(--text-subtle);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/*
+ * Disabled form controls don't dispatch mouse events in Firefox/Safari, so a
+ * `title` attribute on a disabled button/select never shows there (Chromium is
+ * the outlier that displays it anyway). Putting the tooltip on this wrapping,
+ * non-disabled span instead makes the hint show in every browser, for both the
+ * disabled and enabled state of whatever it wraps.
+ */
+.seg__tip {
+  display: inline-flex;
 }
 
 .checkbox {

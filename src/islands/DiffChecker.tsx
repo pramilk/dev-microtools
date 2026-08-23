@@ -309,20 +309,24 @@ export default function DiffChecker() {
                     >
                       Inline
                     </button>
-                    <button
-                      type="button"
-                      class="seg__btn"
-                      aria-pressed={effectiveView === 'side-by-side'}
-                      disabled={!canSideBySide}
-                      onClick={() => setView('side-by-side')}
+                    <span
+                      class="seg__tip"
                       title={
                         canSideBySide
                           ? 'Show the two versions in two columns, lined up row by row'
                           : 'Only available when comparing by line — switch granularity to "By line" to use this'
                       }
                     >
-                      Side by side
-                    </button>
+                      <button
+                        type="button"
+                        class="seg__btn"
+                        aria-pressed={effectiveView === 'side-by-side'}
+                        disabled={!canSideBySide}
+                        onClick={() => setView('side-by-side')}
+                      >
+                        Side by side
+                      </button>
+                    </span>
                   </div>
                   <CopyButton value={diffText} describe="the differences ([-removed-] / {+added+})" />
                   <DownloadButton
