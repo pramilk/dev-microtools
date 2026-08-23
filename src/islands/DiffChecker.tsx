@@ -22,6 +22,7 @@ interface ShareState {
   right: string;
   kind: Kind;
   mode: DiffMode;
+  view: View;
   ignoreCase: boolean;
   ignoreWhitespace: boolean;
 }
@@ -84,6 +85,8 @@ export default function DiffChecker() {
       setRight(restored.value.right);
       setKind(restored.value.kind);
       setMode(restored.value.mode);
+      // Fall back for links made before `view` was shared, rather than restoring `undefined`.
+      setView(restored.value.view ?? 'inline');
       setIgnoreCase(restored.value.ignoreCase);
       setIgnoreWhitespace(restored.value.ignoreWhitespace);
       history.replaceState(null, '', window.location.pathname);
@@ -170,7 +173,7 @@ export default function DiffChecker() {
 
         <span class="tool-bar__spacer" />
         <ShareLinkButton
-          getState={() => ({ left, right, kind, mode, ignoreCase, ignoreWhitespace })}
+          getState={() => ({ left, right, kind, mode, view, ignoreCase, ignoreWhitespace })}
           describe="this comparison"
         />
         <button

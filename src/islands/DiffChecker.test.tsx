@@ -151,6 +151,28 @@ describe('<DiffChecker /> share link and download', () => {
     });
     window.location.hash = '';
   });
+
+  it('restores the side-by-side layout from a shared link', async () => {
+    const { encodeShareState } = await import('../lib/shareLink');
+    const encoded = await encodeShareState({
+      left: 'a\nb\n',
+      right: 'a\nc\n',
+      kind: 'text',
+      mode: 'line',
+      view: 'side-by-side',
+      ignoreCase: false,
+      ignoreWhitespace: false,
+    });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) return;
+
+    window.location.hash = `#s=${encoded.value}`;
+    render(<DiffChecker />);
+
+    const sideBySide = await screen.findByRole('button', { name: /side by side/i });
+    await waitFor(() => expect(sideBySide).toHaveAttribute('aria-pressed', 'true'));
+    window.location.hash = '';
+  });
 });
 
 describe('<DiffChecker /> file drop', () => {

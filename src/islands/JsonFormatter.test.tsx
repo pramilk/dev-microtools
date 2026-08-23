@@ -288,6 +288,68 @@ describe('<JsonFormatter /> tree view', () => {
   });
 });
 
+describe('<JsonFormatter /> search', () => {
+  it('highlights matches in the text view and reports a count', async () => {
+    render(<JsonFormatter />);
+    typeInto(screen.getByLabelText(/json input/i), '{"name":"ada","role":"engineer"}');
+    await screen.findByText(/"name": "ada"/);
+
+    typeInto(screen.getByLabelText(/search formatted result/i), 'ada');
+
+    expect(await screen.findByText('1 of 1')).toBeInTheDocument();
+  });
+
+  it('reports no matches when the query is not found', async () => {
+    render(<JsonFormatter />);
+    typeInto(screen.getByLabelText(/json input/i), '{"name":"ada"}');
+    await screen.findByText(/"name": "ada"/);
+
+    typeInto(screen.getByLabelText(/search formatted result/i), 'zzz');
+
+    expect(await screen.findByText(/no matches/i)).toBeInTheDocument();
+  });
+
+  it('clears the search with the clear button', async () => {
+    render(<JsonFormatter />);
+    typeInto(screen.getByLabelText(/json input/i), '{"name":"ada"}');
+    await screen.findByText(/"name": "ada"/);
+
+    const search = screen.getByLabelText(/search formatted result/i) as HTMLInputElement;
+    typeInto(search, 'ada');
+    await screen.findByText('1 of 1');
+
+    fireEvent.click(screen.getByRole('button', { name: /clear search/i }));
+    expect(search.value).toBe('');
+    expect(screen.queryByText('1 of 1')).not.toBeInTheDocument();
+  });
+
+  it('filters the tree view down to matching branches and reports a match count', async () => {
+    render(<JsonFormatter />);
+    typeInto(screen.getByLabelText(/json input/i), '{"meta":{"tags":["x","target","y"]},"other":1}');
+    await screen.findByText(/"meta"/);
+    fireEvent.click(screen.getByRole('button', { name: /^tree$/i }));
+
+    typeInto(screen.getByLabelText(/search formatted result/i), 'target');
+
+    expect(await screen.findByText('1 match')).toBeInTheDocument();
+    // The matched substring is wrapped in its own <mark>, splitting the text node.
+    expect(screen.getByText('target', { selector: 'mark' })).toBeInTheDocument();
+    expect(screen.queryByText('"x"')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^other:/)).not.toBeInTheDocument();
+  });
+
+  it('shows a "no matches" message in the tree view instead of an empty tree', async () => {
+    render(<JsonFormatter />);
+    typeInto(screen.getByLabelText(/json input/i), '{"name":"ada"}');
+    await screen.findByText(/"name"/);
+    fireEvent.click(screen.getByRole('button', { name: /^tree$/i }));
+
+    typeInto(screen.getByLabelText(/search formatted result/i), 'zzz');
+
+    expect(await screen.findByText(/no matches for/i)).toBeInTheDocument();
+  });
+});
+
 describe('<JsonFormatter /> share link and download', () => {
   it('offers a download button that enables once there is output', async () => {
     render(<JsonFormatter />);
@@ -308,6 +370,27 @@ describe('<JsonFormatter /> share link and download', () => {
     render(<JsonFormatter />);
 
     expect(await screen.findByText(/"shared": true/)).toBeInTheDocument();
+    window.location.hash = '';
+  });
+
+  it('restores the tree view and auto-fix setting from a shared link', async () => {
+    const { encodeShareState } = await import('../lib/shareLink');
+    const encoded = await encodeShareState({
+      input: '{"shared":true}',
+      indent: 2,
+      action: 'format',
+      view: 'tree',
+      autoFix: false,
+    });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) return;
+
+    window.location.hash = `#s=${encoded.value}`;
+    render(<JsonFormatter />);
+
+    await screen.findByLabelText(/json as a collapsible tree/i);
+    expect(screen.getByRole('button', { name: /^tree$/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByLabelText(/auto-fix/i)).not.toBeChecked();
     window.location.hash = '';
   });
 

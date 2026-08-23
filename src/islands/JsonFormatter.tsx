@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { formatJson, minifyJson, sortJsonKeys, parseJson, analyseJson, type IndentStyle } from '../lib/tools/json';
-import type { RepairedJson } from '../lib/tools/jsonRepair';
+import type { RepairedJson, RepairKind } from '../lib/tools/jsonRepair';
+import { findTextMatches, toTextSearchSegments, searchJsonTree } from '../lib/tools/jsonSearch';
 import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { CopyButton } from './shared/CopyButton';
@@ -8,10 +9,37 @@ import { DownloadButton } from './shared/DownloadButton';
 import { ShareLinkButton } from './shared/ShareLinkButton';
 import { useTextFileDrop } from './shared/useTextFileDrop';
 
+/**
+ * A short, illustrative before/after for each repair kind, so the panel can show what
+ * was wrong at a glance instead of making the user parse a sentence. These are generic
+ * examples, not the user's own text — showing their actual (possibly sensitive) input
+ * back at them inside a "look, an error" callout would be worse, not clearer.
+ */
+const REPAIR_EXAMPLES: Partial<Record<RepairKind, { before: string; after: string }>> = {
+  'trailing-comma': { before: '{"a": 1,}', after: '{"a": 1}' },
+  'single-quotes': { before: "{'a': 1}", after: '{"a": 1}' },
+  'smart-quotes': { before: '{“a”: 1}', after: '{"a": 1}' },
+  'unquoted-key': { before: '{a: 1}', after: '{"a": 1}' },
+  'missing-comma': { before: '{"a": 1 "b": 2}', after: '{"a": 1, "b": 2}' },
+  'missing-colon': { before: '{"a" 1}', after: '{"a": 1}' },
+  comments: { before: '{"a": 1} // note', after: '{"a": 1}' },
+  'python-literal': { before: '{"a": True}', after: '{"a": true}' },
+  'special-number': { before: '{"a": NaN}', after: '{"a": null}' },
+  'number-format': { before: '{"a": +1}', after: '{"a": 1}' },
+  'invalid-escape': { before: '{"a": "\\x"}', after: '{"a": "x"}' },
+  'unterminated-string': { before: '{"a": "b}', after: '{"a": "b"}' },
+  'unclosed-bracket': { before: '{"a": [1, 2', after: '{"a": [1, 2]}' },
+  'duplicate-key': { before: '{"a": 1, "a": 2}', after: '{"a": 2}' },
+  'surrounding-text': { before: 'log: {"a": 1}', after: '{"a": 1}' },
+  'multiple-documents': { before: '{"a": 1} {"b": 2}', after: '[{"a": 1}, {"b": 2}]' },
+};
+
 interface ShareState {
   input: string;
   indent: IndentStyle;
   action: Action;
+  view: View;
+  autoFix: boolean;
 }
 
 const SAMPLE = '{"name":"ada","langs":["js","ts"],"active":true,"meta":{"id":42,"tags":null}}';
@@ -33,19 +61,51 @@ const applyAction = (source: string, action: Action, indent: IndentStyle) => {
   return formatJson(source, indent);
 };
 
-/** One node of the JSON tree view. Objects/arrays are collapsible; scalars are leaves. */
+/** Wraps every case-insensitive occurrence of `query` in `text` with a <mark>. */
+function Highlighted({ text, query }: { text: string; query: string }) {
+  if (query.trim() === '') return <>{text}</>;
+  const positions = findTextMatches(text, query);
+  if (positions.length === 0) return <>{text}</>;
+
+  const segments = toTextSearchSegments(text, positions, query.length);
+  return (
+    <>
+      {segments.map((segment, index) =>
+        segment.matchIndex === null ? (
+          <span key={index}>{segment.text}</span>
+        ) : (
+          <mark key={index} class="tree-highlight">
+            {segment.text}
+          </mark>
+        )
+      )}
+    </>
+  );
+}
+
+/**
+ * One node of the JSON tree view. Objects/arrays are collapsible; scalars are leaves.
+ *
+ * When `keepPaths` is set (a search is active), the node forces itself open and only
+ * renders children whose path is in the set — the ancestors of a match plus the matches
+ * themselves — so the tree collapses down to just the relevant branches.
+ */
 function JsonTreeNode({
   label,
   value,
   path,
   collapsed,
   toggle,
+  search,
+  keepPaths,
 }: {
   label: string | null;
   value: unknown;
   path: string;
   collapsed: Set<string>;
   toggle: (path: string) => void;
+  search: string;
+  keepPaths: Set<string> | null;
 }) {
   const isContainer = value !== null && typeof value === 'object';
 
@@ -53,17 +113,26 @@ function JsonTreeNode({
     const kind = value === null ? 'null' : typeof value;
     return (
       <div class="tree-row">
-        {label !== null && <span class="tree-key">{label}: </span>}
-        <span class={`tree-scalar tree-scalar--${kind}`}>{JSON.stringify(value)}</span>
+        {label !== null && (
+          <span class="tree-key">
+            <Highlighted text={label} query={search} />:{' '}
+          </span>
+        )}
+        <span class={`tree-scalar tree-scalar--${kind}`}>
+          <Highlighted text={JSON.stringify(value)} query={search} />
+        </span>
       </div>
     );
   }
 
   const isArray = Array.isArray(value);
-  const entries: [string, unknown][] = isArray
+  const allEntries: [string, unknown][] = isArray
     ? (value as unknown[]).map((item, index) => [String(index), item])
     : Object.entries(value as Record<string, unknown>);
-  const isCollapsed = collapsed.has(path);
+  const entries = keepPaths
+    ? allEntries.filter(([key]) => keepPaths.has(`${path}/${key}`))
+    : allEntries;
+  const isCollapsed = keepPaths ? false : collapsed.has(path);
   const summary = isArray ? `Array(${entries.length})` : `Object(${entries.length})`;
 
   return (
@@ -75,7 +144,11 @@ function JsonTreeNode({
         aria-expanded={!isCollapsed}
       >
         <span aria-hidden="true">{isCollapsed ? '▸' : '▾'}</span>
-        {label !== null && <span class="tree-key">{label}: </span>}
+        {label !== null && (
+          <span class="tree-key">
+            <Highlighted text={label} query={search} />:{' '}
+          </span>
+        )}
         <span class="tree-summary">{summary}</span>
       </button>
       {!isCollapsed && (
@@ -89,6 +162,8 @@ function JsonTreeNode({
               path={`${path}/${key}`}
               collapsed={collapsed}
               toggle={toggle}
+              search={search}
+              keepPaths={keepPaths}
             />
           ))}
         </div>
@@ -104,6 +179,9 @@ export default function JsonFormatter() {
   const [autoFix, setAutoFix] = useState(true);
   const [view, setView] = useState<View>('text');
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState('');
+  const [activeMatch, setActiveMatch] = useState(0);
+  const activeMarkRef = useRef<HTMLElement | null>(null);
   const { isDragActive, dropHandlers } = useTextFileDrop(setInput);
 
   // Restore state from a shared link, if the page was opened with one.
@@ -113,6 +191,9 @@ export default function JsonFormatter() {
       setInput(restored.value.input);
       setIndent(restored.value.indent);
       setAction(restored.value.action);
+      // Fall back for links made before these were shared, rather than restoring `undefined`.
+      setView(restored.value.view ?? 'text');
+      setAutoFix(restored.value.autoFix ?? true);
       history.replaceState(null, '', window.location.pathname);
     });
   }, []);
@@ -208,6 +289,38 @@ export default function JsonFormatter() {
   // headline — the repair panel explains what happened instead.
   const error = !usingRepair && result && !result.ok ? result.error : null;
 
+  // Search over the text view: every match position, then the current one clamped
+  // into range so a stale index (from a search made against longer output) never
+  // points past the end of a shorter one.
+  const textMatches = useMemo(
+    () => (search.trim() === '' ? [] : findTextMatches(output, search)),
+    [output, search]
+  );
+  const clampedActiveMatch =
+    textMatches.length === 0
+      ? 0
+      : ((activeMatch % textMatches.length) + textMatches.length) % textMatches.length;
+  const textSegments = useMemo(
+    () => (textMatches.length > 0 ? toTextSearchSegments(output, textMatches, search.length) : null),
+    [output, textMatches, search]
+  );
+
+  // Search over the tree view: which paths to keep visible, and how many nodes matched.
+  const treeSearch = useMemo(
+    () => (search.trim() !== '' && treeValue !== undefined ? searchJsonTree(treeValue, search) : null),
+    [search, treeValue]
+  );
+
+  // A fresh search always starts at its first match.
+  useEffect(() => {
+    setActiveMatch(0);
+  }, [search]);
+
+  useEffect(() => {
+    // Guarded: jsdom (unit tests) has no scrollIntoView implementation.
+    activeMarkRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [clampedActiveMatch, textSegments]);
+
   return (
     <div class="tool">
       <div class="tool-bar">
@@ -268,7 +381,10 @@ export default function JsonFormatter() {
 
         <span class="tool-bar__spacer" />
 
-        <ShareLinkButton getState={() => ({ input, indent, action })} describe="this document" />
+        <ShareLinkButton
+          getState={() => ({ input, indent, action, view, autoFix })}
+          describe="this document"
+        />
 
         <button
           type="button"
@@ -357,19 +473,111 @@ export default function JsonFormatter() {
             </span>
           </div>
 
-          {view === 'tree' && treeValue !== undefined ? (
-            <div class="tree-view output output--tall" aria-label="JSON as a collapsible tree">
-              <JsonTreeNode
-                label={null}
-                value={treeValue}
-                path="$"
-                collapsed={collapsedPaths}
-                toggle={toggleCollapsed}
+          {(output !== '' || treeValue !== undefined) && (
+            <div class="result-search" role="search">
+              <input
+                type="text"
+                class="result-search__input"
+                placeholder="Search result"
+                value={search}
+                onInput={(event) => setSearch((event.target as HTMLInputElement).value)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' || view !== 'text' || textMatches.length === 0) return;
+                  event.preventDefault();
+                  setActiveMatch((current) => current + (event.shiftKey ? -1 : 1));
+                }}
+                aria-label="Search formatted result"
               />
+              {search.trim() !== '' && (
+                <span class="result-search__status" aria-live="polite">
+                  {view === 'text'
+                    ? textMatches.length === 0
+                      ? 'No matches'
+                      : `${clampedActiveMatch + 1} of ${textMatches.length}`
+                    : treeSearch && treeSearch.matchCount > 0
+                      ? `${treeSearch.matchCount} match${treeSearch.matchCount === 1 ? '' : 'es'}`
+                      : 'No matches'}
+                </span>
+              )}
+              {view === 'text' && textMatches.length > 1 && (
+                <span class="result-search__nav">
+                  <button
+                    type="button"
+                    class="result-search__btn"
+                    onClick={() => setActiveMatch((current) => current - 1)}
+                    aria-label="Previous match"
+                    title="Previous match"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    class="result-search__btn"
+                    onClick={() => setActiveMatch((current) => current + 1)}
+                    aria-label="Next match"
+                    title="Next match"
+                  >
+                    ›
+                  </button>
+                </span>
+              )}
+              {search !== '' && (
+                <button
+                  type="button"
+                  class="result-search__clear"
+                  onClick={() => setSearch('')}
+                  aria-label="Clear search"
+                  title="Clear search"
+                >
+                  ×
+                </button>
+              )}
             </div>
+          )}
+
+          {view === 'tree' && treeValue !== undefined ? (
+            treeSearch && treeSearch.matchCount === 0 ? (
+              <p class="output output--tall output--empty">No matches for &ldquo;{search}&rdquo;.</p>
+            ) : (
+              <div class="tree-view output output--tall" aria-label="JSON as a collapsible tree">
+                <JsonTreeNode
+                  label={null}
+                  value={treeValue}
+                  path="$"
+                  collapsed={collapsedPaths}
+                  toggle={toggleCollapsed}
+                  search={search}
+                  keepPaths={treeSearch?.keepPaths ?? null}
+                />
+              </div>
+            )
           ) : (
             <pre class={`output output--tall${output === '' ? ' output--empty' : ''}`} tabIndex={0}>
-              {output === '' ? 'Formatted JSON appears here.' : output}
+              {output === ''
+                ? 'Formatted JSON appears here.'
+                : (textSegments ?? [{ text: output, matchIndex: null }]).map((segment, index) =>
+                    segment.matchIndex === null ? (
+                      <span key={index}>{segment.text}</span>
+                    ) : (
+                      <mark
+                        key={index}
+                        class={
+                          segment.matchIndex === clampedActiveMatch
+                            ? 'result-mark result-mark--active'
+                            : 'result-mark'
+                        }
+                        ref={
+                          segment.matchIndex === clampedActiveMatch
+                            ? (el: HTMLElement | null) => {
+                                activeMarkRef.current = el;
+                              }
+                            : undefined
+                        }
+                      >
+                        {segment.text}
+                      </mark>
+                    )
+                  )}
             </pre>
           )}
         </div>
@@ -402,14 +610,32 @@ export default function JsonFormatter() {
               ? 'Your input is still shown unchanged on the left. These changes were made to produce the output:'
               : 'Applying the fix would make these changes:'}
           </p>
-          <ul class="repair__list">
-            {repair.notes.map((note) => (
-              <li key={note.kind}>
-                {note.description}
-                {note.count > 1 && <span class="repair__count"> ×{note.count}</span>}
+          <ul class="repair__grid">
+            {repair.notes.map((note) => {
+              const example = REPAIR_EXAMPLES[note.kind];
+              return (
+                <li key={note.kind} class="repair__card">
+                  {example && (
+                    <p class="repair__example">
+                      <code class="repair__before">{example.before}</code>
+                      <span class="repair__arrow" aria-hidden="true">
+                        →
+                      </span>
+                      <code class="repair__after">{example.after}</code>
+                    </p>
+                  )}
+                  <p class="repair__desc">
+                    {note.description}
+                    {note.count > 1 && <span class="repair__count"> ×{note.count}</span>}
+                  </p>
+                </li>
+              );
+            })}
+            {repair.notes.length === 0 && (
+              <li class="repair__card">
+                <p class="repair__desc">Rebuilt the structure as valid JSON.</p>
               </li>
-            ))}
-            {repair.notes.length === 0 && <li>Rebuilt the structure as valid JSON.</li>}
+            )}
           </ul>
           <p class="repair__caveat">
             Check the result before relying on it — a repair is a best guess at what you
@@ -464,15 +690,59 @@ export default function JsonFormatter() {
           font-weight: 650; font-size: var(--text-sm); color: var(--warning);
         }
         .repair__intro { margin: 0; font-size: var(--text-sm); color: var(--text); }
-        .repair__list {
-          margin: 0; padding-left: var(--space-5);
+        .repair__grid {
+          margin: 0; padding: 0; list-style: none;
+          display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: var(--space-2);
+        }
+        .repair__card {
+          background: var(--surface-2); border-radius: var(--radius);
+          padding: var(--space-2) var(--space-3);
           display: flex; flex-direction: column; gap: var(--space-1);
-          font-size: var(--text-sm); color: var(--text);
+        }
+        .repair__example {
+          margin: 0; display: flex; align-items: baseline; gap: var(--space-1);
+          flex-wrap: wrap; font-family: var(--font-mono); font-size: var(--text-xs);
+        }
+        .repair__before { color: var(--danger); text-decoration: line-through; }
+        .repair__after { color: var(--success); }
+        .repair__arrow { color: var(--text-subtle); }
+        .repair__desc {
+          margin: 0; font-size: var(--text-sm); color: var(--text);
         }
         .repair__count {
           font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted);
         }
         .repair__caveat { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
+        .result-search {
+          display: flex; align-items: center; gap: var(--space-2);
+          margin-bottom: var(--space-2);
+        }
+        .result-search__input {
+          flex: 1; min-width: 6rem;
+          border: 1px solid var(--border-strong); border-radius: var(--radius);
+          background: var(--surface); color: var(--text);
+          font: inherit; font-size: var(--text-sm); padding: .3rem .6rem;
+        }
+        .result-search__status {
+          font-size: var(--text-xs); color: var(--text-muted); white-space: nowrap;
+        }
+        .result-search__nav { display: flex; gap: .2rem; }
+        .result-search__btn, .result-search__clear {
+          border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+          background: var(--surface); color: var(--text); cursor: pointer;
+          font-size: var(--text-sm); line-height: 1; padding: .2rem .5rem;
+        }
+        .result-search__btn:hover, .result-search__clear:hover { background: var(--surface-2); }
+        .result-mark {
+          background: var(--accent-subtle); color: var(--text); font-weight: 650;
+          border-radius: 2px; padding: 0 2px; box-shadow: inset 0 0 0 1px var(--accent);
+        }
+        .result-mark--active { background: var(--accent); color: var(--accent-contrast); }
+        .tree-highlight {
+          background: var(--accent-subtle); color: var(--text); font-weight: 650;
+          border-radius: 2px; padding: 0 2px; box-shadow: inset 0 0 0 1px var(--accent);
+        }
         .tree-view { overflow: auto; font-family: var(--font-mono); font-size: var(--text-sm); }
         .tree-node { display: flex; flex-direction: column; }
         .tree-toggle {
