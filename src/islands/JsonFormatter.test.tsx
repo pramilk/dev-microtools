@@ -310,4 +310,13 @@ describe('<JsonFormatter /> share link and download', () => {
     expect(await screen.findByText(/"shared": true/)).toBeInTheDocument();
     window.location.hash = '';
   });
+
+  it('fills the input from a file dropped directly onto the textarea', async () => {
+    render(<JsonFormatter />);
+    const file = new File(['{"dropped":true}'], 'data.json', { type: 'application/json' });
+
+    fireEvent.drop(screen.getByLabelText(/json input/i), { dataTransfer: { files: [file] } });
+
+    expect(await screen.findByText(/"dropped": true/)).toBeInTheDocument();
+  });
 });

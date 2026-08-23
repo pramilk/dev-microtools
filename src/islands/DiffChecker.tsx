@@ -3,6 +3,7 @@ import {
   compareTexts,
   compareJson,
   toSideBySideRows,
+  toAnnotatedText,
   type DiffMode,
   type DiffSummary,
 } from '../lib/tools/diff';
@@ -11,6 +12,7 @@ import { ErrorMessage } from './shared/ErrorMessage';
 import { CopyButton } from './shared/CopyButton';
 import { DownloadButton } from './shared/DownloadButton';
 import { ShareLinkButton } from './shared/ShareLinkButton';
+import { useTextFileDrop } from './shared/useTextFileDrop';
 
 type Kind = 'text' | 'json';
 type View = 'inline' | 'side-by-side';
@@ -58,6 +60,9 @@ export default function DiffChecker() {
   const [summary, setSummary] = useState<DiffSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const leftDrop = useTextFileDrop(setLeft);
+  const rightDrop = useTextFileDrop(setRight);
+
   // Side-by-side pairs up lines, so it only makes sense for a line-level comparison —
   // JSON diffs are always line-level internally, text diffs only when that granularity
   // is selected. Falling back to inline otherwise avoids a toggle that renders nonsense.
@@ -69,7 +74,7 @@ export default function DiffChecker() {
     [effectiveView, summary]
   );
 
-  const diffText = useMemo(() => (summary ? summary.parts.map((part) => part.value).join('') : ''), [summary]);
+  const diffText = useMemo(() => (summary ? toAnnotatedText(summary.parts) : ''), [summary]);
 
   // Restore state from a shared link, if the page was opened with one.
   useEffect(() => {
@@ -234,12 +239,13 @@ export default function DiffChecker() {
           </label>
           <textarea
             id="diff-left"
-            class="textarea textarea--tall"
+            class={`textarea textarea--tall${leftDrop.isDragActive ? ' textarea--drag-active' : ''}`}
             spellcheck={false}
             autocomplete="off"
-            placeholder="Paste the original text…"
+            placeholder="Paste the original text, or drop a file here…"
             value={left}
             onInput={(event) => setLeft((event.target as HTMLTextAreaElement).value)}
+            {...leftDrop.dropHandlers}
           />
         </div>
 
@@ -250,12 +256,13 @@ export default function DiffChecker() {
           </label>
           <textarea
             id="diff-right"
-            class="textarea textarea--tall"
+            class={`textarea textarea--tall${rightDrop.isDragActive ? ' textarea--drag-active' : ''}`}
             spellcheck={false}
             autocomplete="off"
-            placeholder="Paste the text to compare with…"
+            placeholder="Paste the text to compare with, or drop a file here…"
             value={right}
             onInput={(event) => setRight((event.target as HTMLTextAreaElement).value)}
+            {...rightDrop.dropHandlers}
           />
         </div>
       </div>
@@ -317,8 +324,12 @@ export default function DiffChecker() {
                       Side by side
                     </button>
                   </div>
-                  <CopyButton value={diffText} describe="differences" />
-                  <DownloadButton value={diffText} filename="diff.txt" describe="differences" />
+                  <CopyButton value={diffText} describe="the differences ([-removed-] / {+added+})" />
+                  <DownloadButton
+                    value={diffText}
+                    filename="diff.txt"
+                    describe="the differences ([-removed-] / {+added+})"
+                  />
                 </span>
               </div>
 

@@ -11,6 +11,7 @@ import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { OutputPane } from './shared/OutputPane';
 import { ShareLinkButton } from './shared/ShareLinkButton';
+import { useTextFileDrop } from './shared/useTextFileDrop';
 
 const SAMPLE_PATTERN = '(?<user>[\\w.+-]+)@(?<domain>[\\w-]+\\.[\\w.]+)';
 const SAMPLE_TEXT = `Contact ada@example.com or grace.hopper@navy.mil.
@@ -32,6 +33,7 @@ export default function RegexTester() {
   const [showExplain, setShowExplain] = useState(false);
   const [showLineTest, setShowLineTest] = useState(false);
   const [testList, setTestList] = useState('');
+  const subjectDrop = useTextFileDrop(setSubject);
 
   // Restore state from a shared link, if the page was opened with one.
   useEffect(() => {
@@ -178,12 +180,13 @@ export default function RegexTester() {
         </label>
         <textarea
           id="rx-subject"
-          class="textarea"
+          class={`textarea${subjectDrop.isDragActive ? ' textarea--drag-active' : ''}`}
           spellcheck={false}
           autocomplete="off"
-          placeholder="Paste the text you want to test against…"
+          placeholder="Paste the text you want to test against, or drop a file here…"
           value={subject}
           onInput={(event) => setSubject((event.target as HTMLTextAreaElement).value)}
+          {...subjectDrop.dropHandlers}
         />
       </div>
 

@@ -122,6 +122,11 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+  /* Reserves the same height as a label row that includes buttons (.btn/.seg__btn
+     are 2.25rem tall), so a plain-text label next to one in a grid — e.g. "JSON
+     input" beside "Result" and its Copy/Download buttons — doesn't leave the two
+     panes starting at different vertical offsets. */
+  min-height: 2.25rem;
 }
 
 .field__hint {
@@ -195,6 +200,13 @@
 .input[aria-invalid='true']:focus,
 .textarea[aria-invalid='true']:focus {
   box-shadow: 0 0 0 3px var(--danger-subtle);
+}
+
+/* A text input that accepts a dropped file directly, while the drag is over it */
+.textarea--drag-active {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
 }
 
 /* Read-only output pane */

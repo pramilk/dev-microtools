@@ -6,6 +6,7 @@ import { ErrorMessage } from './shared/ErrorMessage';
 import { CopyButton } from './shared/CopyButton';
 import { DownloadButton } from './shared/DownloadButton';
 import { ShareLinkButton } from './shared/ShareLinkButton';
+import { useTextFileDrop } from './shared/useTextFileDrop';
 
 interface ShareState {
   input: string;
@@ -103,6 +104,7 @@ export default function JsonFormatter() {
   const [autoFix, setAutoFix] = useState(true);
   const [view, setView] = useState<View>('text');
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set());
+  const { isDragActive, dropHandlers } = useTextFileDrop(setInput);
 
   // Restore state from a shared link, if the page was opened with one.
   useEffect(() => {
@@ -297,16 +299,17 @@ export default function JsonFormatter() {
           </label>
           <textarea
             id="json-input"
-            class="textarea textarea--tall"
+            class={`textarea textarea--tall${isDragActive ? ' textarea--drag-active' : ''}`}
             spellcheck={false}
             autocomplete="off"
             autocapitalize="off"
             autocorrect="off"
-            placeholder='Paste JSON here, e.g. {"hello":"world"}'
+            placeholder='Paste JSON here, or drop a .json file, e.g. {"hello":"world"}'
             value={input}
             aria-invalid={error !== null}
             aria-describedby={error ? 'json-error' : undefined}
             onInput={(event) => setInput((event.target as HTMLTextAreaElement).value)}
+            {...dropHandlers}
           />
         </div>
 

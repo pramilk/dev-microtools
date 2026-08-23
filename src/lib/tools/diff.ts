@@ -114,6 +114,25 @@ export async function compareJson(
   return compareTexts(a.value, b.value, 'line');
 }
 
+/**
+ * Renders diff parts as a single plain-text export, marking removed text as
+ * `[-removed-]` and added text as `{+added+}` (the common wdiff-style convention).
+ *
+ * Naively concatenating `part.value` for every part reproduces both the removed and
+ * added content back to back with nothing distinguishing which is which — this keeps
+ * the two sides legible in a copy/paste or a downloaded file, where there is no colour
+ * to fall back on.
+ */
+export function toAnnotatedText(parts: DiffPart[]): string {
+  return parts
+    .map((part) => {
+      if (part.type === 'added') return `{+${part.value}+}`;
+      if (part.type === 'removed') return `[-${part.value}-]`;
+      return part.value;
+    })
+    .join('');
+}
+
 export interface SideBySideRow {
   left: string | null;
   right: string | null;

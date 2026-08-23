@@ -152,3 +152,16 @@ describe('<DiffChecker /> share link and download', () => {
     window.location.hash = '';
   });
 });
+
+describe('<DiffChecker /> file drop', () => {
+  it('fills a pane from a file dropped directly onto its textarea', async () => {
+    render(<DiffChecker />);
+    const file = new File(['dropped content'], 'left.txt', { type: 'text/plain' });
+
+    fireEvent.drop(screen.getByLabelText(/original/i), { dataTransfer: { files: [file] } });
+
+    await waitFor(() => {
+      expect((screen.getByLabelText(/original/i) as HTMLTextAreaElement).value).toBe('dropped content');
+    });
+  });
+});

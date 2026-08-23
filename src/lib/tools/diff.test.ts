@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { compareTexts, compareJson, toSideBySideRows, type DiffPart } from './diff';
+import { compareTexts, compareJson, toSideBySideRows, toAnnotatedText, type DiffPart } from './diff';
 
 describe('compareTexts', () => {
   it('reports identical texts as identical', async () => {
@@ -187,5 +187,35 @@ describe('toSideBySideRows', () => {
 
   it('returns nothing for an empty parts list', () => {
     expect(toSideBySideRows([])).toEqual([]);
+  });
+});
+
+describe('toAnnotatedText', () => {
+  it('leaves unchanged text bare', () => {
+    const parts: DiffPart[] = [{ value: 'same', type: 'unchanged' }];
+    expect(toAnnotatedText(parts)).toBe('same');
+  });
+
+  it('wraps added text in {+ +}', () => {
+    const parts: DiffPart[] = [{ value: 'new', type: 'added' }];
+    expect(toAnnotatedText(parts)).toBe('{+new+}');
+  });
+
+  it('wraps removed text in [- -]', () => {
+    const parts: DiffPart[] = [{ value: 'old', type: 'removed' }];
+    expect(toAnnotatedText(parts)).toBe('[-old-]');
+  });
+
+  it('keeps removed and added content distinguishable when concatenated', () => {
+    const parts: DiffPart[] = [
+      { value: 'a\n', type: 'unchanged' },
+      { value: 'b\n', type: 'removed' },
+      { value: 'c\n', type: 'added' },
+    ];
+    expect(toAnnotatedText(parts)).toBe('a\n[-b\n-]{+c\n+}');
+  });
+
+  it('returns an empty string for no parts', () => {
+    expect(toAnnotatedText([])).toBe('');
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/preact';
+import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 import RegexTester from './RegexTester';
 
 const typeInto = (element: HTMLElement, value: string) => {
@@ -123,5 +123,18 @@ describe('<RegexTester /> share link', () => {
 
     expect(await screen.findByText('2 matches')).toBeInTheDocument();
     window.location.hash = '';
+  });
+});
+
+describe('<RegexTester /> file drop', () => {
+  it('fills the test string from a file dropped directly onto its textarea', async () => {
+    render(<RegexTester />);
+    const file = new File(['dropped subject'], 'subject.txt', { type: 'text/plain' });
+
+    fireEvent.drop(screen.getByLabelText(/test string/i), { dataTransfer: { files: [file] } });
+
+    await waitFor(() => {
+      expect((screen.getByLabelText(/test string/i) as HTMLTextAreaElement).value).toBe('dropped subject');
+    });
   });
 });
