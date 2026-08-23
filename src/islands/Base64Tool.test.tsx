@@ -113,3 +113,27 @@ describe('<Base64Tool />', () => {
     expect(preview.src).toContain('data:image/png;base64,Zm9vYmFy');
   });
 });
+
+describe('<Base64Tool /> share link and download', () => {
+  it('offers a download button once there is output', async () => {
+    render(<Base64Tool />);
+    expect(screen.getByRole('button', { name: /download/i })).toBeDisabled();
+
+    typeInto(screen.getByLabelText(/plain text/i), 'hello');
+    await screen.findByText('aGVsbG8=');
+    expect(screen.getByRole('button', { name: /download/i })).not.toBeDisabled();
+  });
+
+  it('restores input and direction from a shared link on load', async () => {
+    const { encodeShareState } = await import('../lib/shareLink');
+    const encoded = await encodeShareState({ input: 'foobar', direction: 'encode', urlSafe: false });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) return;
+
+    window.location.hash = `#s=${encoded.value}`;
+    render(<Base64Tool />);
+
+    expect(await screen.findByText('Zm9vYmFy')).toBeInTheDocument();
+    window.location.hash = '';
+  });
+});

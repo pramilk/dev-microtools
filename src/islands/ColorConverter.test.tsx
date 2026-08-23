@@ -84,3 +84,18 @@ describe('<ColorConverter />', () => {
     expect(screen.queryByText(/reaches 4.5:1 on white/i)).not.toBeInTheDocument();
   });
 });
+
+describe('<ColorConverter /> share link', () => {
+  it('restores the colour from a shared link on load', async () => {
+    const { encodeShareState } = await import('../lib/shareLink');
+    const encoded = await encodeShareState({ input: '#ff0000' });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) return;
+
+    window.location.hash = `#s=${encoded.value}`;
+    render(<ColorConverter />);
+
+    expect(await screen.findByText('rgb(255 0 0)')).toBeInTheDocument();
+    window.location.hash = '';
+  });
+});

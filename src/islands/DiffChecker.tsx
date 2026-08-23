@@ -6,10 +6,23 @@ import {
   type DiffMode,
   type DiffSummary,
 } from '../lib/tools/diff';
+import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
+import { CopyButton } from './shared/CopyButton';
+import { DownloadButton } from './shared/DownloadButton';
+import { ShareLinkButton } from './shared/ShareLinkButton';
 
 type Kind = 'text' | 'json';
 type View = 'inline' | 'side-by-side';
+
+interface ShareState {
+  left: string;
+  right: string;
+  kind: Kind;
+  mode: DiffMode;
+  ignoreCase: boolean;
+  ignoreWhitespace: boolean;
+}
 
 const SAMPLE_JSON_LEFT = `{
   "name": "billing-service",
@@ -55,6 +68,22 @@ export default function DiffChecker() {
     () => (effectiveView === 'side-by-side' && summary ? toSideBySideRows(summary.parts) : []),
     [effectiveView, summary]
   );
+
+  const diffText = useMemo(() => (summary ? summary.parts.map((part) => part.value).join('') : ''), [summary]);
+
+  // Restore state from a shared link, if the page was opened with one.
+  useEffect(() => {
+    void readShareStateFromLocation<ShareState>().then((restored) => {
+      if (!restored?.ok) return;
+      setLeft(restored.value.left);
+      setRight(restored.value.right);
+      setKind(restored.value.kind);
+      setMode(restored.value.mode);
+      setIgnoreCase(restored.value.ignoreCase);
+      setIgnoreWhitespace(restored.value.ignoreWhitespace);
+      history.replaceState(null, '', window.location.pathname);
+    });
+  }, []);
 
   useEffect(() => {
     if (left === '' && right === '') {
@@ -135,6 +164,10 @@ export default function DiffChecker() {
         )}
 
         <span class="tool-bar__spacer" />
+        <ShareLinkButton
+          getState={() => ({ left, right, kind, mode, ignoreCase, ignoreWhitespace })}
+          describe="this comparison"
+        />
         <button
           type="button"
           class="btn"
@@ -258,31 +291,35 @@ export default function DiffChecker() {
             <div class="field">
               <div class="field__label">
                 <span>Differences</span>
-                <div class="seg" role="group" aria-label="Layout">
-                  <button
-                    type="button"
-                    class="seg__btn"
-                    aria-pressed={effectiveView === 'inline'}
-                    onClick={() => setView('inline')}
-                    title="Show one merged view with removed lines struck through and added lines highlighted"
-                  >
-                    Inline
-                  </button>
-                  <button
-                    type="button"
-                    class="seg__btn"
-                    aria-pressed={effectiveView === 'side-by-side'}
-                    disabled={!canSideBySide}
-                    onClick={() => setView('side-by-side')}
-                    title={
-                      canSideBySide
-                        ? 'Show the two versions in two columns, lined up row by row'
-                        : 'Only available when comparing by line — switch granularity to "By line" to use this'
-                    }
-                  >
-                    Side by side
-                  </button>
-                </div>
+                <span class="tool-bar__group">
+                  <div class="seg" role="group" aria-label="Layout">
+                    <button
+                      type="button"
+                      class="seg__btn"
+                      aria-pressed={effectiveView === 'inline'}
+                      onClick={() => setView('inline')}
+                      title="Show one merged view with removed lines struck through and added lines highlighted"
+                    >
+                      Inline
+                    </button>
+                    <button
+                      type="button"
+                      class="seg__btn"
+                      aria-pressed={effectiveView === 'side-by-side'}
+                      disabled={!canSideBySide}
+                      onClick={() => setView('side-by-side')}
+                      title={
+                        canSideBySide
+                          ? 'Show the two versions in two columns, lined up row by row'
+                          : 'Only available when comparing by line — switch granularity to "By line" to use this'
+                      }
+                    >
+                      Side by side
+                    </button>
+                  </div>
+                  <CopyButton value={diffText} describe="differences" />
+                  <DownloadButton value={diffText} filename="diff.txt" describe="differences" />
+                </span>
               </div>
 
               {effectiveView === 'inline' ? (

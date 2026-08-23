@@ -10,12 +10,20 @@ import {
 import { ErrorMessage } from './shared/ErrorMessage';
 import { OutputPane } from './shared/OutputPane';
 import { CopyButton } from './shared/CopyButton';
+import { DownloadButton } from './shared/DownloadButton';
 
 const FORMAT_LABELS: Record<UuidBulkFormat, { label: string; hint: string }> = {
   lines: { label: 'One per line', hint: 'Plain list — one UUID per line' },
   json: { label: 'JSON array', hint: 'A JSON array of strings, e.g. for a fixtures file' },
   csv: { label: 'Comma-separated', hint: 'A single comma-separated line' },
   sql: { label: 'SQL values', hint: "A ('uuid'), list ready to paste into an INSERT ... VALUES statement" },
+};
+
+const FORMAT_FILES: Record<UuidBulkFormat, { filename: string; mimeType: string }> = {
+  lines: { filename: 'uuids.txt', mimeType: 'text/plain' },
+  json: { filename: 'uuids.json', mimeType: 'application/json' },
+  csv: { filename: 'uuids.csv', mimeType: 'text/csv' },
+  sql: { filename: 'uuids.sql', mimeType: 'text/plain' },
 };
 
 export default function UuidGenerator() {
@@ -113,6 +121,12 @@ export default function UuidGenerator() {
 
         <span class="tool-bar__spacer" />
         <CopyButton value={output} label="Copy all" describe="UUIDs" />
+        <DownloadButton
+          value={output}
+          filename={FORMAT_FILES[format].filename}
+          mimeType={FORMAT_FILES[format].mimeType}
+          describe="UUIDs"
+        />
       </div>
 
       <ErrorMessage message={error} />

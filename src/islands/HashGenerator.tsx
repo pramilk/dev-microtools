@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { hashAll, hashFile, hmacAll, digestsMatch, type HashAlgorithm } from '../lib/tools/hash';
+import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { CopyButton } from './shared/CopyButton';
 import { FileDropzone } from './shared/FileDropzone';
+import { DownloadButton } from './shared/DownloadButton';
+import { ShareLinkButton } from './shared/ShareLinkButton';
 
 interface Digest {
   algorithm: HashAlgorithm;
@@ -10,6 +13,10 @@ interface Digest {
 }
 
 type Mode = 'text' | 'file';
+
+interface ShareState {
+  input: string;
+}
 
 /** MD5 and SHA-1 are broken for security use; the UI has to say so. */
 const INSECURE: Partial<Record<HashAlgorithm, string>> = {
@@ -27,6 +34,22 @@ export default function HashGenerator() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [compareTo, setCompareTo] = useState('');
+
+  // Restore state from a shared link, if the page was opened with one. The HMAC key
+  // is deliberately never part of this — a secret has no business living in a URL.
+  useEffect(() => {
+    void readShareStateFromLocation<ShareState>().then((restored) => {
+      if (!restored?.ok) return;
+      setMode('text');
+      setInput(restored.value.input);
+      history.replaceState(null, '', window.location.pathname);
+    });
+  }, []);
+
+  const digestListText = useMemo(
+    () => digests.map(({ algorithm, digest }) => `${algorithm}: ${digest}`).join('\n'),
+    [digests]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -151,6 +174,7 @@ export default function HashGenerator() {
               />
             )}
             <span class="tool-bar__spacer" />
+            <ShareLinkButton getState={() => ({ input })} describe="this text" />
             <button
               type="button"
               class="btn"
@@ -169,6 +193,13 @@ export default function HashGenerator() {
       {busy && <p class="field__hint">Hashing…</p>}
 
       <ErrorMessage message={error} />
+
+      {digests.length > 0 && (
+        <div class="tool-bar">
+          <span class="tool-bar__spacer" />
+          <DownloadButton value={digestListText} filename="hashes.txt" describe="digest list" />
+        </div>
+      )}
 
       {digests.length > 0 && (
         <div class="hash-list">

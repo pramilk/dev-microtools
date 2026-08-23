@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { formatJson, minifyJson, sortJsonKeys, parseJson, analyseJson, type IndentStyle } from '../lib/tools/json';
 import type { RepairedJson } from '../lib/tools/jsonRepair';
+import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { CopyButton } from './shared/CopyButton';
+import { DownloadButton } from './shared/DownloadButton';
+import { ShareLinkButton } from './shared/ShareLinkButton';
+
+interface ShareState {
+  input: string;
+  indent: IndentStyle;
+  action: Action;
+}
 
 const SAMPLE = '{"name":"ada","langs":["js","ts"],"active":true,"meta":{"id":42,"tags":null}}';
 const BROKEN_SAMPLE = `{
@@ -94,6 +103,17 @@ export default function JsonFormatter() {
   const [autoFix, setAutoFix] = useState(true);
   const [view, setView] = useState<View>('text');
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set());
+
+  // Restore state from a shared link, if the page was opened with one.
+  useEffect(() => {
+    void readShareStateFromLocation<ShareState>().then((restored) => {
+      if (!restored?.ok) return;
+      setInput(restored.value.input);
+      setIndent(restored.value.indent);
+      setAction(restored.value.action);
+      history.replaceState(null, '', window.location.pathname);
+    });
+  }, []);
   const toggleCollapsed = (path: string) => {
     setCollapsedPaths((current) => {
       const next = new Set(current);
@@ -240,6 +260,8 @@ export default function JsonFormatter() {
 
         <span class="tool-bar__spacer" />
 
+        <ShareLinkButton getState={() => ({ input, indent, action })} describe="this document" />
+
         <button
           type="button"
           class="btn"
@@ -318,6 +340,7 @@ export default function JsonFormatter() {
                 </button>
               </div>
               <CopyButton value={output} describe="JSON" />
+              <DownloadButton value={output} filename="data.json" mimeType="application/json" describe="JSON" />
             </span>
           </div>
 

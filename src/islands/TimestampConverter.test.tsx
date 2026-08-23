@@ -110,3 +110,24 @@ describe('<TimestampConverter />', () => {
     expect(await screen.findByText('2023-11-14T22:13:20.000Z')).toBeInTheDocument();
   });
 });
+
+describe('<TimestampConverter /> share link', () => {
+  it('restores mode, input and extra time zones from a shared link on load', async () => {
+    const { encodeShareState } = await import('../lib/shareLink');
+    const encoded = await encodeShareState({
+      mode: 'epoch',
+      input: '1700000000',
+      unit: 'auto',
+      extraZones: ['Asia/Tokyo'],
+    });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) return;
+
+    window.location.hash = `#s=${encoded.value}`;
+    render(<TimestampConverter />);
+
+    expect(await screen.findByText('2023-11-14T22:13:20.000Z')).toBeInTheDocument();
+    expect(await screen.findByText('Asia/Tokyo')).toBeInTheDocument();
+    window.location.hash = '';
+  });
+});

@@ -1,16 +1,35 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { encodeUrl, decodeUrl, parseUrl, buildUrl, type UrlEncodeMode } from '../lib/tools/url';
+import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { OutputPane } from './shared/OutputPane';
 import { CopyButton } from './shared/CopyButton';
+import { ShareLinkButton } from './shared/ShareLinkButton';
 
 type Direction = 'encode' | 'decode';
 type Param = { key: string; value: string };
+
+interface ShareState {
+  input: string;
+  direction: Direction;
+  mode: UrlEncodeMode;
+}
 
 export default function UrlTool() {
   const [input, setInput] = useState('');
   const [direction, setDirection] = useState<Direction>('encode');
   const [mode, setMode] = useState<UrlEncodeMode>('component');
+
+  // Restore state from a shared link, if the page was opened with one.
+  useEffect(() => {
+    void readShareStateFromLocation<ShareState>().then((restored) => {
+      if (!restored?.ok) return;
+      setInput(restored.value.input);
+      setDirection(restored.value.direction);
+      setMode(restored.value.mode);
+      history.replaceState(null, '', window.location.pathname);
+    });
+  }, []);
 
   const result = useMemo(() => {
     if (input === '') return null;
@@ -94,6 +113,7 @@ export default function UrlTool() {
         </div>
 
         <span class="tool-bar__spacer" />
+        <ShareLinkButton getState={() => ({ input, direction, mode })} describe="this URL" />
         <button
           type="button"
           class="btn"

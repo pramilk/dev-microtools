@@ -99,3 +99,26 @@ describe('<HashGenerator />', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/secret key/i);
   });
 });
+
+describe('<HashGenerator /> share link and download', () => {
+  it('offers a download button for the digest list once there is one', async () => {
+    render(<HashGenerator />);
+    typeInto(screen.getByLabelText(/text to hash/i), 'abc');
+
+    expect(await screen.findByRole('button', { name: /download/i })).not.toBeDisabled();
+  });
+
+  it('restores the text input from a shared link, never the HMAC key', async () => {
+    const { encodeShareState } = await import('../lib/shareLink');
+    const encoded = await encodeShareState({ input: 'abc' });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) return;
+
+    window.location.hash = `#s=${encoded.value}`;
+    render(<HashGenerator />);
+
+    expect(await screen.findByText(SHA256_ABC)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/hmac secret key/i)).not.toBeInTheDocument();
+    window.location.hash = '';
+  });
+});

@@ -103,3 +103,18 @@ describe('<UrlTool />', () => {
     expect(mainInput.value).toBe('https://x.dev/?tag=beta');
   });
 });
+
+describe('<UrlTool /> share link', () => {
+  it('restores input and direction from a shared link on load', async () => {
+    const { encodeShareState } = await import('../lib/shareLink');
+    const encoded = await encodeShareState({ input: 'a%3D1', direction: 'decode', mode: 'component' });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) return;
+
+    window.location.hash = `#s=${encoded.value}`;
+    render(<UrlTool />);
+
+    expect(await screen.findByText('a=1')).toBeInTheDocument();
+    window.location.hash = '';
+  });
+});

@@ -78,4 +78,9 @@ describe('<UuidGenerator />', () => {
     expect(Array.isArray(parsed)).toBe(true);
     expect(parsed).toHaveLength(5);
   });
+
+  it('offers a download button once a batch exists', async () => {
+    render(<UuidGenerator />);
+    expect(await screen.findByRole('button', { name: /download/i })).not.toBeDisabled();
+  });
 });

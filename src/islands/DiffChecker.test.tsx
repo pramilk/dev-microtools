@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/preact';
+import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 import DiffChecker from './DiffChecker';
 
 const typeInto = (element: HTMLElement, value: string) => {
@@ -115,5 +115,40 @@ describe('<DiffChecker />', () => {
     await screen.findByText(/^differences$/i);
 
     expect(screen.getByRole('button', { name: /side by side/i })).toBeDisabled();
+  });
+});
+
+describe('<DiffChecker /> share link and download', () => {
+  it('offers a download button once there are differences', async () => {
+    render(<DiffChecker />);
+    typeInto(screen.getByLabelText(/original/i), 'a\nb\n');
+    typeInto(screen.getByLabelText(/compare with/i), 'a\nc\n');
+
+    expect(await screen.findByRole('button', { name: /download/i })).not.toBeDisabled();
+  });
+
+  it('restores both panes from a shared link on load', async () => {
+    const { encodeShareState } = await import('../lib/shareLink');
+    const encoded = await encodeShareState({
+      left: 'shared left',
+      right: 'shared right',
+      kind: 'text',
+      mode: 'line',
+      ignoreCase: false,
+      ignoreWhitespace: false,
+    });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) return;
+
+    window.location.hash = `#s=${encoded.value}`;
+    render(<DiffChecker />);
+
+    const left = screen.getByLabelText(/original/i) as HTMLTextAreaElement;
+    const right = screen.getByLabelText(/compare with/i) as HTMLTextAreaElement;
+    await waitFor(() => {
+      expect(left.value).toBe('shared left');
+      expect(right.value).toBe('shared right');
+    });
+    window.location.hash = '';
   });
 });

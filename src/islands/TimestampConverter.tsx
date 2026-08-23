@@ -8,10 +8,19 @@ import {
   type TimestampBreakdown,
   type TimestampUnit,
 } from '../lib/tools/timestamp';
+import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { CopyButton } from './shared/CopyButton';
+import { ShareLinkButton } from './shared/ShareLinkButton';
 
 type Mode = 'epoch' | 'date';
+
+interface ShareState {
+  mode: Mode;
+  input: string;
+  unit: TimestampUnit | 'auto';
+  extraZones: string[];
+}
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -49,6 +58,18 @@ export default function TimestampConverter() {
 
   const [extraZones, setExtraZones] = useState<string[]>([]);
   const availableZones = COMMON_TIME_ZONES.filter((z) => !extraZones.includes(z.zone));
+
+  // Restore state from a shared link, if the page was opened with one.
+  useEffect(() => {
+    void readShareStateFromLocation<ShareState>().then((restored) => {
+      if (!restored?.ok) return;
+      setMode(restored.value.mode);
+      setInput(restored.value.input);
+      setUnit(restored.value.unit);
+      setExtraZones(restored.value.extraZones);
+      history.replaceState(null, '', window.location.pathname);
+    });
+  }, []);
 
   const zoneReadings = useMemo(() => {
     if (!value) return [];
@@ -136,6 +157,7 @@ export default function TimestampConverter() {
         )}
 
         <span class="tool-bar__spacer" />
+        <ShareLinkButton getState={() => ({ mode, input, unit, extraZones })} describe="this conversion" />
         <button
           type="button"
           class="btn"

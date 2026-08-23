@@ -105,3 +105,23 @@ describe('<RegexTester />', () => {
     expect(screen.getByText('abc')).toBeInTheDocument();
   });
 });
+
+describe('<RegexTester /> share link', () => {
+  it('restores a pattern and subject from a shared link on load', async () => {
+    const { encodeShareState } = await import('../lib/shareLink');
+    const encoded = await encodeShareState({
+      pattern: '\\d+',
+      flags: 'g',
+      subject: 'a1 b22',
+      replacement: '',
+    });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) return;
+
+    window.location.hash = `#s=${encoded.value}`;
+    render(<RegexTester />);
+
+    expect(await screen.findByText('2 matches')).toBeInTheDocument();
+    window.location.hash = '';
+  });
+});

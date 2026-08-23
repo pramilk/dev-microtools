@@ -5,13 +5,22 @@ import {
   encodeFileToBase64,
   isImageDataUrl,
 } from '../lib/tools/base64';
+import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { OutputPane } from './shared/OutputPane';
 import { FileDropzone } from './shared/FileDropzone';
 import { formatBytes } from './shared/formatBytes';
+import { DownloadButton } from './shared/DownloadButton';
+import { ShareLinkButton } from './shared/ShareLinkButton';
 
 type Direction = 'encode' | 'decode';
 type Source = 'text' | 'file';
+
+interface ShareState {
+  input: string;
+  direction: Direction;
+  urlSafe: boolean;
+}
 
 export default function Base64Tool() {
   const [input, setInput] = useState('');
@@ -20,6 +29,19 @@ export default function Base64Tool() {
   const [source, setSource] = useState<Source>('text');
   const [file, setFile] = useState<File | null>(null);
   const [includeDataUrl, setIncludeDataUrl] = useState(true);
+
+  // Restore state from a shared link, if the page was opened with one. File content
+  // is never part of this — it isn't practical (or always safe) to put in a URL.
+  useEffect(() => {
+    void readShareStateFromLocation<ShareState>().then((restored) => {
+      if (!restored?.ok) return;
+      setSource('text');
+      setInput(restored.value.input);
+      setDirection(restored.value.direction);
+      setUrlSafe(restored.value.urlSafe);
+      history.replaceState(null, '', window.location.pathname);
+    });
+  }, []);
 
   const [fileOutput, setFileOutput] = useState<{ base64: string; dataUrl: string; mimeType: string } | null>(
     null
@@ -149,6 +171,9 @@ export default function Base64Tool() {
         <span class="tool-bar__spacer" />
 
         {source === 'text' && (
+          <ShareLinkButton getState={() => ({ input, direction, urlSafe })} describe="this text" />
+        )}
+        {source === 'text' && (
           <button
             type="button"
             class="btn"
@@ -211,6 +236,13 @@ export default function Base64Tool() {
                 direction === 'encode' ? 'Encoded output appears here.' : 'Decoded text appears here.'
               }
               describe={direction === 'encode' ? 'base64' : 'decoded text'}
+              actions={
+                <DownloadButton
+                  value={output}
+                  filename={direction === 'encode' ? 'encoded.txt' : 'decoded.txt'}
+                  describe={direction === 'encode' ? 'base64' : 'decoded text'}
+                />
+              }
             />
           )}
         </div>
@@ -237,6 +269,7 @@ export default function Base64Tool() {
               placeholder="Encoded output appears here."
               describe="base64"
               tall
+              actions={<DownloadButton value={output} filename="encoded.txt" describe="base64" />}
             />
           )}
         </div>

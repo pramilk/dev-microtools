@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
   convertColor,
   parseColor,
@@ -6,10 +6,16 @@ import {
   nearestAccessibleShade,
   NAMED_COLOR_NAMES,
 } from '../lib/tools/color';
+import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { CopyButton } from './shared/CopyButton';
+import { ShareLinkButton } from './shared/ShareLinkButton';
 
 const PRESETS = ['#3cbcd4', '#0b6e80', '#b3261e', '#1a7f45', '#f5a524', '#6b21a8'];
+
+interface ShareState {
+  input: string;
+}
 
 /** WCAG thresholds, so the contrast numbers mean something actionable. */
 function contrastVerdict(ratio: number): { label: string; tone: 'success' | 'warning' | 'error' } {
@@ -21,6 +27,15 @@ function contrastVerdict(ratio: number): { label: string; tone: 'success' | 'war
 
 export default function ColorConverter() {
   const [input, setInput] = useState('#3cbcd4');
+
+  // Restore state from a shared link, if the page was opened with one.
+  useEffect(() => {
+    void readShareStateFromLocation<ShareState>().then((restored) => {
+      if (!restored?.ok) return;
+      setInput(restored.value.input);
+      history.replaceState(null, '', window.location.pathname);
+    });
+  }, []);
 
   const result = useMemo(() => (input.trim() === '' ? null : convertColor(input)), [input]);
   const swatch = useMemo(() => {
@@ -110,6 +125,8 @@ export default function ColorConverter() {
             onClick={() => setInput(preset)}
           />
         ))}
+        <span class="tool-bar__spacer" />
+        <ShareLinkButton getState={() => ({ input })} describe="this colour" />
       </div>
 
       <ErrorMessage message={error} />

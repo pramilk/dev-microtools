@@ -96,7 +96,7 @@ describe('<JsonFormatter />', () => {
 
   it('disables the copy button while there is nothing to copy', () => {
     render(<JsonFormatter />);
-    expect(screen.getByRole('button', { name: /copy/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^copy$/i })).toBeDisabled();
   });
 });
 
@@ -285,5 +285,29 @@ describe('<JsonFormatter /> tree view', () => {
 
     typeInto(screen.getByLabelText(/json input/i), 'not json at all');
     expect(screen.queryByLabelText(/json as a collapsible tree/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('<JsonFormatter /> share link and download', () => {
+  it('offers a download button that enables once there is output', async () => {
+    render(<JsonFormatter />);
+    expect(screen.getByRole('button', { name: /download/i })).toBeDisabled();
+
+    typeInto(screen.getByLabelText(/json input/i), '{"a":1}');
+    await screen.findByText(/"a": 1/);
+    expect(screen.getByRole('button', { name: /download/i })).not.toBeDisabled();
+  });
+
+  it('restores input from a shared link on load', async () => {
+    const { encodeShareState } = await import('../lib/shareLink');
+    const encoded = await encodeShareState({ input: '{"shared":true}', indent: 2, action: 'format' });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) return;
+
+    window.location.hash = `#s=${encoded.value}`;
+    render(<JsonFormatter />);
+
+    expect(await screen.findByText(/"shared": true/)).toBeInTheDocument();
+    window.location.hash = '';
   });
 });

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
   runRegex,
   toSegments,
@@ -7,12 +7,21 @@ import {
   testLines,
   REGEX_FLAGS,
 } from '../lib/tools/regex';
+import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { OutputPane } from './shared/OutputPane';
+import { ShareLinkButton } from './shared/ShareLinkButton';
 
 const SAMPLE_PATTERN = '(?<user>[\\w.+-]+)@(?<domain>[\\w-]+\\.[\\w.]+)';
 const SAMPLE_TEXT = `Contact ada@example.com or grace.hopper@navy.mil.
 Invalid: not-an-email@, @nope.com`;
+
+interface ShareState {
+  pattern: string;
+  flags: string;
+  subject: string;
+  replacement: string;
+}
 
 export default function RegexTester() {
   const [pattern, setPattern] = useState('');
@@ -23,6 +32,21 @@ export default function RegexTester() {
   const [showExplain, setShowExplain] = useState(false);
   const [showLineTest, setShowLineTest] = useState(false);
   const [testList, setTestList] = useState('');
+
+  // Restore state from a shared link, if the page was opened with one.
+  useEffect(() => {
+    void readShareStateFromLocation<ShareState>().then((restored) => {
+      if (!restored?.ok) return;
+      setPattern(restored.value.pattern);
+      setFlags(restored.value.flags);
+      setSubject(restored.value.subject);
+      if (restored.value.replacement !== '') {
+        setReplacement(restored.value.replacement);
+        setShowReplace(true);
+      }
+      history.replaceState(null, '', window.location.pathname);
+    });
+  }, []);
 
   const run = useMemo(() => {
     if (pattern === '' || subject === '') return null;
@@ -123,6 +147,10 @@ export default function RegexTester() {
         ))}
 
         <span class="tool-bar__spacer" />
+        <ShareLinkButton
+          getState={() => ({ pattern, flags, subject, replacement: showReplace ? replacement : '' })}
+          describe="this pattern"
+        />
         <button
           type="button"
           class="btn"
