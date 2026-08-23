@@ -74,7 +74,10 @@
   --shadow: 0 2px 8px rgb(15 21 28 / 8%);
 
   --content-width: 72rem;
+  --content-width-wide: 90rem;
   --prose-width: 68ch;
+  --sidebar-width: 18rem;
+  --header-height: 3.5rem;
 
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI",
     system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -170,6 +173,10 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* The mobile sidebar is a fixed, `translateX`-off-screen drawer when closed —
+     without this, its off-canvas layout box still counts toward the document's
+     scrollable width in some browsers, producing a phantom horizontal scrollbar. */
+  overflow-x: hidden;
 }
 
 body {
@@ -288,6 +295,29 @@ pre {
 
 main {
   flex: 1;
+}
+
+.shell {
+  display: flex;
+  align-items: flex-start;
+  flex: 1;
+}
+
+.shell__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ----------------------------------------------------------- typography */

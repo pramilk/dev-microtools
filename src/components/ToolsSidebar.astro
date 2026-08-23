@@ -1,0 +1,415 @@
+---
+import { getCollection } from 'astro:content';
+import { TOOL_ICONS, DEFAULT_TOOL_ICON } from '../lib/toolIcons';
+
+// Persistent, site-wide tool navigation. Static content (search + the categorised
+// link list) is plain server-rendered HTML — only the filtering behaviour needs a
+// script, and it is a few lines of vanilla DOM code, not a hydrated component.
+const tools = (await getCollection('tools')).sort((a, b) => a.data.order - b.data.order);
+const categories = [...new Set(tools.map((tool) => tool.data.category))];
+const currentPath = Astro.url.pathname;
+---
+
+<aside class="sidebar" id="tools-sidebar" aria-label="All tools">
+  <div class="sidebar__inner">
+    <div class="sidebar__search">
+      <button
+        type="button"
+        class="sidebar__collapse"
+        data-sidebar-toggle
+        aria-label="Collapse tools sidebar"
+        aria-controls="tools-sidebar"
+        aria-expanded="true"
+        title="Collapse sidebar"
+      >
+        <span aria-hidden="true">‹</span>
+      </button>
+      <label class="sr-only" for="sidebar-search">Search tools</label>
+      <input
+        type="search"
+        id="sidebar-search"
+        class="sidebar__search-input"
+        placeholder="Search tools…"
+        autocomplete="off"
+        data-sidebar-search
+      />
+    </div>
+
+    <nav class="sidebar__nav" data-sidebar-nav>
+      {
+        categories.map((category) => (
+          <div class="sidebar__group" data-sidebar-group>
+            <p class="sidebar__group-title">{category}</p>
+            <ul class="sidebar__list">
+              {tools
+                .filter((tool) => tool.data.category === category)
+                .map((tool) => {
+                  const href = `/${tool.id}/`;
+                  return (
+                    <li data-sidebar-item data-tool-name={tool.data.title.toLowerCase()}>
+                      <a href={href} aria-current={currentPath === href ? 'page' : undefined}>
+                        <span class="sidebar__icon" aria-hidden="true">{TOOL_ICONS[tool.id] ?? DEFAULT_TOOL_ICON}</span>
+                        <span class="sidebar__label">{tool.data.title}</span>
+                      </a>
+                    </li>
+                  );
+                })}
+            </ul>
+          </div>
+        ))
+      }
+      <p class="sidebar__empty" data-sidebar-empty hidden>
+        No tools match your search.
+      </p>
+    </nav>
+  </div>
+</aside>
+
+{/*
+  Visible only while the sidebar is collapsed (hidden via the `html[data-sidebar='open']`
+  rule below) — a slim tab docked right at the panel's edge, since a fully collapsed
+  sidebar has zero width and nothing left in it to click.
+*/}
+<button
+  type="button"
+  class="sidebar-tab"
+  data-sidebar-toggle
+  aria-label="Expand tools sidebar"
+  aria-controls="tools-sidebar"
+  aria-expanded="false"
+  title="Expand sidebar"
+>
+  <span aria-hidden="true">›</span>
+</button>
+
+<div class="sidebar-backdrop" data-sidebar-backdrop></div>
+
+<style>
+  .sidebar {
+    flex-shrink: 0;
+    width: var(--sidebar-width);
+    overflow: hidden;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: var(--header-height);
+    height: calc(100vh - var(--header-height));
+    transition: width 0.15s ease;
+  }
+
+  :global(html[data-sidebar='closed']) .sidebar {
+    width: 0;
+    border-right-color: transparent;
+  }
+
+  .sidebar__inner {
+    width: var(--sidebar-width);
+    height: 100%;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-4);
+  }
+
+  /* Sticky within `.sidebar__inner`'s own scroll area (not the page) — stays
+     reachable while the tool list scrolls underneath it instead of scrolling
+     away with the rest of the panel. */
+  .sidebar__search {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-block: var(--space-1) var(--space-3);
+    margin-block: calc(-1 * var(--space-1)) calc(-1 * var(--space-3));
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar__collapse {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .sidebar__collapse:hover {
+    background: var(--surface-2);
+    color: var(--text);
+    border-color: var(--text-subtle);
+  }
+
+  .sidebar__search-input {
+    width: 100%;
+    height: 2.25rem;
+    padding-inline: var(--space-3);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    color: var(--text);
+    font-size: var(--text-sm);
+    font-family: inherit;
+  }
+
+  .sidebar__search-input::placeholder {
+    color: var(--text-subtle);
+  }
+
+  .sidebar__nav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .sidebar__group-title {
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-family: var(--font-mono);
+    color: var(--text-subtle);
+    font-weight: 600;
+    margin-bottom: var(--space-2);
+  }
+
+  .sidebar__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .sidebar__list a {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    border-left: 3px solid transparent;
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-weight: 500;
+    text-decoration: none;
+    font-size: var(--text-sm);
+    transition:
+      background-color 0.12s ease,
+      border-color 0.12s ease,
+      color 0.12s ease,
+      transform 0.12s ease;
+  }
+
+  /* A short coloured label rather than plain muted text — easier to scan down the
+     list at a glance, while staying inside the single-accent-colour system (no
+     per-tool colours, unlike the emoji this replaced). No filled background: a
+     first pass used a solid badge chip here and it read as too heavy/loud next to
+     the plain-text tool names — colour alone carries enough weight. */
+  .sidebar__icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-width: 1.85rem;
+    color: var(--accent);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    opacity: 0.85;
+    transition: opacity 0.12s ease;
+  }
+
+  .sidebar__list a[aria-current='page'] .sidebar__icon,
+  .sidebar__list a:hover .sidebar__icon {
+    opacity: 1;
+  }
+
+  .sidebar__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sidebar__list a:hover {
+    background: var(--accent-subtle);
+    border-left-color: var(--accent-border);
+    color: var(--accent);
+    transform: translateX(2px);
+  }
+
+  .sidebar__list a[aria-current='page'] {
+    background: var(--accent-subtle);
+    border-left-color: var(--accent);
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .sidebar__empty {
+    font-size: var(--text-sm);
+    color: var(--text-subtle);
+    padding-inline: var(--space-3);
+  }
+
+  /* The expand tab sits right where the collapsed (width: 0) sidebar's edge is,
+     so it reads as part of the panel rather than a header control disconnected
+     from what it opens. Hidden once the sidebar itself is open — its own internal
+     collapse button (above) takes over from there. */
+  .sidebar-tab {
+    flex-shrink: 0;
+    align-self: flex-start;
+    position: sticky;
+    top: var(--header-height);
+    width: 1.75rem;
+    height: 2.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--border-strong);
+    border-left: none;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    background: var(--surface);
+    color: var(--accent);
+    font-size: 1.05rem;
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+  }
+
+  .sidebar-tab:hover {
+    color: var(--accent-hover);
+    background: var(--surface-2);
+    box-shadow: var(--shadow);
+  }
+
+  :global(html[data-sidebar='open']) .sidebar-tab {
+    display: none;
+  }
+
+  .sidebar-backdrop {
+    display: none;
+  }
+
+  /* Below this width the sidebar becomes an off-canvas overlay (fixed + slide-in)
+     instead of a flex column that squeezes the main content — matches the
+     `min-width: 64rem` breakpoint BaseLayout's no-FOUC script uses to decide the
+     default open/closed state, so there's no in-between range where opening the
+     sidebar visibly squeezes a tool's controls into a sliver. */
+  @media (max-width: 63.99rem) {
+    .sidebar {
+      position: fixed;
+      inset: var(--header-height) auto 0 0;
+      z-index: 30;
+      width: min(85vw, 20rem);
+      transform: translateX(-100%);
+      transition: transform 0.15s ease;
+      box-shadow: var(--shadow);
+    }
+
+    .sidebar__inner {
+      width: 100%;
+    }
+
+    :global(html[data-sidebar='open']) .sidebar {
+      transform: translateX(0);
+    }
+
+    :global(html[data-sidebar='closed']) .sidebar {
+      width: min(85vw, 20rem);
+      border-right-color: var(--border);
+    }
+
+    :global(html[data-sidebar='open']) .sidebar-backdrop {
+      display: block;
+      position: fixed;
+      inset: var(--header-height) 0 0 0;
+      background: rgb(0 0 0 / 40%);
+      z-index: 29;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  // Reads/writes the `data-sidebar` attribute BaseLayout's no-FOUC inline script
+  // already applies before first paint — every open/close control on the page
+  // (the internal collapse button, the external expand tab, the backdrop, Escape,
+  // and picking a tool link on mobile) funnels through this one pair of functions.
+  function currentlyOpen(): boolean {
+    return document.documentElement.getAttribute('data-sidebar') === 'open';
+  }
+
+  function setOpen(open: boolean): void {
+    document.documentElement.setAttribute('data-sidebar', open ? 'open' : 'closed');
+    try {
+      localStorage.setItem('sidebarOpen', open ? '1' : '0');
+    } catch {
+      // Persisting is best-effort; the sidebar still toggles for this page view.
+    }
+    for (const button of document.querySelectorAll<HTMLElement>('[data-sidebar-toggle]')) {
+      button.setAttribute('aria-expanded', String(open));
+    }
+  }
+
+  for (const button of document.querySelectorAll<HTMLElement>('[data-sidebar-toggle]')) {
+    button.setAttribute('aria-expanded', String(currentlyOpen()));
+    button.addEventListener('click', () => setOpen(!currentlyOpen()));
+  }
+
+  const input = document.querySelector<HTMLInputElement>('[data-sidebar-search]');
+  const items = document.querySelectorAll<HTMLLIElement>('[data-sidebar-item]');
+  const groups = document.querySelectorAll<HTMLElement>('[data-sidebar-group]');
+  const empty = document.querySelector<HTMLElement>('[data-sidebar-empty]');
+
+  input?.addEventListener('input', () => {
+    const query = input.value.trim().toLowerCase();
+    let anyVisible = false;
+
+    for (const item of items) {
+      const match = query === '' || (item.dataset.toolName ?? '').includes(query);
+      item.hidden = !match;
+      if (match) anyVisible = true;
+    }
+
+    for (const group of groups) {
+      group.hidden = group.querySelectorAll('[data-sidebar-item]:not([hidden])').length === 0;
+    }
+
+    if (empty) empty.hidden = anyVisible || query === '';
+  });
+
+  // Mobile only: clicking the backdrop or pressing Escape closes the overlay.
+  const backdrop = document.querySelector<HTMLElement>('[data-sidebar-backdrop]');
+  backdrop?.addEventListener('click', () => setOpen(false));
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && currentlyOpen()) setOpen(false);
+  });
+
+  // Picking a tool while the sidebar is an overlay (same breakpoint as the CSS
+  // above) should close it — it's a full-page navigation either way, but without
+  // this the sidebar would still be sitting open, covering the new page, until the
+  // next full reload happens to pick up a "closed" default.
+  const overlayBreakpoint = window.matchMedia('(max-width: 63.99rem)');
+  for (const link of document.querySelectorAll<HTMLAnchorElement>('.sidebar__list a')) {
+    link.addEventListener('click', () => {
+      if (overlayBreakpoint.matches) setOpen(false);
+    });
+  }
+</script>

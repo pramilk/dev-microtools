@@ -5,9 +5,12 @@ interface Props {
   /** Slugs to link to. Unknown slugs are skipped rather than rendering dead links. */
   slugs: string[];
   currentSlug: string;
+  /** Small pill links (name only) instead of full description cards — for placing
+   * right after the widget, before the reader gets into the long-form description. */
+  compact?: boolean;
 }
 
-const { slugs, currentSlug } = Astro.props;
+const { slugs, currentSlug, compact = false } = Astro.props;
 
 const all = await getCollection('tools');
 const related = slugs
@@ -17,23 +20,39 @@ const related = slugs
 ---
 
 {
-  related.length > 0 && (
-    <nav class="related" aria-labelledby="related-heading">
-      <h2 id="related-heading" class="related__heading">
-        Related tools
-      </h2>
-      <ul class="related__list">
-        {related.map((tool) => (
-          <li>
-            <a href={`/${tool.id}/`} class="related__card">
-              <span class="related__name">{tool.data.title}</span>
-              <span class="related__summary">{tool.data.summary}</span>
-            </a>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  )
+  related.length > 0 &&
+    (compact ? (
+      <nav class="related related--compact" aria-labelledby="related-heading">
+        <h2 id="related-heading" class="related__heading related__heading--compact">
+          Related tools
+        </h2>
+        <ul class="related__pills">
+          {related.map((tool) => (
+            <li>
+              <a href={`/${tool.id}/`} class="related__pill" title={tool.data.summary}>
+                {tool.data.title}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    ) : (
+      <nav class="related" aria-labelledby="related-heading">
+        <h2 id="related-heading" class="related__heading">
+          Related tools
+        </h2>
+        <ul class="related__list">
+          {related.map((tool) => (
+            <li>
+              <a href={`/${tool.id}/`} class="related__card">
+                <span class="related__name">{tool.data.title}</span>
+                <span class="related__summary">{tool.data.summary}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    ))
 }
 
 <style>
@@ -94,5 +113,49 @@ const related = slugs
     font-size: var(--text-xs);
     color: var(--text-muted);
     line-height: 1.5;
+  }
+
+  .related--compact {
+    margin-top: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .related__heading--compact {
+    margin-bottom: 0;
+    white-space: nowrap;
+  }
+
+  .related__pills {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .related__pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    text-decoration: none;
+    transition:
+      border-color 0.12s ease,
+      color 0.12s ease,
+      background-color 0.12s ease;
+  }
+
+  .related__pill:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-subtle);
   }
 </style>

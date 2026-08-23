@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import ToolsSidebar from '../components/ToolsSidebar.astro';
 import { SITE } from '../lib/site';
 
 interface Props {
@@ -88,6 +89,36 @@ const toSafeJsonLd = (value: unknown): string => JSON.stringify(value).replace(/
       })();
     </script>
 
+    {/*
+      Sets whether the sidebar starts open or closed before first paint, so it never
+      flashes from one state to the other (a layout-affecting element changing size
+      after paint would be a CLS bug). Below the 64rem breakpoint the sidebar is an
+      off-canvas overlay that covers the page — it always starts closed there,
+      regardless of any remembered preference, so a returning small-screen visitor
+      never lands on a page with the drawer already covering it. At and above
+      64rem it shares space instead of covering anything, so a remembered explicit
+      choice (from the toggle) is respected there; otherwise it defaults open.
+    */}
+    <script is:inline>
+      (function () {
+        var wide = window.matchMedia('(min-width: 64rem)').matches;
+        if (!wide) {
+          document.documentElement.setAttribute('data-sidebar', 'closed');
+          return;
+        }
+        try {
+          var saved = localStorage.getItem('sidebarOpen');
+          if (saved === '1' || saved === '0') {
+            document.documentElement.setAttribute('data-sidebar', saved === '1' ? 'open' : 'closed');
+            return;
+          }
+        } catch (e) {
+          /* localStorage unavailable (private mode); fall back to the default below */
+        }
+        document.documentElement.setAttribute('data-sidebar', 'open');
+      })();
+    </script>
+
     {
       SITE.cloudflareAnalyticsToken && (
         <script
@@ -103,9 +134,12 @@ const toSafeJsonLd = (value: unknown): string => JSON.stringify(value).replace(/
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
     <Header />
-    <main id="main">
-      <slot />
-    </main>
+    <div class="shell">
+      <ToolsSidebar />
+      <main id="main" class="shell__main">
+        <slot />
+      </main>
+    </div>
     <Footer />
   </body>
 </html>

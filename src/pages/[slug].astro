@@ -58,7 +58,7 @@ const schema = [
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Tools', item: new URL('/', Astro.site ?? SITE.url).href },
+      { '@type': 'ListItem', position: 1, name: 'Home', item: new URL('/', Astro.site ?? SITE.url).href },
       { '@type': 'ListItem', position: 2, name: data.title, item: pageUrl },
     ],
   },
@@ -80,33 +80,49 @@ const schema = [
   canonicalPath={path}
   schema={schema}
 >
-  <div class="container tool-page">
-    <nav class="breadcrumb" aria-label="Breadcrumb">
-      <a href="/">Tools</a>
-      <span aria-hidden="true">/</span>
-      <span aria-current="page">{data.title}</span>
-    </nav>
+  <div class="tool-page">
+    <div class="tool-page__narrow">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="/">Home</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">{data.title}</span>
+      </nav>
 
-    <header class="tool-page__header">
-      <p class="eyebrow">{data.category}</p>
-      <h1>{data.headline}</h1>
-      <p class="lede">{data.summary}</p>
-      <p class="privacy-note">
-        <span aria-hidden="true">🔒</span>
-        Runs entirely in your browser — nothing you paste is uploaded or stored.
-      </p>
-    </header>
+      <header class="tool-page__header">
+        <p class="eyebrow">{data.category}</p>
+        <h1>{data.headline}</h1>
+        <p class="lede">{data.summary}</p>
+        <p class="privacy-note">
+          <span aria-hidden="true">🔒</span>
+          Runs entirely in your browser — nothing you paste is uploaded or stored.
+        </p>
+      </header>
+    </div>
 
     {/*
       The widget is the reason the page exists, so it renders before the prose and is
       the only thing hydrated eagerly. Everything else on the page is static HTML.
+      Unlike the rest of the page it isn't capped to reading width — on a large
+      screen it should use the extra room, especially the split-pane tools.
     */}
     <section class="tool-page__widget" aria-label={`${data.title} tool`}>
       <ToolIsland slug={tool.id} />
     </section>
 
-    <AdSlot placement="in-content" />
+    <div class="tool-page__narrow">
+      <RelatedTools slugs={data.related} currentSlug={tool.id} compact />
 
+      <AdSlot placement="in-content" />
+    </div>
+
+    {/*
+      Two columns at the same wide width as the widget above — a single 90rem-wide
+      column of text would make for an unreadably long line length, but two ~43rem
+      columns are each close to the normal prose reading width while actually using
+      the space, instead of leaving large empty margins beside a narrow centered
+      column. Pairs naturally by document order: what-is/when-to-use side by side,
+      then how-to/example side by side.
+    */}
     <div class="prose">
       <section>
         <h2>What is {data.title.toLowerCase()}?</h2>
@@ -137,42 +153,108 @@ const schema = [
         {data.example.note && <p>{data.example.note}</p>}
       </section>
 
-      {/* Any additional prose the .mdx body carries. */}
-      <Content />
+      {/* Any additional prose the .mdx body carries — always full-width, since it
+          can be an arbitrary number of elements that wouldn't pair up cleanly. */}
+      <div class="prose__extra">
+        <Content />
+      </div>
     </div>
 
-    <Faq items={data.faq} />
+    <div class="tool-page__narrow">
+      <Faq items={data.faq} />
 
-    <AdSlot placement="footer" />
-
-    <RelatedTools slugs={data.related} currentSlug={tool.id} />
+      <AdSlot placement="footer" />
+    </div>
   </div>
 </BaseLayout>
 
 <style>
   .tool-page {
+    width: 100%;
+    max-width: var(--content-width-wide);
+    margin-inline: auto;
+    padding-inline: var(--space-4);
     padding-block: var(--space-5) var(--space-6);
     display: flex;
     flex-direction: column;
     gap: var(--space-5);
   }
 
+  @media (min-width: 48rem) {
+    .tool-page {
+      padding-inline: var(--space-5);
+    }
+  }
+
+  /* Breadcrumb, header, ads, FAQ and related-tools stay at reading width, even
+     though the wide outer container gives the widget (and the prose grid below)
+     more room — but left-aligned (`margin-inline: 0`), not independently centred.
+     Centring a narrower block inside a wider one shifts its left edge inward,
+     which misaligned it against the wide sections above and below it; capping
+     the width while keeping the same left edge as `.tool-page` fixes that. */
+  .tool-page__narrow {
+    width: 100%;
+    max-width: var(--content-width);
+    margin-inline: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+
+  /* Overrides the global `.prose` utility (single narrow column, used as-is on
+     About/Privacy) for this page only — Astro scopes this rule to elements this
+     component renders, so it doesn't leak to those other pages. */
+  .prose {
+    max-width: var(--content-width-wide);
+    width: 100%;
+    margin-inline: auto;
+    display: grid;
+    /* `minmax(0, 1fr)`, not plain `1fr` — a bare `1fr` track's minimum size is its
+       content's min-content width, so a section with long unbreakable phrases (or
+       a wide <pre> block) can force its column wider than its 50% share and starve
+       the other column. `minmax(0, ...)` removes that content-based minimum, so
+       both columns split the space evenly and wrap their content to fit instead. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-6);
+  }
+
+  .prose__extra {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .prose__extra:empty {
+    display: none;
+  }
+
+  @media (max-width: 63.99rem) {
+    .prose {
+      grid-template-columns: minmax(0, 1fr);
+      max-width: var(--content-width);
+    }
+  }
+
   .breadcrumb {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    font-size: var(--text-sm);
+    font-size: var(--text-base);
     color: var(--text-subtle);
   }
 
   .breadcrumb a {
-    color: var(--text-muted);
-    text-decoration: none;
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-color: var(--accent-border);
+    text-underline-offset: 2px;
   }
 
   .breadcrumb a:hover {
-    color: var(--accent);
-    text-decoration: underline;
+    color: var(--accent-hover);
+    text-decoration-color: currentColor;
   }
 
   .tool-page__header {

@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { SITE } from '../lib/site';
+import { TOOL_ICONS, DEFAULT_TOOL_ICON } from '../lib/toolIcons';
 
 const tools = (await getCollection('tools')).sort((a, b) => a.data.order - b.data.order);
 
@@ -57,7 +58,10 @@ const schema = [
               .map((tool) => (
                 <li>
                   <a href={`/${tool.id}/`} class="card tool-card">
-                    <span class="tool-card__name">{tool.data.title}</span>
+                    <span class="tool-card__top">
+                      <span class="tool-card__icon" aria-hidden="true">{TOOL_ICONS[tool.id] ?? DEFAULT_TOOL_ICON}</span>
+                      <span class="tool-card__name">{tool.data.title}</span>
+                    </span>
                     <span class="tool-card__summary">{tool.data.summary}</span>
                   </a>
                 </li>
@@ -156,6 +160,33 @@ const schema = [
   .tool-card:hover {
     border-color: var(--accent);
     box-shadow: var(--shadow);
+  }
+
+  .tool-card__top {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  /* Colour alone, no filled badge chip — a first pass used a solid background here
+     and it read as too heavy next to the card's plain-text name/summary. */
+  .tool-card__icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-width: 2.1rem;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    opacity: 0.85;
+    transition: opacity 0.12s ease;
+  }
+
+  .tool-card:hover .tool-card__icon {
+    opacity: 1;
   }
 
   .tool-card__name {
