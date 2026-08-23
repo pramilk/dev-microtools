@@ -1,0 +1,53 @@
+---
+title: CSS Box-Shadow Generator
+headline: CSS Box-Shadow Generator — Layered Shadows
+description: Build CSS box-shadows visually, including layered and inset shadows, with a live preview and copy-ready CSS. Runs in your browser. Free, no sign-up.
+summary: Build single or layered box-shadows visually and copy the CSS.
+category: Style
+order: 14
+updated: 2026-08-22
+whatIsIt: >-
+  `box-shadow` is the CSS property that gives an element depth — a card that looks lifted
+  off the page, a button with a subtle drop shadow, or a pressed-in inset effect. Its
+  syntax packs five values (offset-x, offset-y, blur, spread, color) into one line, and
+  getting a shadow to look right usually means tweaking numbers and reloading repeatedly.
+  This tool lets you adjust each value with a live preview, layer multiple shadows for the
+  soft, realistic look modern design systems use, and copy the exact CSS it produces.
+useCases:
+  - Building a card or button shadow and seeing it rendered live instead of guessing pixel values.
+  - Recreating the soft, multi-layer shadow style common in modern design systems, which a single shadow layer can't produce convincingly.
+  - Creating an inset shadow for a pressed-button or input-field effect.
+  - Handing a designer-approved shadow off to a developer as a ready-to-paste CSS declaration.
+howTo:
+  - Adjust the offset, blur and spread sliders and pick a color for the first shadow layer.
+  - Toggle "Inset" if you want the shadow to appear inside the element's edge rather than cast outward.
+  - Add another layer to build a softer, more realistic shadow — most well-designed shadows use two or three layers of different sizes and opacities.
+  - Copy the generated `box-shadow` declaration, or copy a link that restores this exact shadow to share with someone else.
+example:
+  label: A single soft drop shadow.
+  input: 'offset 0px 4px, blur 12px, spread 0px, rgba(0,0,0,0.35)'
+  output: 'box-shadow: 0px 4px 12px 0px rgb(0 0 0 / 0.35);'
+  note: Paste this declaration directly into any CSS rule targeting the element you want to lift off the page.
+faq:
+  - q: Why do good shadows use multiple layers?
+    a: A single shadow with a large blur looks flat and artificial, because real shadows aren't uniform — they're sharper close to the object and softer further away. Layering two or three shadows of different size, offset and opacity approximates that falloff, which is why most modern design systems (Material Design, Tailwind's shadow scale) define their shadows as multiple comma-separated layers rather than one.
+  - q: What does the spread value do, and when would I use a negative one?
+    a: 'Spread expands or shrinks the shadow''s shape before the blur is applied — positive grows it, negative shrinks it. A common technique for the multi-layer style above uses a negative spread on the softer, larger-blur layer so it doesn''t visually overwhelm the sharper layer beneath it.'
+  - q: What's the difference between box-shadow and a drop-shadow filter?
+    a: '`box-shadow` always follows the element''s box shape — its rectangle, or its border-radius if rounded. The `filter: drop-shadow()` CSS function instead follows the actual rendered alpha shape of the content, which matters for a non-rectangular image or icon with transparency, but is typically slower for the browser to render.'
+  - q: Why does my inset shadow look wrong on an element with a background image?
+    a: An inset shadow renders on top of the element's own background, inside its border — if the background is a busy image, a light shadow can be hard to see against it. Increasing the shadow's opacity or blur usually restores visibility; this is a rendering-order fact of the property, not something the generated CSS can work around.
+  - q: Can I animate a box-shadow on hover?
+    a: 'Yes, using a CSS transition on the `box-shadow` property, but be aware it''s a relatively expensive property to animate compared to `transform` or `opacity`, since the browser recalculates the shadow''s shape on every frame. For a simple hover-lift effect, animating a small `transform: translateY()` alongside the shadow change usually performs better and looks smoother.'
+related:
+  - color-converter
+  - css-gradient-generator
+  - diff-checker
+---
+
+## A shadow needs a light background to read against
+
+`box-shadow` renders using whatever color and opacity you set — it does not adapt to a
+dark background automatically. If a card sits on a dark page, a shadow tuned for a light
+background can disappear or look muddy; try a lighter, more opaque color, or a subtle
+light-colored outline instead, for shadows on dark surfaces.

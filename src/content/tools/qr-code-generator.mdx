@@ -1,0 +1,51 @@
+---
+title: QR Code Generator
+headline: QR Code Generator — Free, No Sign-Up
+description: Turn any text or URL into a downloadable QR code, generated entirely in your browser. Choose an error correction level and export as PNG or SVG. Free.
+summary: Turn text or a URL into a scannable QR code — download as PNG or SVG.
+category: Generate
+order: 12
+updated: 2026-08-22
+whatIsIt: >-
+  A QR code is a two-dimensional barcode that encodes text — most often a URL — as a grid
+  of black and white squares a camera can read instantly. This tool builds a real,
+  standards-compliant QR code from whatever you type, entirely in your browser, and lets
+  you choose an error correction level and export it as a PNG for sharing or an SVG for
+  print, where a crisp vector matters at any size.
+useCases:
+  - Linking a printed flyer, business card, or poster to a website without anyone typing a URL by hand.
+  - Sharing Wi-Fi details, a contact card, or an app download link at an event or in a physical space.
+  - Embedding a QR code in a slide deck or document that points to a live page.
+  - Testing how a QR code you're about to print actually scans, before committing to a print run.
+howTo:
+  - Type or paste the text or URL you want encoded.
+  - Choose an error correction level — higher levels tolerate more damage or a logo overlay, at the cost of a denser code.
+  - Preview updates live as you type.
+  - Download as PNG at your chosen resolution, or as SVG for print, where a vector stays sharp at any size.
+example:
+  label: A QR code encoding this site's homepage URL.
+  input: 'https://devmicrotools.com'
+  output: 'A 25x25-module QR code at error correction level M, ready to download as PNG or SVG.'
+  note: Point any phone camera at the downloaded image to confirm it decodes back to the exact URL that was entered.
+faq:
+  - q: What does the error correction level actually control?
+    a: 'It controls how much of the code can be damaged, dirty, or obscured (for example by a logo placed on top) and still scan correctly: roughly 7% at Low, 15% at Medium, 25% at Quartile, and 30% at High. Higher levels add more redundant data, which makes the code physically denser for the same content — Medium is a sensible default for most uses, High if you plan to overlay a logo.'
+  - q: Is there a limit to how much text a QR code can hold?
+    a: Yes — this tool caps input at 1,500 characters, comfortably under what the QR standard supports at low error correction, but a QR code storing that much text becomes very dense and harder for cheap cameras to read reliably. For anything beyond a short message, encoding a short URL that points to the full content scans far more reliably.
+  - q: Why would I choose SVG over PNG?
+    a: SVG is a vector format, so it stays perfectly sharp printed at any size — a business card or a building-sized banner both render cleanly from the same file. PNG is a fixed-resolution raster image, better suited to sharing on screen (chat, slides, social posts) where a vector format usually isn't accepted directly.
+  - q: Does generating a QR code here send my data anywhere?
+    a: No. The QR code is built entirely in your browser from a small, open-source encoding library, and the image itself is produced on an in-page canvas. Nothing you type is uploaded, logged, or sent to a server — that's true even for the finished PNG or SVG, which are saved directly from your browser to your device.
+  - q: My QR code isn't scanning — what's wrong?
+    a: The most common cause is insufficient contrast or the code being printed too small for its density — a long URL at Low error correction produces a fine grid that struggles at business-card size. Try a shorter URL (a link shortener helps), a higher error correction level if you're adding a logo, or simply printing it larger.
+related:
+  - color-converter
+  - password-generator
+  - uuid-generator
+---
+
+## Choosing what to encode
+
+A QR code that encodes a full, long URL works, but produces a denser, harder-to-scan
+pattern than one encoding a short link. If a URL is long — with tracking parameters, for
+instance — consider generating the code from a shortened version instead.

@@ -1,0 +1,58 @@
+---
+title: User-Agent Parser
+headline: User-Agent String Parser
+description: Parse a browser User-Agent string into browser, OS, engine and device type, or inspect your own. Runs in your browser. Free, no sign-up required.
+summary: Parse a User-Agent string into browser, OS, rendering engine and device type.
+category: Inspect
+order: 15
+updated: 2026-08-22
+whatIsIt: >-
+  A User-Agent string is a line of text every browser sends with each request, identifying
+  itself, its version, the operating system it's running on, and its rendering engine. The
+  format is famously messy — for historical compatibility reasons, nearly every modern
+  browser's User-Agent claims to be several other browsers at once — which makes it easy to
+  misread by eye. This tool parses a User-Agent string properly, checking the more specific
+  signatures first, and shows exactly what it identifies: browser, OS, engine and device
+  type, either for a string you paste in or for your own browser automatically.
+useCases:
+  - Debugging a bug report that includes a raw User-Agent string, to see at a glance what browser, version and OS it actually describes.
+  - Checking what your own browser is currently sending, when investigating browser-detection logic or a User-Agent-based redirect.
+  - Understanding a log line or analytics entry that records the User-Agent of a visitor or request.
+  - Verifying that a crawler or bot identifying itself in a User-Agent string is who it claims to be.
+howTo:
+  - Paste a User-Agent string into the box, or click "Use my browser's User-Agent" to inspect your own — it's filled in automatically when the page loads.
+  - 'Read the parsed result: browser name and version, operating system and version, rendering engine, and device type.'
+  - Copy the raw string with the copy button if you need to paste it elsewhere.
+example:
+  label: A desktop Chrome User-Agent on Windows.
+  input: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
+  output: |-
+    Browser   Chrome 128.0.0.0
+    OS        Windows 10/11
+    Engine    Blink (Chromium)
+    Device    Desktop
+  note: Note the string also contains "Safari/537.36" — that's the historical compatibility token every Chromium browser carries, not a sign this is actually Safari.
+faq:
+  - q: Why does a Chrome User-Agent contain the word "Safari"?
+    a: For historical compatibility. When Chrome launched, many websites checked for the substring "Safari" to decide whether to serve modern CSS and JavaScript, since Safari was the reference WebKit browser at the time. Chrome (and every other WebKit- or Blink-based browser since, including Edge and Opera) kept that token in its User-Agent to avoid breaking those checks, which is exactly why parsing a User-Agent by eye is unreliable — you have to check the more specific tokens (Chrome, Edg, OPR) before falling back to Safari.
+  - q: Can a User-Agent string be faked?
+    a: Yes, trivially — every major browser lets you override it in developer tools, and any HTTP client can set it to an arbitrary value. A User-Agent is a self-reported claim, not a verified fact, so it's useful for analytics and feature-detection heuristics but should never be trusted for a security decision.
+  - q: Why is browser and OS detection considered unreliable practice for feature support?
+    a: Because the relationship between "browser X version Y" and "supports feature Z" changes constantly and requires a maintained lookup table that's always slightly out of date. Checking directly whether the feature exists — `if ('fetch' in window)`, for example — works regardless of which browser or version is asking, and keeps working as new browsers ship.
+  - q: What does "engine" mean, and why does it matter?
+    a: The rendering engine is the underlying software that actually parses HTML/CSS and runs JavaScript — Blink (Chrome, Edge, Opera, and most Android browsers), WebKit (Safari, and every browser on iOS, since Apple requires it), and Gecko (Firefox). Two browsers sharing an engine tend to render pages near-identically, which is more relevant to compatibility testing than the browser's brand name alone.
+  - q: Why do all browsers on iOS report the WebKit engine, even Chrome?
+    a: Apple's App Store policy requires every browser on iOS to use WebKit internally, regardless of its brand — so "Chrome for iOS" is Chrome's interface built on Safari's actual rendering engine, not Chrome's own Blink engine. This is unique to iOS; Chrome on Android and desktop uses Blink as normal.
+related:
+  - json-formatter
+  - regex-tester
+  - jwt-decoder
+---
+
+## Reading the version numbers
+
+Not every OS version is what it appears to be at a glance: recent Windows 10 and Windows 11
+both report `Windows NT 10.0` — Windows itself dropped the version number from the User-Agent
+string years before Windows 11 shipped, so the two are indistinguishable from this string
+alone. iOS and macOS versions appear with underscores instead of dots in the raw string
+(`17_5_1`), which this tool converts to the familiar dotted form.

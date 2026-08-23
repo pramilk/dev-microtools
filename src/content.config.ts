@@ -25,7 +25,7 @@ const tools = defineCollection({
       description: z.string().min(70).max(160),
       /** One-line summary shown on the homepage tool card. */
       summary: z.string().min(20).max(120),
-      category: z.enum(['Convert', 'Generate', 'Inspect', 'Compare', 'Format']),
+      category: z.enum(['Convert', 'Generate', 'Inspect', 'Compare', 'Format', 'Style']),
       /** Sort order within the homepage listing. Lower shows first. */
       order: z.number().int().nonnegative(),
 

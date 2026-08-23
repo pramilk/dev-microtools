@@ -9,6 +9,11 @@ import UrlTool from '../islands/UrlTool';
 import TimestampConverter from '../islands/TimestampConverter';
 import ColorConverter from '../islands/ColorConverter';
 import DiffChecker from '../islands/DiffChecker';
+import PasswordGenerator from '../islands/PasswordGenerator';
+import QrCodeGenerator from '../islands/QrCodeGenerator';
+import CssGradientGenerator from '../islands/CssGradientGenerator';
+import CssBoxShadowGenerator from '../islands/CssBoxShadowGenerator';
+import UserAgentParser from '../islands/UserAgentParser';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -43,3 +48,8 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'timestamp-converter' && <TimestampConverter client:load />}
 {slug === 'color-converter' && <ColorConverter client:load />}
 {slug === 'diff-checker' && <DiffChecker client:load />}
+{slug === 'password-generator' && <PasswordGenerator client:load />}
+{slug === 'qr-code-generator' && <QrCodeGenerator client:load />}
+{slug === 'css-gradient-generator' && <CssGradientGenerator client:load />}
+{slug === 'css-box-shadow-generator' && <CssBoxShadowGenerator client:load />}
+{slug === 'user-agent-parser' && <UserAgentParser client:load />}

@@ -1,0 +1,52 @@
+---
+title: CSS Gradient Generator
+headline: CSS Gradient Generator — Linear, Radial & Conic
+description: Build linear, radial and conic CSS gradients visually, with a live preview and copy-ready CSS. Runs in your browser. Free, no sign-up required.
+summary: Build linear, radial and conic gradients visually and copy the CSS.
+category: Style
+order: 13
+updated: 2026-08-22
+whatIsIt: >-
+  CSS gradients let you paint a smooth transition between colours directly as a background,
+  with no image file needed — but writing the syntax by hand means guessing at angles and
+  stop positions and reloading the page to see the result. This tool builds linear, radial
+  and conic gradients visually: drag stops, pick colours, adjust the angle or origin, and
+  watch the preview update in real time, then copy the exact CSS declaration it produces.
+useCases:
+  - Building a background gradient for a hero section or button and seeing the exact result before committing it to code.
+  - Recreating a gradient you've seen elsewhere by matching its colours and angle visually rather than guessing values.
+  - Exploring radial and conic gradients, which are harder to reason about from syntax alone than linear ones.
+  - Handing a designer-approved gradient off to a developer as a ready-to-paste CSS declaration.
+howTo:
+  - Choose a gradient type — linear, radial or conic.
+  - Adjust the angle (linear and conic) or the shape and origin position (radial and conic).
+  - Set each colour stop's colour and position, and add or remove stops as needed.
+  - Copy the generated `background` declaration, or copy a link that restores this exact gradient to share with someone else.
+example:
+  label: A two-stop linear gradient at 90 degrees.
+  input: 'linear, 90deg, #3cbcd4 at 0%, #6b21a8 at 100%'
+  output: 'background: linear-gradient(90deg, #3cbcd4 0%, #6b21a8 100%);'
+  note: Paste this declaration directly into any CSS rule, or into an inline `style` attribute.
+faq:
+  - q: What's the difference between linear, radial and conic gradients?
+    a: A linear gradient transitions along a straight line at a given angle. A radial gradient radiates outward from a point, either as a circle or an ellipse. A conic gradient sweeps around a point like a colour wheel, which is what makes it useful for pie-chart-style effects and some kinds of loading spinners that plain linear or radial gradients can't produce.
+  - q: Can I use more than two colour stops?
+    a: Yes — add as many as you like with the "Add stop" button, each with its own colour and position from 0% to 100%. Stops don't need to be evenly spaced; clustering several stops close together creates a sharper transition at that point in the gradient.
+  - q: Why do my stops show as hex colours even though I typed rgb() or a name?
+    a: The tool normalises every colour to hex in the generated CSS for consistency and brevity — `rgb(60 188 212)` and `#3cbcd4` are the exact same colour, hex is just shorter to read and paste. If you need alpha transparency in a stop, use an 8-digit hex or `rgba()` as input; it's preserved correctly, just re-expressed.
+  - q: Does the position field for radial and conic gradients accept any value?
+    a: It accepts the standard CSS position keywords — `center`, `top`, `bottom`, `left`, `right`, and their combinations like `top left`. These cover the vast majority of real designs; for a precise pixel or percentage origin not covered by a keyword, edit the copied CSS directly.
+  - q: Is a CSS gradient better than a gradient image?
+    a: Almost always, for a solid-colour transition. A CSS gradient is a few dozen bytes of text versus a PNG or JPEG that's typically tens of kilobytes, it stays perfectly sharp at any screen size or zoom level, and it can be edited or animated without touching an image editor.
+related:
+  - color-converter
+  - css-box-shadow-generator
+  - json-formatter
+---
+
+## Browser support
+
+Linear and radial gradients work in every browser in current use. Conic gradients are
+supported in all major browsers released since 2020 — if you need to support something
+older, provide a solid-colour or linear-gradient fallback declared before the conic one, so
+unsupported browsers simply use the earlier, understood declaration.
