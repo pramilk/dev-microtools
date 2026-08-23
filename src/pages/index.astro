@@ -34,6 +34,7 @@ const schema = [
     <section class="hero">
       <p class="eyebrow">{tools.length} tools · no sign-up · no uploads</p>
       <h1>{SITE.tagline}</h1>
+      <p class="punchline">By developers, for developers.</p>
       <p class="lede">
         Small, focused utilities for everyday development work — formatting, decoding,
         hashing, comparing. Every one runs entirely in your browser, so nothing you paste
@@ -105,6 +106,12 @@ const schema = [
     flex-direction: column;
     gap: var(--space-3);
     max-width: 46rem;
+  }
+
+  .punchline {
+    font-weight: 650;
+    color: var(--accent);
+    font-size: var(--text-lg);
   }
 
   .group__title {
