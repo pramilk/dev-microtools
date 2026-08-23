@@ -1,0 +1,56 @@
+---
+title: Base32 Encoder
+headline: Base32 Encoder and Decoder
+description: Encode and decode Base32 (RFC 4648) in your browser, including unpadded output for TOTP/2FA secret keys. Nothing is uploaded. Free, no sign-up required.
+summary: Encode and decode standard Base32, with optional padding for TOTP secrets and other tokens.
+category: Convert
+order: 23
+updated: 2026-08-23
+whatIsIt: >-
+  Base32 encodes arbitrary binary data using 32 printable ASCII characters — the
+  uppercase letters A-Z and the digits 2-7 — so it can travel safely through systems
+  that are case-insensitive or that reject characters like +, / and =. This tool
+  implements the RFC 4648 section 6 standard alphabet, which is the encoding used by
+  TOTP authenticator apps (Google Authenticator, Authy and similar) to represent a
+  2FA secret key as human-typeable text. It is an encoding, not encryption: anyone
+  can decode Base32, and it provides no confidentiality whatsoever. The tool converts
+  in both directions and handles full Unicode text correctly.
+useCases:
+  - Reading or constructing a TOTP/2FA secret key, which authenticator apps display and accept as unpadded Base32 text.
+  - Decoding a legacy identifier or filename that uses Base32 specifically because it needs to be case-insensitive on case-insensitive filesystems.
+  - Verifying that a value your code generated with a Base32 library matches what you expect, by round-tripping it through this tool.
+  - Converting a short secret or token to Base32 before embedding it somewhere that cannot safely contain the punctuation characters Base64 uses.
+howTo:
+  - Choose Encode to convert plain text to Base32, or Decode to convert Base32 back to text.
+  - Paste your input on the left. The conversion runs as you type; there is no submit button.
+  - Tick "Omit padding" when encoding if the result is a TOTP secret or similar token — those are conventionally shown without the trailing "=" characters.
+  - Press Copy to place the result on the clipboard, or Clear to start over.
+example:
+  label: Encoding a short string, the same input used in the RFC 4648 test vectors.
+  input: 'foobar'
+  output: 'MZXW6YTBOI======'
+  note: Base32 always encodes in 8-character groups, padding the final group with "=" when the input length is not a multiple of 5 bytes. With "Omit padding" checked, this becomes "MZXW6YTBOI" — the form most authenticator apps expect.
+faq:
+  - q: How is Base32 different from Base64?
+    a: "Both are reversible text encodings for binary data, but Base32 uses a 32-character alphabet (A-Z and 2-7) instead of Base64's 64-character alphabet. That makes Base32 case-insensitive and free of visually ambiguous characters like 0/O and 1/I/l, which is why it shows up in contexts meant to be read or typed by a person. The tradeoff is size — Base32 output is about 60% larger than the original data, versus roughly 33% for Base64, because each character carries only 5 bits instead of 6."
+  - q: Is this the same as Crockford's Base32?
+    a: 'No, and this is a common source of confusion. This tool implements the RFC 4648 section 6 standard alphabet (A-Z, 2-7, "=" padding), which is what TOTP/2FA secrets and most standards-based systems use. Crockford''s Base32 is a different, incompatible encoding — it uses its own alphabet, omits padding by design, and treats certain letters as interchangeable to reduce transcription errors. It is popular in some ID-generation libraries (like ULID). A value encoded with Crockford''s Base32 will not decode correctly here, and vice versa — check which one your source actually uses before assuming they match.'
+  - q: Is Base32 encryption?
+    a: No. Like Base64, Base32 is a reversible encoding with no key involved — anyone who has the encoded string can decode it instantly. It exists to make data safe for case-insensitive or punctuation-restricted text channels, not to hide anything. A TOTP secret shown as Base32 still needs to be protected as a secret; the encoding does not add any confidentiality.
+  - q: Why does decoding sometimes fail with a UTF-8 error?
+    a: The input decoded successfully as Base32, but the resulting bytes are not valid UTF-8 text — which usually means the original data was binary rather than text, such as a raw cryptographic key. This tool displays text, so it reports the problem rather than showing replacement characters and pretending the decode produced something readable.
+  - q: Why is my Base32 string missing the "=" padding?
+    a: Padding is optional in many real-world uses of Base32, and TOTP/2FA authenticator apps almost always omit it. This tool's decoder tolerates missing padding automatically, and the encoder offers an "Omit padding" checkbox so you can produce output in that conventional form when you need it.
+related:
+  - base64-encode-decode
+  - qr-code-generator
+  - hash-generator
+---
+
+## Base32 and TOTP secrets
+
+The most common reason to reach for Base32 today is two-factor authentication. When a
+service gives you a "secret key" to type into an authenticator app instead of scanning a
+QR code, that key is Base32 text — typically unpadded, uppercase, and grouped in blocks
+of four characters for readability. This tool round-trips that exact format, so you can
+decode a secret to inspect it or re-encode one you have reconstructed from raw bytes.

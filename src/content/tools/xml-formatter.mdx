@@ -1,0 +1,66 @@
+---
+title: XML Formatter
+headline: XML Formatter, Validator & JSON Converter
+description: Format and pretty-print XML, check that a document is well-formed, or convert it to JSON. Runs entirely in your browser. Free, no sign-up required.
+summary: Pretty-print, minify, validate, or convert XML to JSON — all in the browser.
+category: Format
+order: 27
+updated: 2026-08-23
+whatIsIt: >-
+  A minified XML API response, a SOAP payload, or a config file copied out of a log is hard
+  to read on one line — tags, attributes and nested elements all run together with no visual
+  structure. This tool parses XML with the browser's own native parser and re-prints it with
+  consistent indentation, one element per line, so structure is visible at a glance. It also
+  runs the other direction: it can minify a document by stripping insignificant whitespace,
+  check that a document is well-formed XML, or convert it to a JSON value you can work with
+  directly in JavaScript, using an explicit, documented attribute/text convention rather than
+  guessing at one.
+useCases:
+  - Pretty-printing a minified XML API response or SOAP/WSDL payload before reading or debugging it.
+  - Validating a config file — a Maven pom.xml, an Android manifest, an RSS or Atom feed — is well-formed before committing it.
+  - Converting a small XML payload to JSON to consume it in JavaScript without hand-writing a parser.
+  - Minifying a hand-formatted XML document to shave bytes before storing or transmitting it.
+howTo:
+  - Paste XML, or click "Load example" to see a working sample.
+  - Pick a mode — Format to pretty-print, Minify to compact, Validate to check well-formedness, or To JSON to convert.
+  - The result updates live as you type or edit, with a specific error shown if the document isn't well-formed.
+  - Copy the result, download it as a file, or copy a link that restores this exact input and mode.
+example:
+  label: A minified two-record catalog, formatted.
+  input: '<?xml version="1.0"?><catalog><book id="bk101"><title>XML Developer''s Guide</title><price>44.95</price></book></catalog>'
+  output: |-
+    <?xml version="1.0"?>
+    <catalog>
+      <book id="bk101">
+        <title>XML Developer's Guide</title>
+        <price>44.95</price>
+      </book>
+    </catalog>
+  note: The XML declaration stays on its own line at the top, attributes keep their original order, and a text-only element like <price> stays on one line instead of being split across three.
+faq:
+  - q: Exactly how does the XML-to-JSON conversion work?
+    a: 'There is no single universal standard for converting XML to JSON, so this tool uses one explicit, documented convention. An element''s attributes become object keys prefixed with `@` — `<a id="1">` becomes `{"@id": "1"}`. An element with only text and no attributes or children becomes a plain string, e.g. `<price>44.95</price>` becomes `"44.95"` (never auto-coerced to a number). An element with both text and attributes, or text mixed with child elements, puts the text under a `#text` key alongside the rest, e.g. `<a id="1">hello</a>` becomes `{"@id": "1", "#text": "hello"}`. Repeated sibling elements sharing a tag name become a JSON array under that key — three `<item>` siblings become `"item": [...]` — while a single occurrence stays a plain value, not wrapped in a one-element array. The document''s root element becomes the single top-level key of the result.'
+  - q: Why does malformed XML show a specific parser error instead of a best-effort result?
+    a: Because guessing at broken markup is how corrupted data gets shipped without anyone noticing. The browser's own XML parser is used here, and its error — including a location when it can determine one — is shown as-is rather than papered over with a "close enough" reformat. Accuracy is the priority; a document that isn't well-formed should look broken, not almost-right.
+  - q: Does this validate against a schema, like an XSD or DTD?
+    a: No — this is a well-formedness check only, the same way this site's CIDR/Subnet tool is explicitly IPv4-only rather than trying to cover IPv6 too. Well-formed means every tag is properly closed and nested, there's exactly one root element, and attribute syntax is valid — it does not mean the document matches a particular schema, that required elements are present, or that values are the right type for a given field. Schema validation against an XSD or DTD is a materially heavier problem this tool doesn't attempt.
+  - q: Will formatting or minifying change what my document means?
+    a: No — both only add or remove whitespace between tags. Meaningful text content, CDATA section contents, comments, attribute values and their order are all preserved exactly. The one exception worth knowing is that pretty-printing normalizes surrounding whitespace inside a text-only element (so re-indenting doesn't accumulate stray spaces on every format pass) — the text itself is never altered.
+  - q: Is there a size limit?
+    a: Yes, 2,000,000 characters — parsing, formatting and JSON conversion all run synchronously in your browser tab with no server to offload to, so an unbounded document would freeze the page with no way to show progress. That comfortably covers any hand-edited config file or a realistically sized API payload.
+related:
+  - json-formatter
+  - data-format-converter
+  - html-css-js-minifier
+---
+
+## Why this uses the browser's own XML parser, not a hand-rolled one
+
+Parsing XML correctly means handling nested elements, attributes, comments, CDATA sections,
+namespaces and entity references — a grammar with enough edge cases that a hand-written parser
+is a real risk of silently mishandling one of them. This tool uses the browser's native
+`DOMParser` instead, the same engine that parses XML documents loaded directly in the browser.
+The one thing that engine doesn't do for free is announce failure clearly: `DOMParser` never
+throws on malformed input, it returns a document containing a `<parsererror>` element in its
+place. This tool checks for that explicitly and turns it into a real, visible error — the same
+principle behind every "no silent failure" tool on this site.

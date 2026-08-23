@@ -37,8 +37,21 @@ export default defineConfig({
        *
        * Listing them here pre-bundles them when the dev server boots instead.
        * Production builds are unaffected; this is purely a dev-server fix.
+       *
+       * This list should stay in sync with every `await import('pkg')` in
+       * src/lib/tools/*.ts — add a new dynamically-imported dependency here in the
+       * same change that introduces it, not after someone hits the 504.
        */
-      include: ['diff', 'blueimp-md5', 'spark-md5'],
+      include: [
+        'diff',
+        'blueimp-md5',
+        'spark-md5',
+        'js-yaml',
+        'terser',
+        'sql-formatter',
+        'bcryptjs',
+        'qrcode-generator',
+      ],
     },
   },
 });

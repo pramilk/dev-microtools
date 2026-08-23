@@ -18,6 +18,9 @@ interface ShareState {
   input: string;
 }
 
+// Matches the worked example in hash-generator.mdx — a standard, published SHA-256 test vector.
+const SAMPLE_TEXT = 'abc';
+
 /** MD5 and SHA-1 are broken for security use; the UI has to say so. */
 const INSECURE: Partial<Record<HashAlgorithm, string>> = {
   MD5: 'Broken — collisions are trivial. Use only for checksums, never for passwords or signatures.',
@@ -128,27 +131,9 @@ export default function HashGenerator() {
             File
           </button>
         </div>
-      </div>
 
-      {mode === 'text' ? (
-        <>
-          <div class="field">
-            <label class="field__label" for="hash-input">
-              <span>Text to hash</span>
-              <span class="field__hint">{input.length.toLocaleString()} characters</span>
-            </label>
-            <textarea
-              id="hash-input"
-              class="textarea textarea--short"
-              spellcheck={false}
-              autocomplete="off"
-              placeholder="Type or paste the text you want to hash…"
-              value={input}
-              onInput={(event) => setInput((event.target as HTMLTextAreaElement).value)}
-            />
-          </div>
-
-          <div class="tool-bar">
+        {mode === 'text' && (
+          <>
             <label
               class="checkbox"
               title="Compute a keyed hash (HMAC) instead — proves whoever produced it knew the secret key"
@@ -178,14 +163,40 @@ export default function HashGenerator() {
             <button
               type="button"
               class="btn"
+              onClick={() => setInput(SAMPLE_TEXT)}
+              title="Load a small example — the string used in the NIST SHA-256 test vector"
+            >
+              Load example
+            </button>
+            <button
+              type="button"
+              class="btn"
               onClick={() => setInput('')}
               disabled={input === ''}
               title="Clear the input and start over"
             >
               Clear
             </button>
-          </div>
-        </>
+          </>
+        )}
+      </div>
+
+      {mode === 'text' ? (
+        <div class="field">
+          <label class="field__label" for="hash-input">
+            <span>Text to hash</span>
+            <span class="field__hint">{input.length.toLocaleString()} characters</span>
+          </label>
+          <textarea
+            id="hash-input"
+            class="textarea textarea--short"
+            spellcheck={false}
+            autocomplete="off"
+            placeholder="Type or paste the text you want to hash…"
+            value={input}
+            onInput={(event) => setInput((event.target as HTMLTextAreaElement).value)}
+          />
+        </div>
       ) : (
         <FileDropzone file={file} onFileSelected={setFile} chooseLabel="Choose a file to hash" />
       )}

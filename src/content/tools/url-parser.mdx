@@ -1,0 +1,69 @@
+---
+title: URL Parser
+headline: URL Parser & Query String Editor
+description: Break a full URL into scheme, host, port, path, query parameters and fragment, then edit the query string and see the URL rebuild live. Free, no sign-up.
+summary: Decompose a URL into its parts and edit its query parameters live.
+category: Inspect
+order: 25
+updated: 2026-08-23
+whatIsIt: >-
+  A URL is a compact string, but it actually packs together several distinct pieces:
+  a scheme, an optional username and password, a host, an optional port, a path, a
+  query string, and a fragment — each with its own parsing rules and its own place in
+  how a browser or server interprets the address. This tool decomposes a full, absolute
+  URL into those individual components and lays them out so each one is visible on its
+  own, rather than requiring you to count slashes and question marks by eye. It also
+  turns the query string into an editable table of key/value rows: add a parameter,
+  remove one, or change a value, and the full URL rebuilds live below the table, with
+  its own copy button. It is not the same tool as this site's URL Encoder/Decoder, which
+  only percent-encodes or decodes an arbitrary string — see the FAQ for the distinction.
+useCases:
+  - Debugging why a query parameter isn't reaching your server correctly by seeing exactly how a URL parses it, including whether a duplicate key or an unescaped character is the culprit.
+  - Stripping tracking parameters — utm_source, utm_campaign, fbclid and similar — from a URL before sharing it, by deleting those rows and copying the cleaned-up result.
+  - Understanding a redirect or callback URL's real destination and parameters by breaking it into its host, path and query components instead of reading the raw string.
+  - Building a test URL with specific query parameters by editing them in a table instead of hand-editing ampersands, equals signs and percent-encoding in a raw string.
+howTo:
+  - Paste a full URL, including its scheme, into the input at the top — it parses as you type.
+  - Read the breakdown below for the scheme, host, port, path, and any username, password or fragment the URL contains.
+  - Edit, add or remove rows in the query parameters table; each change immediately rebuilds the full URL beneath it.
+  - Copy the rebuilt URL, or copy the whole breakdown as plain text, with the buttons provided.
+example:
+  label: A URL with a port, credentials, several query parameters (including a repeated key) and a fragment.
+  input: 'https://user:pass@sub.example.com:8080/some/path?a=1&b=2&a=3#section'
+  output: |-
+    Scheme    https
+    Username  user
+    Password  pass
+    Host      sub.example.com
+    Port      8080
+    Origin    https://sub.example.com:8080
+    Path      /some/path
+    Query     ?a=1&b=2&a=3
+    Fragment  #section
+  note: The query parameter "a" appears twice with different values — the table shows both rows separately, in their original order, rather than merging them into one.
+faq:
+  - q: How is this different from the URL Encoder/Decoder tool?
+    a: They solve different problems. The URL Encoder/Decoder percent-encodes or decodes an arbitrary piece of text — turning a space into %20 or reading %3D back into "=" — and works on any string, complete URL or not. This tool assumes you already have a full URL and want it taken apart into its named components (scheme, host, port, path, query parameters, fragment) and, specifically, wants you to be able to edit the query string as a table of rows and get a reassembled URL back out. If you need to escape a single value for insertion into a query string, use the encoder; if you have a whole URL and want to inspect or restructure it, use this one.
+  - q: Why doesn't the Port field show 443 for an https URL that doesn't specify one?
+    a: The Port field reflects only what is explicitly written in the URL — https://example.com/ has no port field shows blank, because none was typed. The effective port a browser actually connects to is still 443 for https (or 80 for http); it's just implied by the scheme rather than present in the URL text. This tool shows what's literally there, not the resolved connection detail, since conflating the two would make it impossible to tell whether a URL is relying on the default or overriding it.
+  - q: Why does this tool reject a relative URL like "/search?q=test" or "example.com/page"?
+    a: A relative URL only makes sense in the context of some base address it is resolved against — a browser combines it with the current page's URL, for instance — and this tool has no such base to assume. Guessing one (defaulting to https://, or to a placeholder host) would silently produce a different URL than what you actually meant. Instead it asks for a complete, absolute URL with an explicit scheme, so every field in the breakdown reflects only what you actually provided.
+  - q: What happens to a duplicate query parameter, like "?a=1&a=2"?
+    a: Both instances are kept as separate rows, in their original order, rather than being collapsed into one. Repeated keys are valid and meaningful in a query string — some APIs use them to represent an array (?tag=a&tag=b) — so silently dropping one would change the meaning of the URL rather than just displaying it.
+  - q: Does this tool resolve or follow redirects?
+    a: No — it only parses the URL text you give it. Nothing is ever sent over the network; this tool works entirely offline in your browser, which is also why it can't tell you where a shortened or redirecting URL ultimately leads. It can only decompose the URL you paste in, not any URL it might redirect to.
+related:
+  - url-encode-decode
+  - user-agent-parser
+  - cidr-subnet-calculator
+  - json-formatter
+---
+
+## Reading the query parameter table
+
+Every row in the table corresponds to one key/value pair in the URL's query string, in
+the exact order it appeared. Editing a key or value, removing a row, or adding a new one
+re-serializes the entire query string through the same encoding rules a browser uses —
+so a space becomes `+`, and characters like `&` or `=` inside a value are escaped rather
+than being read as extra query structure. The fragment (the part after `#`, if any) is
+left untouched by these edits, since it isn't part of the query string at all.

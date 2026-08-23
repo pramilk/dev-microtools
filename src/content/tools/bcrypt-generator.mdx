@@ -1,0 +1,53 @@
+---
+title: Bcrypt Generator
+headline: Bcrypt Password Hash Generator & Checker
+description: Hash a password with bcrypt or verify one against an existing hash, entirely in your browser. Adjustable cost factor. Nothing is uploaded. Free, no sign-up.
+summary: Generate a bcrypt hash from a password, or verify a password against one.
+category: Generate
+order: 26
+updated: 2026-08-23
+whatIsIt: >-
+  Bcrypt is a password-hashing algorithm built specifically to be slow, so that guessing
+  passwords by brute force is expensive even if an attacker gets hold of the hashes. It
+  bakes a random salt into every hash it produces and repeats its internal work a
+  configurable number of times — the "cost factor" — so the same password never hashes to
+  the same output twice, and each verification takes real, deliberate computation. This
+  tool computes a bcrypt hash from a password you type, letting you adjust the cost factor,
+  and separately checks whether a password matches an existing bcrypt hash. It exists for
+  local development convenience — making sense of a hash sitting in a test fixture, seed
+  file or database column — not as a replacement for real server-side authentication.
+useCases:
+  - Checking what a bcrypt hash stored in a test fixture, seed file or database column actually corresponds to while debugging.
+  - Confirming a migration or import script produced a hash that verifies against the original password it was meant to hash.
+  - Generating a throwaway bcrypt hash to seed a local database or write a unit test without wiring up a real signup flow.
+  - Understanding how the cost-factor prefix in a bcrypt hash (e.g. $2b$12$) relates to how slow it is to compute.
+howTo:
+  - Switch to Generate mode, type the password you want to hash, and adjust the rounds (cost factor) if you need something other than the default.
+  - Click "Generate hash" to compute the bcrypt hash — this takes a moment on purpose, and longer at higher round counts.
+  - Copy the resulting hash with the button beside it.
+  - Switch to Verify mode, enter a password and an existing bcrypt hash, and click "Verify hash" to see whether they match.
+example:
+  label: A bcrypt hash and the password it was generated from, at cost factor 10.
+  input: 'hunter2'
+  output: '$2b$10$Zy0IdJbAoOMDzsfjzl2Mqe91QqWK1z6UBW5mPA2YXSTS0Wfg4mFtS'
+  note: Because a fresh random salt is embedded in every hash, hashing "hunter2" again would produce a completely different string — this is one valid output among effectively unlimited possibilities, and both would still verify correctly against the same password.
+faq:
+  - q: Why use bcrypt instead of SHA-256 or MD5 for passwords?
+    a: General-purpose hash functions like SHA-256 and MD5 are designed to be fast, which is exactly the wrong property for password storage — a fast hash lets an attacker who steals a database try billions of guesses per second on ordinary hardware. Bcrypt is deliberately slow and includes a per-password random salt, so identical passwords never produce identical hashes and brute-forcing or rainbow-table attacks become computationally expensive rather than trivial.
+  - q: What does the cost factor (rounds) actually mean?
+    a: The number of rounds sets how many times bcrypt repeats its internal key-setup work, and the cost doubles with every increment — a cost of 11 takes roughly twice as long to compute as a cost of 10, and four times as long as a cost of 9. This tool caps the round count at 14, well below bcrypt's theoretical maximum, because it hashes synchronously in the browser's main thread and a very high cost factor would visibly freeze the page.
+  - q: Why is the hash different every time I hash the same password?
+    a: Bcrypt generates a fresh random salt for every hash and stores it inside the hash string itself — the roughly 22 characters right after the version and cost prefix (e.g. the part after $2b$10$). Verification re-reads that embedded salt and reapplies it, so two hashes of the same password look completely different yet both still verify correctly against it.
+  - q: Should I use this tool for real user authentication?
+    a: No. This tool is for local development and debugging — inspecting a hash in a fixture, checking a migration produced the right output, and similar tasks. Real authentication should hash and verify passwords entirely on the server; a production login form should never send a plaintext password to a client-side tool, including this one, since anything running in the browser is visible to the user and to anyone able to inspect the page.
+  - q: Is my password sent anywhere to be hashed?
+    a: No. Hashing and verification both run locally using the bcryptjs library loaded into the page — nothing you type is transmitted anywhere, which matters doubly for a tool that handles passwords.
+related:
+  - hash-generator
+  - password-generator
+  - jwt-decoder
+---
+
+## A note on cost factor and hardware
+
+The right cost factor depends on the hardware doing the hashing and how much latency a login flow can tolerate — a common server-side guideline is to pick the highest cost that keeps a single hash under roughly 100-250ms on your production hardware. Because this tool runs in a browser tab rather than a server, its round cap is set well below what a real deployment might use; treat the hashes it produces as good for inspection and testing, and re-generate production hashes with your server's own bcrypt library so the cost factor matches your actual infrastructure.

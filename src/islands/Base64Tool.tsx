@@ -22,6 +22,9 @@ interface ShareState {
   urlSafe: boolean;
 }
 
+const SAMPLE_PLAIN = 'Hello, World!';
+const SAMPLE_ENCODED = 'SGVsbG8sIFdvcmxkIQ==';
+
 export default function Base64Tool() {
   const [input, setInput] = useState('');
   const [direction, setDirection] = useState<Direction>('encode');
@@ -172,6 +175,16 @@ export default function Base64Tool() {
 
         {source === 'text' && (
           <ShareLinkButton getState={() => ({ input, direction, urlSafe })} describe="this text" />
+        )}
+        {source === 'text' && (
+          <button
+            type="button"
+            class="btn"
+            onClick={() => setInput(direction === 'encode' ? SAMPLE_PLAIN : SAMPLE_ENCODED)}
+            title="Load a small example"
+          >
+            Load example
+          </button>
         )}
         {source === 'text' && (
           <button

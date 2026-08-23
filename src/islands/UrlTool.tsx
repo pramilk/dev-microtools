@@ -15,6 +15,10 @@ interface ShareState {
   mode: UrlEncodeMode;
 }
 
+// Matches the worked example in url-encode-decode.mdx, in Component mode.
+const SAMPLE_PLAIN = 'redirect=https://app.example.com/home?tab=1';
+const SAMPLE_ENCODED = 'redirect%3Dhttps%3A%2F%2Fapp.example.com%2Fhome%3Ftab%3D1';
+
 export default function UrlTool() {
   const [input, setInput] = useState('');
   const [direction, setDirection] = useState<Direction>('encode');
@@ -114,6 +118,17 @@ export default function UrlTool() {
 
         <span class="tool-bar__spacer" />
         <ShareLinkButton getState={() => ({ input, direction, mode })} describe="this URL" />
+        <button
+          type="button"
+          class="btn"
+          onClick={() => {
+            setMode('component');
+            setInput(direction === 'encode' ? SAMPLE_PLAIN : SAMPLE_ENCODED);
+          }}
+          title="Load a small example"
+        >
+          Load example
+        </button>
         <button
           type="button"
           class="btn"

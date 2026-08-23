@@ -33,6 +33,11 @@ export const TOOL_ICONS: Record<string, string> = {
   'html-css-js-minifier': 'MIN',
   'image-base64-converter': 'IMG',
   'fake-data-generator': 'RND',
+  'base32-encode-decode': 'B32',
+  'base58-encode-decode': 'B58',
+  'url-parser': '?=',
+  'bcrypt-generator': 'BCR',
+  'xml-formatter': 'XML',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

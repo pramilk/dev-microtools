@@ -7,7 +7,9 @@ import {
   type QrMatrix,
   type QrErrorCorrectionLevel,
 } from '../lib/tools/qrcode';
+import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
+import { ShareLinkButton } from './shared/ShareLinkButton';
 
 const LEVEL_HINTS: Record<QrErrorCorrectionLevel, string> = {
   L: 'Low — ~7% of the code can be damaged and still scan. Smallest code.',
@@ -62,6 +64,11 @@ function downloadSvg(svgMarkup: string, filename: string): void {
   saveBlob(new Blob([svgMarkup], { type: 'image/svg+xml' }), filename);
 }
 
+interface ShareState {
+  text: string;
+  level: QrErrorCorrectionLevel;
+}
+
 export default function QrCodeGenerator() {
   const [text, setText] = useState('https://devmicrotools.com');
   const [level, setLevel] = useState<QrErrorCorrectionLevel>('M');
@@ -73,6 +80,16 @@ export default function QrCodeGenerator() {
   const [busy, setBusy] = useState(false);
   const requestId = useRef(0);
   const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Restore state from a shared link, if the page was opened with one.
+  useEffect(() => {
+    void readShareStateFromLocation<ShareState>().then((restored) => {
+      if (!restored?.ok) return;
+      setText(restored.value.text);
+      setLevel(restored.value.level);
+      history.replaceState(null, '', window.location.pathname);
+    });
+  }, []);
 
   useEffect(() => {
     const id = (requestId.current += 1);
@@ -173,6 +190,8 @@ export default function QrCodeGenerator() {
             ))}
           </select>
         </label>
+        <span class="tool-bar__spacer" />
+        <ShareLinkButton getState={() => ({ text, level })} describe="this QR code" />
         <button type="button" class="btn" onClick={() => setText('')} disabled={text === ''} title="Clear the input">
           Clear
         </button>

@@ -51,6 +51,45 @@ The bar is "a tool a developer would bookmark," not "a template with ads on it."
   loading, error, and copied**. A tool that silently does nothing on bad input is unfinished.
 - Every tool has visible, working **copy-to-clipboard** and **clear/reset** controls, and
   they behave identically across all tools.
+- **Every tool needs a share link (state-in-URL, via `ShareLinkButton`/`readShareStateFromLocation`
+  in `src/lib/shareLink.ts`)** unless its primary input is a secret. A tool whose core input
+  is a password, private key, or other credential (e.g. Bcrypt Generator/Checker, the HMAC
+  key field on Hash Generator) must *not* put that value in a shareable URL — omit the
+  button entirely, or share only the non-secret settings around it, and say so with a code
+  comment so the omission reads as deliberate rather than a missed feature. Every other tool
+  — anything whose input is plain text, not a credential — gets one; this is not optional
+  polish, it is a consistency requirement like copy/clear. Check this explicitly before
+  calling a new tool done, since it is easy to build a tool end-to-end and simply forget it.
+- **Every tool needs a "Load example" (sample data) button when a canonical example makes
+  sense** — most tools do (paste some starter input so a first-time visitor sees the tool
+  work immediately, without needing their own data to try it). The exception is a tool whose
+  entire point is fresh randomness on every use (UUID Generator, Password Generator) — there
+  is no meaningful "sample input" for a generator with no input. A tool that always starts
+  pre-filled with a sensible default (e.g. QR Code Generator) or already has an equivalent
+  affordance (a preset gallery, a "Use now"/"Use my browser's X" button) satisfies this too —
+  it does not also need a separate "Load example" button. Where a written example already
+  exists in the tool's own content page (the `example.input` field in its `.mdx`), reuse
+  that exact value for the sample, so the two never drift apart. When in doubt, add it.
+- **Share link and "Load example" live in the same tool-bar, and that tool-bar sits right
+  next to the primary input, not separated from it by other content.** Two placements are
+  established in this codebase, both acceptable — pick the one matching the tool's shape:
+  - **Textarea / split-pane tools** (JSON Formatter, Base64, Hash Generator, SQL Formatter,
+    XML Formatter, etc.): the tool-bar goes *above* the input. This is the majority pattern
+    and the default choice for a new tool unless it clearly fits the shape below.
+  - **Single-line "instant calculator" tools** (CIDR/Subnet Calculator, Cron Expression
+    Explainer, QR Code Generator): the tool-bar goes directly *below* the single input
+    field, before the live result. "Load example" in this shape is usually a preset-button
+    gallery *above* the field instead of a single button in the tool-bar — see CIDR/Cron.
+  Never split Share and Load-example into two different tool-bars in the same tool, and
+  never place one above the input and the other below it.
+- **Add a `title` tooltip to any control whose purpose or effect is not obvious from its
+  label alone** — a settings field with real semantics (bcrypt's "Rounds", QR's "Error
+  correction" level), a mode toggle whose options need a one-line distinction, an icon-only
+  button. A tooltip is not a substitute for a visible hint (`field__hint`) when the
+  explanation is load-bearing for using the tool correctly — use both when it matters, the
+  tooltip for the quick hover and the hint for the reader who wants it always visible. Keep
+  the tooltip text itself short (one sentence); a tooltip that needs several lines belongs
+  in the visible hint or the content page's FAQ instead.
 - **Dark mode is required** — this audience expects it. Both themes get equal care.
 - Accessibility is part of "professional": semantic HTML, labeled inputs, visible keyboard
   focus states, sufficient contrast, and full keyboard operability of every tool.

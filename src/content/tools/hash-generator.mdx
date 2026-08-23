@@ -5,23 +5,27 @@ description: Generate MD5, SHA-1, SHA-256, SHA-384 and SHA-512 hashes in your br
 summary: Compute MD5, SHA-1 and SHA-2 digests, and verify a checksum against them.
 category: Generate
 order: 6
-updated: 2026-08-22
+updated: 2026-08-23
 whatIsIt: >-
   A cryptographic hash function turns input of any length into a fixed-size fingerprint.
   The same input always produces the same digest, and changing even one character produces
   a completely different one, which is what makes hashes useful for detecting whether data
   has changed. This tool computes five common digests at once — MD5, SHA-1, SHA-256,
   SHA-384 and SHA-512 — and can check a checksum you paste against all of them to tell you
-  which algorithm it came from.
+  which algorithm it came from. It can also compute a keyed hash (HMAC) using a secret you
+  supply, which proves whoever produced the digest knew that secret, not just that the
+  message is unaltered — the basis of most webhook-signature verification schemes.
 useCases:
   - Verifying that a file or string you received matches a published checksum, confirming it downloaded intact and was not modified.
   - Working out which algorithm produced an unlabelled hash, by pasting it into the compare field and seeing which one matches.
   - Generating a deterministic cache key or content fingerprint from a string.
   - Reproducing a hash that appears in a test fixture, log or database column while debugging.
+  - Verifying a webhook payload's signature (e.g. Stripe, GitHub, Shopify) by computing an HMAC of the raw body with the shared secret and comparing it to the header the provider sent.
 howTo:
   - Type or paste your text into the input box. All five digests compute as you type.
   - Copy any individual digest with the button beside it.
   - To identify or verify a checksum, paste it into the compare field — the tool highlights whichever algorithm matches.
+  - Check "Use HMAC (keyed hash)" and enter a secret key to compute an HMAC instead of a plain digest, for verifying signed payloads.
   - 'Note the "insecure" badges: MD5 and SHA-1 are shown because you will encounter them, not because you should choose them.'
 example:
   label: The SHA-256 digest of the string "abc" — a standard published test vector.
@@ -39,6 +43,10 @@ faq:
     a: No. SHA digests are computed by your browser's built-in Web Crypto API, and MD5 by a small library that loads into the page. Nothing you type leaves your device, so it is safe to hash values you would not want to transmit.
   - q: Why does the same text give a different hash elsewhere?
     a: Almost always a difference in what exactly is being hashed. A trailing newline, different line endings between Windows and Unix, or a different text encoding all change the bytes and therefore the digest. This tool hashes the UTF-8 bytes of exactly the characters in the box, with no trailing newline added.
+  - q: What is the difference between a hash and an HMAC?
+    a: A plain hash only proves the data has not changed — anyone can compute it, since it needs no secret. An HMAC (Hash-based Message Authentication Code) mixes a shared secret key into the computation, so a matching HMAC also proves whoever produced it knew that key. That is why APIs sign webhook payloads with an HMAC rather than a plain hash — a plain SHA-256 of the body could be recomputed and forged by anyone who intercepted it.
+  - q: Is the HMAC secret key sent anywhere, or stored in the share link?
+    a: No. The key stays in your browser and is only used locally by the Web Crypto API to compute the HMAC — it is never transmitted, and it is deliberately excluded from this tool's share-link state, since a secret has no business living in a URL that might end up in browser history or a chat log.
 related:
   - uuid-generator
   - base64-encode-decode

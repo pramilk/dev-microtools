@@ -22,6 +22,11 @@ import SqlFormatter from '../islands/SqlFormatter';
 import Minifier from '../islands/Minifier';
 import ImageBase64Tool from '../islands/ImageBase64Tool';
 import FakeDataGenerator from '../islands/FakeDataGenerator';
+import Base32Tool from '../islands/Base32Tool';
+import Base58Tool from '../islands/Base58Tool';
+import UrlParser from '../islands/UrlParser';
+import BcryptTool from '../islands/BcryptTool';
+import XmlTool from '../islands/XmlTool';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -53,6 +58,11 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'html-css-js-minifier': Minifier,
   'image-base64-converter': ImageBase64Tool,
   'fake-data-generator': FakeDataGenerator,
+  'base32-encode-decode': Base32Tool,
+  'base58-encode-decode': Base58Tool,
+  'url-parser': UrlParser,
+  'bcrypt-generator': BcryptTool,
+  'xml-formatter': XmlTool,
 };
 
 /**

@@ -21,6 +21,11 @@ import SqlFormatter from '../islands/SqlFormatter';
 import Minifier from '../islands/Minifier';
 import ImageBase64Tool from '../islands/ImageBase64Tool';
 import FakeDataGenerator from '../islands/FakeDataGenerator';
+import Base32Tool from '../islands/Base32Tool';
+import Base58Tool from '../islands/Base58Tool';
+import UrlParser from '../islands/UrlParser';
+import BcryptTool from '../islands/BcryptTool';
+import XmlTool from '../islands/XmlTool';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -67,3 +72,8 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'html-css-js-minifier' && <Minifier client:load />}
 {slug === 'image-base64-converter' && <ImageBase64Tool client:load />}
 {slug === 'fake-data-generator' && <FakeDataGenerator client:load />}
+{slug === 'base32-encode-decode' && <Base32Tool client:load />}
+{slug === 'base58-encode-decode' && <Base58Tool client:load />}
+{slug === 'url-parser' && <UrlParser client:load />}
+{slug === 'bcrypt-generator' && <BcryptTool client:load />}
+{slug === 'xml-formatter' && <XmlTool client:load />}
