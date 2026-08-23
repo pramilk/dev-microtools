@@ -323,6 +323,18 @@ export default function QrCodeGenerator() {
     geoLng,
   ]);
 
+  // Previews the encoded length even before a phone number / recipient makes the payload
+  // "real" (unlike `payload`, which stays empty until then) — the whole point is to warn
+  // before the field it's shown next to fills up the QR code's length budget.
+  const smsPreviewLength = useMemo(
+    () => buildSmsText({ phone: smsPhone, message: smsMessage }).length,
+    [smsPhone, smsMessage]
+  );
+  const emailPreviewLength = useMemo(
+    () => buildEmailText({ to: emailTo, subject: emailSubject, body: emailBody }).length,
+    [emailTo, emailSubject, emailBody]
+  );
+
   useEffect(() => {
     const id = (requestId.current += 1);
     setBusy(true);
@@ -846,6 +858,12 @@ export default function QrCodeGenerator() {
           <div class="field">
             <label class="field__label" for="qr-sms-message">
               <span>Message</span>
+              <span
+                class="field__hint tnum"
+                title="Counts the whole encoded QR content (including the phone number), not just this field"
+              >
+                {smsPreviewLength}/{MAX_QR_TEXT_LENGTH}
+              </span>
             </label>
             <textarea
               id="qr-sms-message"
@@ -891,6 +909,12 @@ export default function QrCodeGenerator() {
           <div class="field">
             <label class="field__label" for="qr-email-body">
               <span>Body</span>
+              <span
+                class="field__hint tnum"
+                title="Counts the whole encoded QR content (including the recipient and subject), not just this field — special characters take up more room once percent-encoded"
+              >
+                {emailPreviewLength}/{MAX_QR_TEXT_LENGTH}
+              </span>
             </label>
             <textarea
               id="qr-email-body"

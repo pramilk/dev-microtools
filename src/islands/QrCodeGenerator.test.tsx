@@ -131,4 +131,26 @@ describe('<QrCodeGenerator />', () => {
     });
     expect(screen.getByLabelText(/error correction level/i)).toBeDisabled();
   });
+
+  it('shows a length counter for the email body that reflects the whole encoded payload, not just the field', async () => {
+    render(<QrCodeGenerator />);
+    fireEvent.click(screen.getByRole('button', { name: /^email$/i }));
+
+    fireEvent.input(screen.getByLabelText(/recipient email/i), { target: { value: 'a@b.com' } });
+    fireEvent.input(screen.getByLabelText(/^body/i), { target: { value: 'hello world' } });
+
+    // "mailto:a@b.com?body=hello%20world" is longer than the 11-character body alone.
+    expect(screen.getByText(/^\d+\/1500$/)).toHaveTextContent(/^(?!11\/)\d+\/1500$/);
+  });
+
+  it('shows a length counter for the SMS message that reflects the whole encoded payload', async () => {
+    render(<QrCodeGenerator />);
+    fireEvent.click(screen.getByRole('button', { name: /^sms$/i }));
+
+    fireEvent.input(screen.getByLabelText(/phone number/i), { target: { value: '+15550100' } });
+    fireEvent.input(screen.getByLabelText(/^message/i), { target: { value: 'hi' } });
+
+    // "SMSTO:+15550100:hi" — prefix + phone number add well over the 2-character message.
+    expect(screen.getByText('18/1500')).toBeInTheDocument();
+  });
 });
