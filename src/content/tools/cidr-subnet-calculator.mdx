@@ -1,0 +1,60 @@
+---
+title: CIDR / Subnet Calculator
+headline: CIDR & Subnet Calculator
+description: Calculate network address, broadcast address, usable host range and subnet mask from CIDR notation. Runs in your browser. Free, no sign-up.
+summary: Calculate network address, broadcast address, host range and mask from a CIDR block.
+category: Inspect
+order: 18
+updated: 2026-08-23
+whatIsIt: >-
+  CIDR notation (`192.168.1.0/24`) packs an IP address and a subnet size into one compact
+  string, but reading the actual boundaries of that subnet — where it starts, where it ends,
+  and how many real hosts fit inside it — means doing binary arithmetic in your head. This
+  tool does that arithmetic for you: enter an address in CIDR notation, or an address with a
+  dotted subnet mask, and it calculates the network address, broadcast address, usable host
+  range, netmask, wildcard mask and total/usable address counts, along with a binary
+  breakdown showing exactly which bits are the network portion and which are host bits.
+useCases:
+  - Working out the usable host range for a subnet before assigning static IPs on it.
+  - Checking whether two subnets overlap or a given address actually falls inside a documented CIDR block.
+  - Converting between a prefix length (/24) and a dotted subnet mask (255.255.255.0) in either direction.
+  - Understanding firewall or routing rules written in CIDR notation, including which addresses in a range are private, loopback or multicast.
+howTo:
+  - Enter an address in CIDR notation ("192.168.1.0/24"), or an address and mask separated by a space ("192.168.1.0 255.255.255.0").
+  - Read the network address, broadcast address and usable host range for that subnet.
+  - Check the binary breakdown to see exactly which bits are fixed (network) and which vary (host) — the boundary lines up with the prefix length.
+  - Copy a link that restores this exact address to share with a teammate.
+example:
+  label: A standard 256-address home/office subnet.
+  input: '192.168.1.0/24'
+  output: |-
+    Network      192.168.1.0/24
+    Broadcast    192.168.1.255
+    Host range   192.168.1.1 – 192.168.1.254
+    Netmask      255.255.255.0
+    Usable hosts 254
+  note: Entering any address inside the block, like 192.168.1.130/24, produces the same network and broadcast — the calculator always resolves to the block's actual boundaries.
+faq:
+  - q: Why are there only 254 usable hosts in a /24, not 256?
+    a: A /24 has 256 total addresses, but the first (192.168.1.0, the network address) identifies the subnet itself, and the last (192.168.1.255, the broadcast address) sends to every host on it — neither is assignable to an individual device, leaving 254 usable. This tool applies that reservation for every prefix length except /31 and /32, where it doesn't apply.
+  - q: What's special about a /31 or a /32?
+    a: A /32 is a single address with no concept of a subnet — used for things like a static route to one host. A /31 is a documented exception (RFC 3021) specifically for point-to-point links between two devices, like a router-to-router WAN link, where reserving one of only two addresses for a broadcast that will never be used would waste half the block — so both addresses are treated as usable.
+  - q: What does "IP class" mean, and is it still relevant?
+    a: Classes A/B/C/D/E were the original, rigid way IPv4 address space was divided (based purely on the first few bits of the address) before CIDR replaced it in 1993 with flexible, arbitrary-length prefixes. It's shown here because people still ask about it and it's a fixed, well-defined property of an address, but it plays no role in actual routing today — CIDR's prefix length is what determines a subnet's real boundaries.
+  - q: How is "Address type" (Private, Public, Loopback, etc.) determined?
+    a: 'Against the well-known reserved ranges defined in RFC 1918 (private networks — 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16), RFC 5735 and related standards (127.0.0.0/8 loopback, 169.254.0.0/16 link-local, 224.0.0.0/4 multicast, and so on) — fixed, unambiguous ranges, not a guess.'
+  - q: Does this support IPv6?
+    a: Not currently — this tool covers IPv4 CIDR notation only. IPv6's addressing and subnetting model is different enough (128-bit addresses, no broadcast address, different reserved ranges) that it would need its own dedicated calculator to get right rather than being bolted onto this one.
+related:
+  - user-agent-parser
+  - regex-tester
+  - hash-generator
+---
+
+## Reading the binary breakdown
+
+The highlighted bits below the results are the actual mechanism behind everything else on
+this page: the network portion (the first *n* bits, where *n* is the prefix length) is fixed
+for every address in the subnet, and the remaining bits are free to vary — that's what
+"host bits" means. The network address sets every host bit to 0; the broadcast address sets
+every host bit to 1; everything in between is a usable host address.

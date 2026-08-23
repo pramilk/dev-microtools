@@ -15,6 +15,9 @@ import QrCodeGenerator from '../islands/QrCodeGenerator';
 import CssGradientGenerator from '../islands/CssGradientGenerator';
 import CssBoxShadowGenerator from '../islands/CssBoxShadowGenerator';
 import UserAgentParser from '../islands/UserAgentParser';
+import CronExplainer from '../islands/CronExplainer';
+import DataFormatConverter from '../islands/DataFormatConverter';
+import CidrCalculator from '../islands/CidrCalculator';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -39,6 +42,9 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'css-gradient-generator': CssGradientGenerator,
   'css-box-shadow-generator': CssBoxShadowGenerator,
   'user-agent-parser': UserAgentParser,
+  'cron-expression-explainer': CronExplainer,
+  'data-format-converter': DataFormatConverter,
+  'cidr-subnet-calculator': CidrCalculator,
 };
 
 /**

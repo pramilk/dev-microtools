@@ -14,6 +14,9 @@ import QrCodeGenerator from '../islands/QrCodeGenerator';
 import CssGradientGenerator from '../islands/CssGradientGenerator';
 import CssBoxShadowGenerator from '../islands/CssBoxShadowGenerator';
 import UserAgentParser from '../islands/UserAgentParser';
+import CronExplainer from '../islands/CronExplainer';
+import DataFormatConverter from '../islands/DataFormatConverter';
+import CidrCalculator from '../islands/CidrCalculator';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -53,3 +56,6 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'css-gradient-generator' && <CssGradientGenerator client:load />}
 {slug === 'css-box-shadow-generator' && <CssBoxShadowGenerator client:load />}
 {slug === 'user-agent-parser' && <UserAgentParser client:load />}
+{slug === 'cron-expression-explainer' && <CronExplainer client:load />}
+{slug === 'data-format-converter' && <DataFormatConverter client:load />}
+{slug === 'cidr-subnet-calculator' && <CidrCalculator client:load />}

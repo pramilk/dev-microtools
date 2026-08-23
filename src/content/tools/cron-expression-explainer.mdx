@@ -1,0 +1,57 @@
+---
+title: Cron Expression Explainer
+headline: Cron Expression Explainer & Next-Run Calculator
+description: Parse a cron expression into a plain-English description and see its next scheduled run times. Runs in your browser. Free, no sign-up required.
+summary: Explain a cron expression in plain English and see its next run times.
+category: Inspect
+order: 16
+updated: 2026-08-23
+whatIsIt: >-
+  A cron expression is the five-field schedule syntax (`minute hour day-of-month month
+  day-of-week`) used by crontab, CI pipelines, Kubernetes CronJobs and countless job
+  schedulers to define when a task runs. Reading one at a glance is genuinely hard — `*`,
+  `*/15`, ranges, lists and steps combine in ways that are easy to misread, and a day-of-month
+  plus day-of-week combination doesn't mean what most people assume. This tool parses an
+  expression, explains exactly what it means in plain English, and calculates the next several
+  times it will actually fire, so you can verify a schedule before it goes anywhere near
+  production.
+useCases:
+  - Verifying a cron schedule in a CI/CD pipeline, Kubernetes CronJob, or crontab entry actually means what you intended before deploying it.
+  - Reviewing a schedule in a pull request without mentally simulating cron syntax field by field.
+  - Working out when a job will next run, to know when to expect its output or check its logs.
+  - Learning cron syntax by trying expressions and immediately seeing both the explanation and real upcoming run times.
+howTo:
+  - Type or paste a cron expression, or start from a common preset like "Every weekday at 9am".
+  - Read the plain-English explanation of what the schedule means.
+  - Check the next 5 run times, calculated in your browser's local timezone.
+  - Copy a link that restores this exact expression to share with a teammate.
+example:
+  label: A weekday morning job.
+  input: '0 9 * * 1-5'
+  output: 'At 09:00, Monday through Friday.'
+  note: The next-run list beneath the explanation shows the actual upcoming dates this fires on, skipping weekends.
+faq:
+  - q: What happens when both day-of-month and day-of-week are set?
+    a: 'This is the single most common cron misunderstanding: when both fields are restricted (not "*"), standard cron treats them as OR, not AND — the job runs when either condition is true, not only when both are. "0 0 1 * 1" runs on the 1st of the month AND on every Monday, not only on Mondays that happen to be the 1st. This tool spells that out explicitly in the description rather than leaving it ambiguous.'
+  - q: Does this support the 6-field format with seconds?
+    a: No — this tool supports standard 5-field POSIX cron (minute, hour, day-of-month, month, day-of-week), which is what crontab, GitHub Actions, GitLab CI and Kubernetes CronJobs all use. The 6-field variant with a leading seconds column is specific to schedulers like Quartz and Spring, and parsing it as 5-field would silently misread every field by one position, so it's rejected with a clear error instead.
+  - q: What timezone are the "next run" times in?
+    a: Your browser's local timezone — this tool runs entirely client-side with no server, so it has no way to know what timezone a given crontab or CI system is actually configured to run in. If the schedule matters in UTC or a specific server timezone, mentally offset the displayed times, or temporarily change your system clock's timezone.
+  - q: Why is a range like "22-2" (10pm to 2am) rejected?
+    a: 'Because whether a "backwards" range like this wraps around midnight is inconsistent across real cron implementations — some support it, many don''t. Rather than guess and risk describing a schedule that doesn''t match what your actual scheduler does, this tool rejects it and suggests the unambiguous alternative: list the hours explicitly, e.g. "22,23,0,1,2".'
+  - q: Can I use month and day names instead of numbers?
+    a: Yes — three-letter abbreviations like JAN-DEC and SUN-SAT work anywhere a number would, case-insensitively, alongside the standard `@daily`, `@weekly`, `@monthly`, `@yearly` and `@hourly` shortcuts.
+related:
+  - timestamp-converter
+  - regex-tester
+  - json-formatter
+---
+
+## The classic cron mistake
+
+`0 30 8 * * *` — six fields — is a schedule for a completely different system (Quartz/Spring,
+which count seconds first) accidentally typed into a five-field crontab. Most 5-field parsers
+would silently read the first `0` as minutes and shift everything else by one field, producing
+a schedule that runs at a different time than intended with no error at all. This tool rejects
+a 6-field input outright rather than guessing, specifically to catch this mistake before it
+reaches production.
