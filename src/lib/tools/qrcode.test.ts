@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { generateQrMatrix, matrixToSvg, MAX_QR_TEXT_LENGTH } from './qrcode';
+import {
+  generateQrMatrix,
+  matrixToSvg,
+  buildWifiText,
+  buildVCardText,
+  buildSmsText,
+  buildEmailText,
+  buildGeoText,
+  isValidGeoCoordinate,
+  parseGeoLocationInput,
+  MAX_QR_TEXT_LENGTH,
+} from './qrcode';
 
 describe('generateQrMatrix', () => {
   it('rejects empty input', async () => {
@@ -83,5 +94,206 @@ describe('matrixToSvg', () => {
     const svg = matrixToSvg(allDark, { cellSize: 5 });
     const commandCount = (svg.match(/M\d/g) ?? []).length;
     expect(commandCount).toBe(4);
+  });
+
+  it('omits the logo overlay when no logo is given', () => {
+    const svg = matrixToSvg(flatMatrix);
+    expect(svg).not.toContain('<image');
+  });
+
+  it('draws a backing rect and an image element when a logo is given', () => {
+    const svg = matrixToSvg(flatMatrix, { cellSize: 10, logo: { dataUrl: 'data:image/png;base64,AAAA' } });
+    expect(svg).toContain('<image');
+    expect(svg).toContain('href="data:image/png;base64,AAAA"');
+    expect(svg).toContain('<rect x=');
+  });
+
+  it('clamps an out-of-range logo size ratio', () => {
+    const tooSmall = matrixToSvg(flatMatrix, { cellSize: 100, logo: { dataUrl: 'x', sizeRatio: 0.01 } });
+    const tooBig = matrixToSvg(flatMatrix, { cellSize: 100, logo: { dataUrl: 'x', sizeRatio: 0.9 } });
+    // 3 modules * 100 cellSize = 300; clamped ratio range is [0.1, 0.3].
+    expect(tooSmall).toContain('width="30"'); // 300 * 0.1
+    expect(tooBig).toContain('width="90"'); // 300 * 0.3
+  });
+});
+
+describe('buildWifiText', () => {
+  it('builds a WIFI payload for a WPA network', () => {
+    const text = buildWifiText({ ssid: 'MyNet', password: 'secret1', encryption: 'WPA', hidden: false });
+    expect(text).toBe('WIFI:T:WPA;S:MyNet;P:secret1;H:false;;');
+  });
+
+  it('omits the password for an open network', () => {
+    const text = buildWifiText({ ssid: 'FreeWifi', password: 'ignored', encryption: 'nopass', hidden: false });
+    expect(text).toBe('WIFI:T:nopass;S:FreeWifi;P:;H:false;;');
+  });
+
+  it('marks a hidden network', () => {
+    const text = buildWifiText({ ssid: 'Hidden', password: 'pw', encryption: 'WEP', hidden: true });
+    expect(text).toContain('H:true');
+  });
+
+  it('escapes special characters in the SSID and password', () => {
+    const text = buildWifiText({ ssid: 'a;b,c:d"e\\f', password: 'p;q', encryption: 'WPA', hidden: false });
+    expect(text).toBe('WIFI:T:WPA;S:a\\;b\\,c\\:d\\"e\\\\f;P:p\\;q;H:false;;');
+  });
+
+  it('handles unicode SSIDs', () => {
+    const text = buildWifiText({ ssid: '咖啡店', password: 'pw', encryption: 'WPA', hidden: false });
+    expect(text).toContain('S:咖啡店');
+  });
+});
+
+describe('buildVCardText', () => {
+  it('includes only the fields that are filled in', () => {
+    const text = buildVCardText({
+      name: 'Jordan Lee',
+      organization: '',
+      jobTitle: '',
+      phone: '+1 555 0100',
+      email: '',
+      website: '',
+      address: '',
+    });
+    expect(text).toContain('BEGIN:VCARD');
+    expect(text).toContain('FN:Jordan Lee');
+    expect(text).toContain('TEL:+1 555 0100');
+    expect(text).not.toContain('ORG:');
+    expect(text).not.toContain('EMAIL:');
+    expect(text.trim().endsWith('END:VCARD')).toBe(true);
+  });
+
+  it('produces an empty card when every field is blank', () => {
+    const text = buildVCardText({
+      name: '',
+      organization: '',
+      jobTitle: '',
+      phone: '',
+      email: '',
+      website: '',
+      address: '',
+    });
+    expect(text).toBe('BEGIN:VCARD\nVERSION:3.0\nEND:VCARD');
+  });
+
+  it('escapes commas, semicolons and newlines', () => {
+    const text = buildVCardText({
+      name: 'Doe, Jane',
+      organization: 'A; B\nC',
+      jobTitle: '',
+      phone: '',
+      email: '',
+      website: '',
+      address: '',
+    });
+    expect(text).toContain('FN:Doe\\, Jane');
+    expect(text).toContain('ORG:A\\; B\\nC');
+  });
+});
+
+describe('buildSmsText', () => {
+  it('builds an SMSTO payload', () => {
+    expect(buildSmsText({ phone: '+15550100', message: 'Hi there' })).toBe('SMSTO:+15550100:Hi there');
+  });
+
+  it('trims the phone number but keeps the message intact', () => {
+    expect(buildSmsText({ phone: ' +15550100 ', message: '  spaced  ' })).toBe('SMSTO:+15550100:  spaced  ');
+  });
+
+  it('handles an empty message', () => {
+    expect(buildSmsText({ phone: '123', message: '' })).toBe('SMSTO:123:');
+  });
+});
+
+describe('buildEmailText', () => {
+  it('builds a bare mailto with no subject or body', () => {
+    expect(buildEmailText({ to: 'hello@example.com', subject: '', body: '' })).toBe('mailto:hello@example.com');
+  });
+
+  it('percent-encodes subject and body', () => {
+    const text = buildEmailText({ to: 'a@b.com', subject: 'Hi there', body: 'Line one & two' });
+    expect(text).toBe('mailto:a@b.com?subject=Hi%20there&body=Line%20one%20%26%20two');
+  });
+
+  it('includes only the subject when the body is blank', () => {
+    const text = buildEmailText({ to: 'a@b.com', subject: 'Hi', body: '' });
+    expect(text).toBe('mailto:a@b.com?subject=Hi');
+  });
+});
+
+describe('buildGeoText', () => {
+  it('builds a geo URI from coordinates', () => {
+    expect(buildGeoText({ latitude: '40.6892', longitude: '-74.0445' })).toBe('geo:40.6892,-74.0445');
+  });
+
+  it('trims whitespace', () => {
+    expect(buildGeoText({ latitude: ' 1.5 ', longitude: ' -2.5 ' })).toBe('geo:1.5,-2.5');
+  });
+});
+
+describe('isValidGeoCoordinate', () => {
+  it('accepts valid coordinates', () => {
+    expect(isValidGeoCoordinate('40.6892', '-74.0445')).toBe(true);
+    expect(isValidGeoCoordinate('-90', '180')).toBe(true);
+    expect(isValidGeoCoordinate('0', '0')).toBe(true);
+  });
+
+  it('rejects blank fields', () => {
+    expect(isValidGeoCoordinate('', '-74.0445')).toBe(false);
+    expect(isValidGeoCoordinate('40.6892', '')).toBe(false);
+    expect(isValidGeoCoordinate('', '')).toBe(false);
+  });
+
+  it('rejects non-numeric input', () => {
+    expect(isValidGeoCoordinate('north', '-74.0445')).toBe(false);
+  });
+
+  it('rejects out-of-range coordinates', () => {
+    expect(isValidGeoCoordinate('91', '0')).toBe(false);
+    expect(isValidGeoCoordinate('0', '181')).toBe(false);
+    expect(isValidGeoCoordinate('-91', '0')).toBe(false);
+    expect(isValidGeoCoordinate('0', '-181')).toBe(false);
+  });
+});
+
+describe('parseGeoLocationInput', () => {
+  it('extracts coordinates from a full Maps place URL', () => {
+    const url = 'https://www.google.com/maps/place/New+York/@40.6892,-74.0445,17z/data=...';
+    expect(parseGeoLocationInput(url)).toEqual({ latitude: '40.6892', longitude: '-74.0445' });
+  });
+
+  it('extracts coordinates from a q= query parameter', () => {
+    expect(parseGeoLocationInput('https://maps.google.com/?q=40.6892,-74.0445')).toEqual({
+      latitude: '40.6892',
+      longitude: '-74.0445',
+    });
+  });
+
+  it('extracts coordinates from an ll= query parameter', () => {
+    expect(parseGeoLocationInput('https://maps.google.com/maps?ll=-33.8688,151.2093&z=12')).toEqual({
+      latitude: '-33.8688',
+      longitude: '151.2093',
+    });
+  });
+
+  it('accepts a bare "lat, lng" pair', () => {
+    expect(parseGeoLocationInput('40.6892, -74.0445')).toEqual({ latitude: '40.6892', longitude: '-74.0445' });
+  });
+
+  it('returns null for a shortened link with no coordinates in the text', () => {
+    expect(parseGeoLocationInput('https://maps.app.goo.gl/AbCdEf123')).toBeNull();
+  });
+
+  it('returns null for empty input', () => {
+    expect(parseGeoLocationInput('')).toBeNull();
+    expect(parseGeoLocationInput('   ')).toBeNull();
+  });
+
+  it('returns null when the numbers found are out of range', () => {
+    expect(parseGeoLocationInput('200, 300')).toBeNull();
+  });
+
+  it('returns null for unrelated text', () => {
+    expect(parseGeoLocationInput('just some notes, nothing here')).toBeNull();
   });
 });

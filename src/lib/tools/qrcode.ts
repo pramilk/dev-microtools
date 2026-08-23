@@ -22,9 +22,10 @@ export const MAX_QR_TEXT_LENGTH = 1500;
  */
 export async function generateQrMatrix(
   text: string,
-  errorCorrection: QrErrorCorrectionLevel = 'M'
+  errorCorrection: QrErrorCorrectionLevel = 'M',
+  options: { emptyMessage?: string } = {}
 ): Promise<ToolResult<QrMatrix>> {
-  if (text.length === 0) return err('Enter some text or a URL to generate a QR code.');
+  if (text.length === 0) return err(options.emptyMessage ?? 'Enter some text or a URL to generate a QR code.');
   if (text.length > MAX_QR_TEXT_LENGTH) {
     return err(`That text is too long for a QR code (limit ${MAX_QR_TEXT_LENGTH} characters).`);
   }
@@ -54,9 +55,27 @@ export async function generateQrMatrix(
   }
 }
 
-/** Renders a matrix as an inline SVG string — used for both preview and SVG download. */
-export function matrixToSvg(matrix: QrMatrix, options: { cellSize?: number; darkColor?: string; lightColor?: string } = {}): string {
-  const { cellSize = 8, darkColor = '#000000', lightColor = '#ffffff' } = options;
+export interface QrLogoOptions {
+  /** A `data:` URL for the logo image, e.g. read from a file with `FileReader`. */
+  dataUrl: string;
+  /** Fraction of the code's width the logo (including its backing pad) occupies. Clamped to a safe range. */
+  sizeRatio?: number;
+}
+
+/**
+ * Renders a matrix as an inline SVG string — used for both preview and SVG download.
+ *
+ * A logo is drawn as a plain overlay on top of the finished code rather than by carving
+ * a hole out of the module grid: the underlying modules are still fully encoded, and the
+ * overlay just visually covers them. That only decodes reliably at error correction level
+ * H, which has enough redundancy to reconstruct the obscured area — callers that accept a
+ * logo are expected to force level H alongside it.
+ */
+export function matrixToSvg(
+  matrix: QrMatrix,
+  options: { cellSize?: number; darkColor?: string; lightColor?: string; logo?: QrLogoOptions } = {}
+): string {
+  const { cellSize = 8, darkColor = '#000000', lightColor = '#ffffff', logo } = options;
   const size = matrix.moduleCount * cellSize;
 
   let path = '';
@@ -68,10 +87,169 @@ export function matrixToSvg(matrix: QrMatrix, options: { cellSize?: number; dark
     }
   }
 
+  let overlay = '';
+  if (logo) {
+    const ratio = Math.min(Math.max(logo.sizeRatio ?? 0.2, 0.1), 0.3);
+    const logoSize = size * ratio;
+    const pad = logoSize * 0.15;
+    const padded = logoSize + pad * 2;
+    const padOffset = (size - padded) / 2;
+    const logoOffset = (size - logoSize) / 2;
+    overlay =
+      `<rect x="${padOffset}" y="${padOffset}" width="${padded}" height="${padded}" rx="${pad}" fill="${lightColor}"/>` +
+      `<image x="${logoOffset}" y="${logoOffset}" width="${logoSize}" height="${logoSize}" ` +
+      `href="${logo.dataUrl}" xlink:href="${logo.dataUrl}" preserveAspectRatio="xMidYMid slice"/>`;
+  }
+
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" shape-rendering="crispEdges">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ` +
+    `viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" shape-rendering="crispEdges">` +
     `<rect width="${size}" height="${size}" fill="${lightColor}"/>` +
     `<path d="${path}" fill="${darkColor}"/>` +
+    overlay +
     `</svg>`
   );
+}
+
+// --- Content-type payload builders ---------------------------------------------------
+//
+// Each builder turns a small set of structured fields into the plain-text payload that
+// `generateQrMatrix` encodes — QR readers recognise these formats (WIFI:, vCard, SMSTO:,
+// mailto:, geo:) and offer a matching action (join network, add contact, ...) instead of
+// just showing raw text. The island decides *when* to call a builder (only once the
+// fields that make the payload meaningful are filled in); these functions assume valid,
+// present input and just format it.
+
+export const QR_CONTENT_TYPES = ['text', 'wifi', 'vcard', 'sms', 'email', 'geo'] as const;
+export type QrContentType = (typeof QR_CONTENT_TYPES)[number];
+
+export const WIFI_ENCRYPTION_TYPES = ['WPA', 'WEP', 'nopass'] as const;
+export type WifiEncryptionType = (typeof WIFI_ENCRYPTION_TYPES)[number];
+
+export interface WifiFields {
+  ssid: string;
+  password: string;
+  encryption: WifiEncryptionType;
+  hidden: boolean;
+}
+
+export interface VCardFields {
+  name: string;
+  organization: string;
+  jobTitle: string;
+  phone: string;
+  email: string;
+  website: string;
+  address: string;
+}
+
+export interface SmsFields {
+  phone: string;
+  message: string;
+}
+
+export interface EmailFields {
+  to: string;
+  subject: string;
+  body: string;
+}
+
+export interface GeoFields {
+  latitude: string;
+  longitude: string;
+}
+
+/** Escapes characters that are structurally significant in WIFI:/vCard field values. */
+function escapeSpecialChars(value: string, chars: string): string {
+  let result = '';
+  for (const char of value) {
+    if (chars.includes(char)) result += '\\';
+    result += char;
+  }
+  return result;
+}
+
+/** Builds a `WIFI:` payload — scanning it prompts most phones to join the network directly. */
+export function buildWifiText(fields: WifiFields): string {
+  const ssid = escapeSpecialChars(fields.ssid.trim(), '\\;,:"');
+  const password = fields.encryption === 'nopass' ? '' : escapeSpecialChars(fields.password, '\\;,:"');
+  const hidden = fields.hidden ? 'true' : 'false';
+  return `WIFI:T:${fields.encryption};S:${ssid};P:${password};H:${hidden};;`;
+}
+
+function escapeVCardValue(value: string): string {
+  return escapeSpecialChars(value, '\\;,').replace(/\r?\n/g, '\\n');
+}
+
+/** Builds a vCard 3.0 payload — scanning it prompts most phones to save a new contact. */
+export function buildVCardText(fields: VCardFields): string {
+  const lines = ['BEGIN:VCARD', 'VERSION:3.0'];
+  if (fields.name.trim() !== '') lines.push(`FN:${escapeVCardValue(fields.name.trim())}`);
+  if (fields.organization.trim() !== '') lines.push(`ORG:${escapeVCardValue(fields.organization.trim())}`);
+  if (fields.jobTitle.trim() !== '') lines.push(`TITLE:${escapeVCardValue(fields.jobTitle.trim())}`);
+  if (fields.phone.trim() !== '') lines.push(`TEL:${escapeVCardValue(fields.phone.trim())}`);
+  if (fields.email.trim() !== '') lines.push(`EMAIL:${escapeVCardValue(fields.email.trim())}`);
+  if (fields.website.trim() !== '') lines.push(`URL:${escapeVCardValue(fields.website.trim())}`);
+  if (fields.address.trim() !== '') lines.push(`ADR:;;${escapeVCardValue(fields.address.trim())};;;;`);
+  lines.push('END:VCARD');
+  return lines.join('\n');
+}
+
+/** Builds an `SMSTO:` payload — scanning it opens a pre-filled text message. */
+export function buildSmsText(fields: SmsFields): string {
+  return `SMSTO:${fields.phone.trim()}:${fields.message}`;
+}
+
+/** Builds a `mailto:` payload — scanning it opens a pre-filled email. */
+export function buildEmailText(fields: EmailFields): string {
+  const params: string[] = [];
+  if (fields.subject.trim() !== '') params.push(`subject=${encodeURIComponent(fields.subject.trim())}`);
+  if (fields.body.trim() !== '') params.push(`body=${encodeURIComponent(fields.body)}`);
+  const query = params.length > 0 ? `?${params.join('&')}` : '';
+  return `mailto:${fields.to.trim()}${query}`;
+}
+
+/** Builds a `geo:` payload — scanning it opens the coordinates in a maps app. */
+export function buildGeoText(fields: GeoFields): string {
+  return `geo:${fields.latitude.trim()},${fields.longitude.trim()}`;
+}
+
+/** True when both coordinates are present, numeric, and within valid ranges. */
+export function isValidGeoCoordinate(latitude: string, longitude: string): boolean {
+  if (latitude.trim() === '' || longitude.trim() === '') return false;
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
+const COORDINATE_PATTERNS = [
+  // A full Maps URL that centers on a point, e.g. .../@40.6892,-74.0445,17z
+  /@(-?\d{1,3}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/,
+  // A `q=`, `ll=` or `query=` parameter carrying "lat,lng", e.g. ?q=40.6892,-74.0445
+  /[?&](?:q|ll|query)=(-?\d{1,3}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/,
+  // The bare "lat, lng" pair someone copied straight out of Maps' info panel.
+  /^(-?\d{1,3}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)$/,
+];
+
+/**
+ * Pulls a latitude/longitude pair out of a pasted Google Maps link or a bare
+ * "lat, lng" string — typing raw coordinates by hand is unreasonable to expect, but a
+ * Maps URL (copied from the address bar after centering on a place) or the "lat, lng"
+ * text Maps shows in its info panel both carry the coordinates in plain sight in the
+ * text itself, so this can be parsed without any network request. Returns null if no
+ * coordinate pair is found, or if the numbers found are out of range (most often a
+ * shortened maps.app.goo.gl link, which redirects server-side and carries no
+ * coordinates in the URL text at all).
+ */
+export function parseGeoLocationInput(input: string): GeoFields | null {
+  const trimmed = input.trim();
+  if (trimmed === '') return null;
+
+  for (const pattern of COORDINATE_PATTERNS) {
+    const match = pattern.exec(trimmed);
+    if (!match) continue;
+    const [, latitude, longitude] = match as unknown as [string, string, string];
+    if (isValidGeoCoordinate(latitude, longitude)) return { latitude, longitude };
+  }
+  return null;
 }
