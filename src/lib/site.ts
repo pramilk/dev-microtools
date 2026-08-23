@@ -8,7 +8,7 @@ export const SITE = {
   name: 'DevMicroTools',
   tagline: 'Fast developer tools that run entirely in your browser',
   description:
-    'A collection of free developer utilities — JSON formatter, regex tester, base64, JWT, hashing and more. Everything runs locally in your browser; nothing you paste is ever uploaded.',
+    'Free developer utilities: JSON formatter, regex tester, Base64, JWT, hashing, diff checker and more — all running in your browser. Nothing is ever uploaded.',
   locale: 'en_US',
   /** Filled in after AdSense approval. Ads stay disabled while this is null. */
   adsensePublisherId: null as string | null,
