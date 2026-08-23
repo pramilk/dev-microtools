@@ -50,6 +50,7 @@ const ogImage = new URL('/og-image.png', Astro.site ?? SITE.url).href;
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="sitemap" href="/sitemap-index.xml" />
     <meta name="generator" content={Astro.generator} />
+    {SITE.cloudflareAnalyticsToken && <link rel="preconnect" href="https://static.cloudflareinsights.com" />}
 
     {
       schema.map((entry) => (

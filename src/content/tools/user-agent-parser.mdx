@@ -21,16 +21,18 @@ useCases:
   - Verifying that a crawler or bot identifying itself in a User-Agent string is who it claims to be.
 howTo:
   - Paste a User-Agent string into the box, or click "Use my browser's User-Agent" to inspect your own — it's filled in automatically when the page loads.
-  - 'Read the parsed result: browser name and version, operating system and version, rendering engine, and device type.'
+  - 'Read the parsed result: browser name and version, operating system and version, rendering engine, device type, and, where present, device model, CPU architecture and in-app browser.'
+  - Scroll to "What each part means" to see the raw string broken into its individual pieces, each one underlined with a plain-English explanation of why it's there.
   - Copy the raw string with the copy button if you need to paste it elsewhere.
 example:
   label: A desktop Chrome User-Agent on Windows.
   input: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
   output: |-
-    Browser   Chrome 128.0.0.0
-    OS        Windows 10/11
-    Engine    Blink (Chromium)
-    Device    Desktop
+    Browser        Chrome 128.0.0.0
+    OS             Windows 10/11
+    Engine         Blink (Chromium)
+    Device         Desktop
+    CPU arch.      x64
   note: Note the string also contains "Safari/537.36" — that's the historical compatibility token every Chromium browser carries, not a sign this is actually Safari.
 faq:
   - q: Why does a Chrome User-Agent contain the word "Safari"?
@@ -43,6 +45,10 @@ faq:
     a: The rendering engine is the underlying software that actually parses HTML/CSS and runs JavaScript — Blink (Chrome, Edge, Opera, and most Android browsers), WebKit (Safari, and every browser on iOS, since Apple requires it), and Gecko (Firefox). Two browsers sharing an engine tend to render pages near-identically, which is more relevant to compatibility testing than the browser's brand name alone.
   - q: Why do all browsers on iOS report the WebKit engine, even Chrome?
     a: Apple's App Store policy requires every browser on iOS to use WebKit internally, regardless of its brand — so "Chrome for iOS" is Chrome's interface built on Safari's actual rendering engine, not Chrome's own Blink engine. This is unique to iOS; Chrome on Android and desktop uses Blink as normal.
+  - q: What does the "What each part means" breakdown show?
+    a: It underlines every recognised chunk of the raw string — `Mozilla/5.0`, `AppleWebKit`, `KHTML, like Gecko`, the browser and version token, `Safari/537.36`, and platform details like `Win64; x64` — and, on hover or tap, explains in plain English why that particular chunk is there. It's aimed at the parts that confuse people at a glance, especially the historical-compatibility tokens that make nearly every browser's User-Agent claim to be several other browsers at once.
+  - q: What is an "in-app browser", and why does it show up separately?
+    a: Apps like Instagram, Facebook and TikTok open links in their own embedded browser rather than the phone's default one, and append their own token (for example "Instagram 312.0.0.34.111") to the underlying WebView's User-Agent to identify themselves. This tool surfaces that token separately because it's often the actual cause of a rendering bug — in-app browsers frequently lack features the same OS's real browser supports.
 related:
   - json-formatter
   - regex-tester
