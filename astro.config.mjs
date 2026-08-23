@@ -4,9 +4,8 @@ import preact from '@astrojs/preact';
 import sitemap from '@astrojs/sitemap';
 import mdx from '@astrojs/mdx';
 
-// Update this to the real domain once it is registered. It is required for
-// @astrojs/sitemap to emit absolute URLs and for canonical link tags.
-const SITE = 'https://example.com';
+// Required for @astrojs/sitemap to emit absolute URLs and for canonical link tags.
+const SITE = 'https://devmicrotools.com';
 
 // https://astro.build/config
 export default defineConfig({

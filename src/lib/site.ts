@@ -4,8 +4,7 @@
  */
 
 export const SITE = {
-  /** Update alongside `site` in astro.config.mjs when the real domain is registered. */
-  url: 'https://example.com',
+  url: 'https://devmicrotools.com',
   name: 'DevMicroTools',
   tagline: 'Fast developer tools that run entirely in your browser',
   description:
