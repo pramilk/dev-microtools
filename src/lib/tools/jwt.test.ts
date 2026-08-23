@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decodeJwt, inspectExpiry, signHs256, verifyHs256 } from './jwt';
+import { decodeJwt, inspectExpiry, signHs256, verifyHs256, verifyAsymmetric } from './jwt';
 
 // The canonical HS256 example from RFC 7515 / jwt.io, secret "your-256-bit-secret".
 const SAMPLE =
@@ -155,5 +155,123 @@ describe('signHs256 and verifyHs256', () => {
     const decoded = decodeJwt(signed.value);
     expect(decoded.ok).toBe(true);
     if (decoded.ok) expect(decoded.value.payload.name).toBe('日本語 🎉');
+  });
+});
+
+/* ---------------------------------------------------------- asymmetric verify */
+
+const toBase64Url = (bytes: Uint8Array): string => {
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+
+const encodeSegment = (value: unknown): string =>
+  toBase64Url(new TextEncoder().encode(JSON.stringify(value)));
+
+const toPem = async (key: CryptoKey): Promise<string> => {
+  const spki = await crypto.subtle.exportKey('spki', key);
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(spki)));
+  const lines = base64.match(/.{1,64}/g) ?? [base64];
+  return `-----BEGIN PUBLIC KEY-----\n${lines.join('\n')}\n-----END PUBLIC KEY-----`;
+};
+
+/** Signs a token with a freshly generated key pair, independent of anything in jwt.ts. */
+async function makeSignedToken(
+  alg: 'RS256' | 'ES256',
+  privateKey: CryptoKey,
+  signParams: AlgorithmIdentifier | RsaPssParams | EcdsaParams
+): Promise<string> {
+  const signingInput = `${encodeSegment({ alg, typ: 'JWT' })}.${encodeSegment({ sub: 'user-1' })}`;
+  const signature = await crypto.subtle.sign(
+    signParams,
+    privateKey,
+    new TextEncoder().encode(signingInput)
+  );
+  return `${signingInput}.${toBase64Url(new Uint8Array(signature))}`;
+}
+
+describe('verifyAsymmetric', () => {
+  it('verifies an RS256 token against its matching public key', async () => {
+    const keyPair = await crypto.subtle.generateKey(
+      { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+      true,
+      ['sign', 'verify']
+    );
+    const token = await makeSignedToken('RS256', keyPair.privateKey, 'RSASSA-PKCS1-v1_5');
+    const pem = await toPem(keyPair.publicKey);
+
+    expect(await verifyAsymmetric(token, pem)).toEqual({ ok: true, value: true });
+  });
+
+  it('verifies an ES256 token against its matching public key', async () => {
+    const keyPair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, [
+      'sign',
+      'verify',
+    ]);
+    const token = await makeSignedToken('ES256', keyPair.privateKey, { name: 'ECDSA', hash: 'SHA-256' });
+    const pem = await toPem(keyPair.publicKey);
+
+    expect(await verifyAsymmetric(token, pem)).toEqual({ ok: true, value: true });
+  });
+
+  it('rejects a token verified against an unrelated public key', async () => {
+    const signingPair = await crypto.subtle.generateKey(
+      { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+      true,
+      ['sign', 'verify']
+    );
+    const otherPair = await crypto.subtle.generateKey(
+      { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+      true,
+      ['sign', 'verify']
+    );
+    const token = await makeSignedToken('RS256', signingPair.privateKey, 'RSASSA-PKCS1-v1_5');
+    const wrongPem = await toPem(otherPair.publicKey);
+
+    expect(await verifyAsymmetric(token, wrongPem)).toEqual({ ok: true, value: false });
+  });
+
+  it('detects a tampered payload', async () => {
+    const keyPair = await crypto.subtle.generateKey(
+      { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+      true,
+      ['sign', 'verify']
+    );
+    const token = await makeSignedToken('RS256', keyPair.privateKey, 'RSASSA-PKCS1-v1_5');
+    const [header, , signature] = token.split('.');
+    const tampered = `${header}.${encodeSegment({ sub: 'attacker' })}.${signature}`;
+    const pem = await toPem(keyPair.publicKey);
+
+    expect(await verifyAsymmetric(tampered, pem)).toEqual({ ok: true, value: false });
+  });
+
+  it('explains that it cannot verify HS256 here', async () => {
+    const result = await verifyAsymmetric(SAMPLE, 'irrelevant');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/RS256\/384\/512/);
+  });
+
+  it('asks for a public key', async () => {
+    const keyPair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, [
+      'sign',
+      'verify',
+    ]);
+    const token = await makeSignedToken('ES256', keyPair.privateKey, { name: 'ECDSA', hash: 'SHA-256' });
+
+    const result = await verifyAsymmetric(token, '');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/public key/i);
+  });
+
+  it('reports an unreadable key instead of throwing', async () => {
+    const keyPair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, [
+      'sign',
+      'verify',
+    ]);
+    const token = await makeSignedToken('ES256', keyPair.privateKey, { name: 'ECDSA', hash: 'SHA-256' });
+
+    const result = await verifyAsymmetric(token, 'not a real key');
+    expect(result.ok).toBe(false);
   });
 });

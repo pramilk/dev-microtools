@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'preact/hooks';
-import { hashAll, digestsMatch, type HashAlgorithm } from '../lib/tools/hash';
+import { hashAll, hashFile, hmacAll, digestsMatch, type HashAlgorithm } from '../lib/tools/hash';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { CopyButton } from './shared/CopyButton';
+import { FileDropzone } from './shared/FileDropzone';
 
 interface Digest {
   algorithm: HashAlgorithm;
   digest: string;
 }
+
+type Mode = 'text' | 'file';
 
 /** MD5 and SHA-1 are broken for security use; the UI has to say so. */
 const INSECURE: Partial<Record<HashAlgorithm, string>> = {
@@ -15,23 +18,47 @@ const INSECURE: Partial<Record<HashAlgorithm, string>> = {
 };
 
 export default function HashGenerator() {
+  const [mode, setMode] = useState<Mode>('text');
   const [input, setInput] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [useHmac, setUseHmac] = useState(false);
+  const [hmacKey, setHmacKey] = useState('');
   const [digests, setDigests] = useState<Digest[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [compareTo, setCompareTo] = useState('');
 
   useEffect(() => {
-    if (input === '') {
-      setDigests([]);
-      setError(null);
-      return;
-    }
-
     let cancelled = false;
-    setBusy(true);
 
-    void hashAll(input).then((result) => {
+    const run = async () => {
+      if (mode === 'file') {
+        if (!file) {
+          setDigests([]);
+          setError(null);
+          return;
+        }
+        setBusy(true);
+        const result = await hashFile(file);
+        if (cancelled) return;
+        setBusy(false);
+        if (result.ok) {
+          setDigests(result.value);
+          setError(null);
+        } else {
+          setDigests([]);
+          setError(result.error);
+        }
+        return;
+      }
+
+      if (input === '') {
+        setDigests([]);
+        setError(null);
+        return;
+      }
+      setBusy(true);
+      const result = useHmac ? await hmacAll(input, hmacKey) : await hashAll(input);
       // Guard against an out-of-order response overwriting newer input.
       if (cancelled) return;
       setBusy(false);
@@ -42,12 +69,13 @@ export default function HashGenerator() {
         setDigests([]);
         setError(result.error);
       }
-    });
+    };
 
+    void run();
     return () => {
       cancelled = true;
     };
-  }, [input]);
+  }, [mode, input, file, useHmac, hmacKey]);
 
   const trimmedCompare = compareTo.trim();
   const matched = trimmedCompare
@@ -56,34 +84,89 @@ export default function HashGenerator() {
 
   return (
     <div class="tool">
-      <div class="field">
-        <label class="field__label" for="hash-input">
-          <span>Text to hash</span>
-          <span class="field__hint">{input.length.toLocaleString()} characters</span>
-        </label>
-        <textarea
-          id="hash-input"
-          class="textarea textarea--short"
-          spellcheck={false}
-          autocomplete="off"
-          placeholder="Type or paste the text you want to hash…"
-          value={input}
-          onInput={(event) => setInput((event.target as HTMLTextAreaElement).value)}
-        />
+      <div class="tool-bar">
+        <div class="seg" role="group" aria-label="Source">
+          <button
+            type="button"
+            class="seg__btn"
+            aria-pressed={mode === 'text'}
+            onClick={() => setMode('text')}
+            title="Hash text you type or paste"
+          >
+            Text
+          </button>
+          <button
+            type="button"
+            class="seg__btn"
+            aria-pressed={mode === 'file'}
+            onClick={() => setMode('file')}
+            title="Hash an entire file — useful for checking a download's published checksum"
+          >
+            File
+          </button>
+        </div>
       </div>
 
-      <div class="tool-bar">
-        <button
-          type="button"
-          class="btn"
-          onClick={() => setInput('')}
-          disabled={input === ''}
-          title="Clear the input and start over"
-        >
-          Clear
-        </button>
-        {busy && <span class="field__hint">Hashing…</span>}
-      </div>
+      {mode === 'text' ? (
+        <>
+          <div class="field">
+            <label class="field__label" for="hash-input">
+              <span>Text to hash</span>
+              <span class="field__hint">{input.length.toLocaleString()} characters</span>
+            </label>
+            <textarea
+              id="hash-input"
+              class="textarea textarea--short"
+              spellcheck={false}
+              autocomplete="off"
+              placeholder="Type or paste the text you want to hash…"
+              value={input}
+              onInput={(event) => setInput((event.target as HTMLTextAreaElement).value)}
+            />
+          </div>
+
+          <div class="tool-bar">
+            <label
+              class="checkbox"
+              title="Compute a keyed hash (HMAC) instead — proves whoever produced it knew the secret key"
+            >
+              <input
+                type="checkbox"
+                checked={useHmac}
+                onChange={(event) => setUseHmac((event.target as HTMLInputElement).checked)}
+              />
+              Use HMAC (keyed hash)
+            </label>
+            {useHmac && (
+              <input
+                class="input"
+                type="password"
+                style="max-width: 16rem"
+                spellcheck={false}
+                autocomplete="off"
+                placeholder="Secret key…"
+                value={hmacKey}
+                aria-label="HMAC secret key"
+                onInput={(event) => setHmacKey((event.target as HTMLInputElement).value)}
+              />
+            )}
+            <span class="tool-bar__spacer" />
+            <button
+              type="button"
+              class="btn"
+              onClick={() => setInput('')}
+              disabled={input === ''}
+              title="Clear the input and start over"
+            >
+              Clear
+            </button>
+          </div>
+        </>
+      ) : (
+        <FileDropzone file={file} onFileSelected={setFile} chooseLabel="Choose a file to hash" />
+      )}
+
+      {busy && <p class="field__hint">Hashing…</p>}
 
       <ErrorMessage message={error} />
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { uuidV4, uuidV7, generateUuids, inspectUuid } from './uuid';
+import { uuidV4, uuidV7, generateUuids, inspectUuid, formatUuids } from './uuid';
 
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -98,5 +98,33 @@ describe('inspectUuid', () => {
 
   it('rejects a UUID with an invalid variant nibble', () => {
     expect(inspectUuid('00000000-0000-4000-0000-000000000000').ok).toBe(false);
+  });
+});
+
+describe('formatUuids', () => {
+  const sample = ['aaaaaaaa-0000-4000-8000-000000000000', 'bbbbbbbb-0000-4000-8000-000000000000'];
+
+  it('joins with newlines by default', () => {
+    expect(formatUuids(sample, 'lines')).toBe(sample.join('\n'));
+  });
+
+  it('produces a valid JSON array', () => {
+    expect(JSON.parse(formatUuids(sample, 'json'))).toEqual(sample);
+  });
+
+  it('joins with commas for CSV', () => {
+    expect(formatUuids(sample, 'csv')).toBe(sample.join(','));
+  });
+
+  it('produces a SQL VALUES list', () => {
+    expect(formatUuids(sample, 'sql')).toBe(
+      "('aaaaaaaa-0000-4000-8000-000000000000'),\n('bbbbbbbb-0000-4000-8000-000000000000');"
+    );
+  });
+
+  it('returns an empty string for an empty batch, in every format', () => {
+    for (const format of ['lines', 'json', 'csv', 'sql'] as const) {
+      expect(formatUuids([], format)).toBe('');
+    }
   });
 });

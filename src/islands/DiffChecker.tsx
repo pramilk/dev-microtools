@@ -1,19 +1,60 @@
-import { useEffect, useState } from 'preact/hooks';
-import { compareTexts, compareJson, type DiffMode, type DiffSummary } from '../lib/tools/diff';
+import { useEffect, useMemo, useState } from 'preact/hooks';
+import {
+  compareTexts,
+  compareJson,
+  toSideBySideRows,
+  type DiffMode,
+  type DiffSummary,
+} from '../lib/tools/diff';
 import { ErrorMessage } from './shared/ErrorMessage';
 
 type Kind = 'text' | 'json';
+type View = 'inline' | 'side-by-side';
+
+const SAMPLE_JSON_LEFT = `{
+  "name": "billing-service",
+  "version": "1.2.0",
+  "port": 8080,
+  "debug": false
+}`;
+const SAMPLE_JSON_RIGHT = `{
+  "name": "billing-service",
+  "version": "1.3.0",
+  "port": 8080,
+  "timeout": 30,
+  "debug": true
+}`;
+
+const SAMPLE_TEXT_LEFT = `Welcome to Dev Microtools.
+This site offers free browser-based utilities for developers.
+All processing happens locally in your browser.`;
+const SAMPLE_TEXT_RIGHT = `Welcome to Dev Microtools!
+This site offers free, fast browser-based utilities for developers.
+All processing happens locally in your browser.
+Nothing you paste is ever uploaded.`;
 
 export default function DiffChecker() {
   const [left, setLeft] = useState('');
   const [right, setRight] = useState('');
   const [kind, setKind] = useState<Kind>('text');
   const [mode, setMode] = useState<DiffMode>('line');
+  const [view, setView] = useState<View>('inline');
   const [ignoreCase, setIgnoreCase] = useState(false);
   const [ignoreWhitespace, setIgnoreWhitespace] = useState(false);
 
   const [summary, setSummary] = useState<DiffSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Side-by-side pairs up lines, so it only makes sense for a line-level comparison —
+  // JSON diffs are always line-level internally, text diffs only when that granularity
+  // is selected. Falling back to inline otherwise avoids a toggle that renders nonsense.
+  const canSideBySide = kind === 'json' || mode === 'line';
+  const effectiveView = canSideBySide ? view : 'inline';
+
+  const sideBySideRows = useMemo(
+    () => (effectiveView === 'side-by-side' && summary ? toSideBySideRows(summary.parts) : []),
+    [effectiveView, summary]
+  );
 
   useEffect(() => {
     if (left === '' && right === '') {
@@ -98,6 +139,26 @@ export default function DiffChecker() {
           type="button"
           class="btn"
           onClick={() => {
+            if (kind === 'json') {
+              setLeft(SAMPLE_JSON_LEFT);
+              setRight(SAMPLE_JSON_RIGHT);
+            } else {
+              setLeft(SAMPLE_TEXT_LEFT);
+              setRight(SAMPLE_TEXT_RIGHT);
+            }
+          }}
+          title={
+            kind === 'json'
+              ? 'Load two example JSON documents — a version bump, an added field and a changed flag — to see how the tool reports changes'
+              : 'Load two example paragraphs — a changed line, an unchanged line and an added line — to see how the tool reports changes'
+          }
+        >
+          Load sample
+        </button>
+        <button
+          type="button"
+          class="btn"
+          onClick={() => {
             setLeft('');
             setRight('');
           }}
@@ -151,7 +212,7 @@ export default function DiffChecker() {
 
         <div class="field">
           <label class="field__label" for="diff-right">
-            <span>Changed</span>
+            <span>Compare with</span>
             <span class="field__hint">{right.split('\n').length} lines</span>
           </label>
           <textarea
@@ -159,7 +220,7 @@ export default function DiffChecker() {
             class="textarea textarea--tall"
             spellcheck={false}
             autocomplete="off"
-            placeholder="Paste the changed text…"
+            placeholder="Paste the text to compare with…"
             value={right}
             onInput={(event) => setRight((event.target as HTMLTextAreaElement).value)}
           />
@@ -195,27 +256,76 @@ export default function DiffChecker() {
             </p>
           ) : (
             <div class="field">
-              <span class="field__label">Differences</span>
-              <div class="diff-view" aria-label="Differences between the two texts">
-                {summary.parts.map((part, index) => (
-                  <span
-                    key={index}
-                    class={
-                      part.type === 'added'
-                        ? 'diff-part diff-part--added'
-                        : part.type === 'removed'
-                          ? 'diff-part diff-part--removed'
-                          : 'diff-part'
+              <div class="field__label">
+                <span>Differences</span>
+                <div class="seg" role="group" aria-label="Layout">
+                  <button
+                    type="button"
+                    class="seg__btn"
+                    aria-pressed={effectiveView === 'inline'}
+                    onClick={() => setView('inline')}
+                    title="Show one merged view with removed lines struck through and added lines highlighted"
+                  >
+                    Inline
+                  </button>
+                  <button
+                    type="button"
+                    class="seg__btn"
+                    aria-pressed={effectiveView === 'side-by-side'}
+                    disabled={!canSideBySide}
+                    onClick={() => setView('side-by-side')}
+                    title={
+                      canSideBySide
+                        ? 'Show the two versions in two columns, lined up row by row'
+                        : 'Only available when comparing by line — switch granularity to "By line" to use this'
                     }
                   >
-                    {part.value}
-                  </span>
-                ))}
+                    Side by side
+                  </button>
+                </div>
               </div>
-              <p class="field__hint">
-                <span class="diff-key diff-key--added">Green</span> is added,{' '}
-                <span class="diff-key diff-key--removed">red</span> is removed.
-              </p>
+
+              {effectiveView === 'inline' ? (
+                <>
+                  <div class="diff-view" aria-label="Differences between the two texts">
+                    {summary.parts.map((part, index) => (
+                      <span
+                        key={index}
+                        class={
+                          part.type === 'added'
+                            ? 'diff-part diff-part--added'
+                            : part.type === 'removed'
+                              ? 'diff-part diff-part--removed'
+                              : 'diff-part'
+                        }
+                      >
+                        {part.value}
+                      </span>
+                    ))}
+                  </div>
+                  <p class="field__hint">
+                    <span class="diff-key diff-key--added">Green</span> is added,{' '}
+                    <span class="diff-key diff-key--removed">red</span> is removed.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div class="diff-side-by-side" aria-label="Differences, shown in two aligned columns">
+                    {sideBySideRows.map((row, index) => (
+                      <div key={index} class={`diff-row diff-row--${row.type}`}>
+                        <span class="diff-row__num">{row.leftLine ?? ''}</span>
+                        <span class="diff-row__cell diff-row__cell--left">{row.left ?? ''}</span>
+                        <span class="diff-row__num">{row.rightLine ?? ''}</span>
+                        <span class="diff-row__cell diff-row__cell--right">{row.right ?? ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p class="field__hint">
+                    A line only on the left was removed, a line only on the right was added, and
+                    a line coloured on both sides changed.
+                  </p>
+                </>
+              )}
             </div>
           )}
         </>
@@ -242,6 +352,32 @@ export default function DiffChecker() {
         .diff-key { padding: 0 .35em; border-radius: 2px; font-weight: 600; }
         .diff-key--added { background: var(--success-subtle); color: var(--success); }
         .diff-key--removed { background: var(--danger-subtle); color: var(--danger); }
+        .diff-side-by-side {
+          border: 1px solid var(--border); border-radius: var(--radius);
+          background: var(--surface-2); font-family: var(--font-mono); font-size: var(--text-sm);
+          max-height: 26rem; overflow: auto;
+        }
+        .diff-row {
+          display: grid; grid-template-columns: 2.5rem 1fr 2.5rem 1fr;
+          border-bottom: 1px solid var(--border);
+        }
+        .diff-row:last-child { border-bottom: none; }
+        .diff-row__num {
+          padding: .15em .5em; text-align: right; color: var(--text-subtle);
+          font-size: var(--text-xs); user-select: none; border-right: 1px solid var(--border);
+        }
+        .diff-row__cell {
+          padding: .15em .6em; white-space: pre-wrap; word-break: break-word;
+          border-right: 1px solid var(--border);
+        }
+        .diff-row--removed .diff-row__cell--left,
+        .diff-row--changed .diff-row__cell--left {
+          background: var(--danger-subtle); color: var(--danger);
+        }
+        .diff-row--added .diff-row__cell--right,
+        .diff-row--changed .diff-row__cell--right {
+          background: var(--success-subtle); color: var(--success);
+        }
       `}</style>
     </div>
   );

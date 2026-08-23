@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { compareTexts, compareJson } from './diff';
+import { compareTexts, compareJson, toSideBySideRows, type DiffPart } from './diff';
 
 describe('compareTexts', () => {
   it('reports identical texts as identical', async () => {
@@ -125,5 +125,67 @@ describe('compareJson', () => {
     const result = await compareJson('', '{"a":1}');
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toMatch(/empty/i);
+  });
+});
+
+describe('toSideBySideRows', () => {
+  it('mirrors unchanged lines on both sides with matching line numbers', () => {
+    const parts: DiffPart[] = [{ type: 'unchanged', value: 'a\nb\n' }];
+    const rows = toSideBySideRows(parts);
+    expect(rows).toEqual([
+      { left: 'a', right: 'a', leftLine: 1, rightLine: 1, type: 'unchanged' },
+      { left: 'b', right: 'b', leftLine: 2, rightLine: 2, type: 'unchanged' },
+    ]);
+  });
+
+  it('pairs a removed block with a following added block as changed rows', () => {
+    const parts: DiffPart[] = [
+      { type: 'removed', value: 'old\n' },
+      { type: 'added', value: 'new\n' },
+    ];
+    const rows = toSideBySideRows(parts);
+    expect(rows).toEqual([{ left: 'old', right: 'new', leftLine: 1, rightLine: 1, type: 'changed' }]);
+  });
+
+  it('pads the shorter side when a changed block has unequal line counts', () => {
+    const parts: DiffPart[] = [
+      { type: 'removed', value: 'one\ntwo\n' },
+      { type: 'added', value: 'one only\n' },
+    ];
+    const rows = toSideBySideRows(parts);
+    expect(rows).toEqual([
+      { left: 'one', right: 'one only', leftLine: 1, rightLine: 1, type: 'changed' },
+      { left: 'two', right: null, leftLine: 2, rightLine: null, type: 'changed' },
+    ]);
+  });
+
+  it('renders a pure removal with nothing on the right', () => {
+    const parts: DiffPart[] = [{ type: 'removed', value: 'gone\n' }];
+    const rows = toSideBySideRows(parts);
+    expect(rows).toEqual([{ left: 'gone', right: null, leftLine: 1, rightLine: null, type: 'removed' }]);
+  });
+
+  it('renders a pure addition with nothing on the left', () => {
+    const parts: DiffPart[] = [{ type: 'added', value: 'fresh\n' }];
+    const rows = toSideBySideRows(parts);
+    expect(rows).toEqual([{ left: null, right: 'fresh', leftLine: null, rightLine: 1, type: 'added' }]);
+  });
+
+  it('keeps left/right line numbers running independently across a mixed sequence', () => {
+    const parts: DiffPart[] = [
+      { type: 'unchanged', value: 'ctx\n' },
+      { type: 'added', value: 'inserted\n' },
+      { type: 'unchanged', value: 'tail\n' },
+    ];
+    const rows = toSideBySideRows(parts);
+    expect(rows).toEqual([
+      { left: 'ctx', right: 'ctx', leftLine: 1, rightLine: 1, type: 'unchanged' },
+      { left: null, right: 'inserted', leftLine: null, rightLine: 2, type: 'added' },
+      { left: 'tail', right: 'tail', leftLine: 2, rightLine: 3, type: 'unchanged' },
+    ]);
+  });
+
+  it('returns nothing for an empty parts list', () => {
+    expect(toSideBySideRows([])).toEqual([]);
   });
 });

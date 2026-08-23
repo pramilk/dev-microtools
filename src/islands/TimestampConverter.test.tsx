@@ -86,6 +86,18 @@ describe('<TimestampConverter />', () => {
     expect(await screen.findByText(/ISO 8601 \(UTC\)/i)).toBeInTheDocument();
   });
 
+  it('adds and removes an extra time zone reading', async () => {
+    render(<TimestampConverter />);
+    typeInto(screen.getByLabelText(/unix timestamp/i), '1700000000');
+    await screen.findByText('2023-11-14T22:13:20.000Z');
+
+    fireEvent.change(screen.getByLabelText(/add a time zone/i), { target: { value: 'Asia/Tokyo' } });
+    expect(await screen.findByText('Asia/Tokyo')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /remove asia\/tokyo/i }));
+    expect(screen.queryByText('Asia/Tokyo')).not.toBeInTheDocument();
+  });
+
   it('switching direction and back again keeps a valid, roughly-consistent result', async () => {
     render(<TimestampConverter />);
     typeInto(screen.getByLabelText(/unix timestamp/i), '1700000000');

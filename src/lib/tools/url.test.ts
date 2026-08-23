@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { encodeUrl, decodeUrl, parseUrl } from './url';
+import { encodeUrl, decodeUrl, parseUrl, buildUrl } from './url';
 
 describe('encodeUrl', () => {
   it('escapes reserved delimiters in component mode', () => {
@@ -99,5 +99,58 @@ describe('parseUrl', () => {
 
   it('rejects empty input', () => {
     expect(parseUrl('   ').ok).toBe(false);
+  });
+});
+
+describe('buildUrl', () => {
+  it('is the inverse of parseUrl for a URL with a port, query and hash', () => {
+    const original = 'https://example.com:8443/a/b?x=1&y=2#frag';
+    const parsed = parseUrl(original);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(buildUrl(parsed.value)).toBe(original);
+  });
+
+  it('re-encodes an edited parameter value', () => {
+    const parsed = parseUrl('https://x.dev/?q=a');
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      const edited = buildUrl({
+        ...parsed.value,
+        params: [{ key: 'q', value: 'a b' }],
+      });
+      expect(edited).toBe('https://x.dev/?q=a+b');
+    }
+  });
+
+  it('omits the query entirely once every parameter is removed', () => {
+    const parsed = parseUrl('https://x.dev/path?x=1');
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(buildUrl({ ...parsed.value, params: [] })).toBe('https://x.dev/path');
+    }
+  });
+
+  it('adds a new parameter', () => {
+    const parsed = parseUrl('https://x.dev/');
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      const built = buildUrl({ ...parsed.value, params: [{ key: 'new', value: 'value' }] });
+      expect(built).toBe('https://x.dev/?new=value');
+    }
+  });
+
+  it('skips a row whose key is still empty, rather than emitting "?="', () => {
+    const parsed = parseUrl('https://x.dev/');
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      const built = buildUrl({ ...parsed.value, params: [{ key: '', value: 'x' }] });
+      expect(built).toBe('https://x.dev/');
+    }
+  });
+
+  it('rebuilds without a port when none was set', () => {
+    const parsed = parseUrl('https://x.dev/path');
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(buildUrl(parsed.value)).toBe('https://x.dev/path');
   });
 });

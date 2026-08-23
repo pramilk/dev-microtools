@@ -54,6 +54,19 @@ export function generateUuids(count: number, version: UuidVersion): ToolResult<s
   return ok(Array.from({ length: count }, generate));
 }
 
+export const UUID_BULK_FORMATS = ['lines', 'json', 'csv', 'sql'] as const;
+export type UuidBulkFormat = (typeof UUID_BULK_FORMATS)[number];
+
+/** Renders a batch of UUIDs in a few common "paste elsewhere" shapes. */
+export function formatUuids(uuids: string[], format: UuidBulkFormat): string {
+  if (uuids.length === 0) return '';
+
+  if (format === 'json') return JSON.stringify(uuids, null, 2);
+  if (format === 'csv') return uuids.join(',');
+  if (format === 'sql') return uuids.map((id) => `('${id}')`).join(',\n') + ';';
+  return uuids.join('\n');
+}
+
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-([1-8])[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 

@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { parseColor, convertColor, rgbToHex, rgbToHsl, contrastRatio, luminance } from './color';
+import {
+  parseColor,
+  convertColor,
+  rgbToHex,
+  rgbToHsl,
+  contrastRatio,
+  luminance,
+  nearestAccessibleShade,
+  NAMED_COLOR_NAMES,
+} from './color';
 
 describe('parseColor', () => {
   it('parses 6-digit hex', () => {
@@ -67,6 +76,35 @@ describe('parseColor', () => {
 
   it('rejects a hex string of invalid length', () => {
     expect(parseColor('#12345').ok).toBe(false);
+  });
+
+  it('parses a CSS named colour', () => {
+    expect(parseColor('rebeccapurple')).toEqual({
+      ok: true,
+      value: { r: 102, g: 51, b: 153, a: 1 },
+    });
+  });
+
+  it('is case-insensitive for named colours', () => {
+    expect(parseColor('RED')).toEqual({ ok: true, value: { r: 255, g: 0, b: 0, a: 1 } });
+  });
+
+  it('parses "transparent" as zero alpha', () => {
+    const result = parseColor('transparent');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.a).toBe(0);
+  });
+});
+
+describe('NAMED_COLOR_NAMES', () => {
+  it('includes the standard set and transparent', () => {
+    expect(NAMED_COLOR_NAMES).toContain('rebeccapurple');
+    expect(NAMED_COLOR_NAMES).toContain('cornflowerblue');
+    expect(NAMED_COLOR_NAMES).toContain('transparent');
+  });
+
+  it('has no duplicates', () => {
+    expect(new Set(NAMED_COLOR_NAMES).size).toBe(NAMED_COLOR_NAMES.length);
   });
 });
 
@@ -162,5 +200,45 @@ describe('convertColor', () => {
 
   it('propagates a parse failure', () => {
     expect(convertColor('nope').ok).toBe(false);
+  });
+});
+
+describe('nearestAccessibleShade', () => {
+  it('finds a shade that reaches the requested contrast against white', () => {
+    const shade = nearestAccessibleShade({ r: 200, g: 200, b: 200, a: 1 }, 'white', 4.5);
+    expect(shade).not.toBeNull();
+    if (shade) expect(contrastRatio(shade, { r: 255, g: 255, b: 255, a: 1 })).toBeGreaterThanOrEqual(4.45);
+  });
+
+  it('finds a shade that reaches the requested contrast against black', () => {
+    const shade = nearestAccessibleShade({ r: 60, g: 60, b: 60, a: 1 }, 'black', 4.5);
+    expect(shade).not.toBeNull();
+    if (shade) expect(contrastRatio(shade, { r: 0, g: 0, b: 0, a: 1 })).toBeGreaterThanOrEqual(4.45);
+  });
+
+  it('suggests a darker shade when the original is too light against white', () => {
+    const original = { r: 220, g: 220, b: 220, a: 1 };
+    const shade = nearestAccessibleShade(original, 'white');
+    expect(shade).not.toBeNull();
+    if (shade) expect(rgbToHsl(shade).l).toBeLessThan(rgbToHsl(original).l);
+  });
+
+  it('suggests a lighter shade when the original is too dark against black', () => {
+    const original = { r: 30, g: 30, b: 30, a: 1 };
+    const shade = nearestAccessibleShade(original, 'black');
+    expect(shade).not.toBeNull();
+    if (shade) expect(rgbToHsl(shade).l).toBeGreaterThan(rgbToHsl(original).l);
+  });
+
+  it('preserves hue and saturation', () => {
+    const original = { r: 60, g: 188, b: 212, a: 1 };
+    const { h: h0, s: s0 } = rgbToHsl(original);
+    const shade = nearestAccessibleShade(original, 'white');
+    expect(shade).not.toBeNull();
+    if (shade) {
+      const { h, s } = rgbToHsl(shade);
+      expect(h).toBeCloseTo(h0, 0);
+      expect(s).toBeCloseTo(s0, 1);
+    }
   });
 });

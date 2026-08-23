@@ -66,3 +66,22 @@ export function parseUrl(input: string): ToolResult<ParsedUrl> {
     params,
   });
 }
+
+/**
+ * Rebuilds a URL string from parsed parts — the inverse of `parseUrl`, so a query
+ * parameter can be edited as a key/value row instead of as raw encoded text.
+ *
+ * Goes through the native `URL`/`URLSearchParams` classes rather than string
+ * concatenation, so escaping stays correct and matches what `parseUrl` decoded.
+ */
+export function buildUrl(parts: ParsedUrl): string {
+  const authority = parts.port ? `${parts.host}:${parts.port}` : parts.host;
+  const url = new URL(`${parts.protocol}://${authority}${parts.path}`);
+  url.search = '';
+  for (const { key, value } of parts.params) {
+    if (key === '') continue;
+    url.searchParams.append(key, value);
+  }
+  url.hash = parts.hash;
+  return url.toString();
+}

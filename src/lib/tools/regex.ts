@@ -135,6 +135,346 @@ export function toSegments(subject: string, matches: RegexMatch[]): Segment[] {
   return segments;
 }
 
+export interface LineTestResult {
+  line: string;
+  matched: boolean;
+  matchCount: number;
+}
+
+/** Tests a pattern against each line of `subject` independently — useful for validating a list. */
+export function testLines(pattern: string, flags: string, subject: string): ToolResult<LineTestResult[]> {
+  if (subject === '') return err('Paste one item per line to test them.');
+
+  // Force `g` locally so `String.match` returns every match on the line rather than
+  // just the first — this never mutates the flags the caller passed in.
+  const compiled = compileRegex(pattern, flags.includes('g') ? flags : `${flags}g`);
+  if (!compiled.ok) return compiled;
+
+  try {
+    const results = subject.split('\n').map((line) => {
+      const matches = line.match(compiled.value);
+      return { line, matched: matches !== null, matchCount: matches?.length ?? 0 };
+    });
+    return ok(results);
+  } catch (error) {
+    return err(messageFrom(error, 'Something went wrong testing those lines.'));
+  }
+}
+
+type RegexNode =
+  | { type: 'literal'; text: string }
+  | { type: 'anyChar' }
+  | { type: 'charClass'; description: string }
+  | { type: 'anchorStart' }
+  | { type: 'anchorEnd' }
+  | { type: 'wordBoundary'; negated: boolean }
+  | { type: 'group'; kind: 'capturing' | 'nonCapturing' | 'named'; name?: string; index?: number; child: RegexNode }
+  | { type: 'lookaround'; kind: 'ahead' | 'behind'; negated: boolean; child: RegexNode }
+  | { type: 'quantified'; child: RegexNode; description: string }
+  | { type: 'alternation'; options: RegexNode[] }
+  | { type: 'sequence'; items: RegexNode[] };
+
+const CHAR_CLASS_ESCAPES: Record<string, string> = {
+  d: 'a digit (0-9)',
+  D: 'a non-digit character',
+  w: 'a word character (letter, digit or underscore)',
+  W: 'a non-word character',
+  s: 'a whitespace character',
+  S: 'a non-whitespace character',
+  n: 'a newline',
+  t: 'a tab',
+  r: 'a carriage return',
+  '0': 'a null character',
+};
+
+const CLASS_MEMBER_ESCAPES: Record<string, string> = {
+  d: 'digits',
+  D: 'non-digits',
+  w: 'word characters',
+  W: 'non-word characters',
+  s: 'whitespace',
+  S: 'non-whitespace',
+  n: 'newline',
+  t: 'tab',
+};
+
+/**
+ * A small hand-written recursive-descent parser over JS regex syntax, walking the
+ * pattern once to build a tree the renderer below turns into plain English. It
+ * covers the constructs people actually reach for — literals, character classes,
+ * quantifiers, groups, lookaround and alternation — rather than the full grammar
+ * (Unicode property escapes and a few rarer forms fall back to a literal reading).
+ */
+class RegexExplainer {
+  private pos = 0;
+  private groupIndex = 0;
+
+  constructor(private readonly pattern: string) {}
+
+  private peek(offset = 0): string {
+    return this.pattern[this.pos + offset] ?? '';
+  }
+
+  parseAlternation(): RegexNode {
+    const branches = [this.parseSequence()];
+    while (this.peek() === '|') {
+      this.pos += 1;
+      branches.push(this.parseSequence());
+    }
+    return branches.length === 1 ? branches[0]! : { type: 'alternation', options: branches };
+  }
+
+  private parseSequence(): RegexNode {
+    const items: RegexNode[] = [];
+    while (this.pos < this.pattern.length && this.peek() !== '|' && this.peek() !== ')') {
+      items.push(this.parseQuantified());
+    }
+
+    // Merge adjacent, unquantified literal atoms into one readable run — otherwise a
+    // quantifier that follows would (correctly) bind to only the last character, but
+    // an unquantified run like "cat" would render as three separate bullet points.
+    const merged: RegexNode[] = [];
+    for (const item of items) {
+      const last = merged[merged.length - 1];
+      if (item.type === 'literal' && last?.type === 'literal') {
+        last.text += item.text;
+      } else {
+        merged.push(item.type === 'literal' ? { ...item } : item);
+      }
+    }
+
+    return merged.length === 1 ? merged[0]! : { type: 'sequence', items: merged };
+  }
+
+  private parseQuantified(): RegexNode {
+    const atom = this.parseAtom();
+    const quantifier = this.tryParseQuantifier();
+    return quantifier ? { type: 'quantified', child: atom, description: quantifier } : atom;
+  }
+
+  private tryParseQuantifier(): string | null {
+    const ch = this.peek();
+    let description: string | null = null;
+
+    if (ch === '*') {
+      this.pos += 1;
+      description = 'zero or more times';
+    } else if (ch === '+') {
+      this.pos += 1;
+      description = 'one or more times';
+    } else if (ch === '?') {
+      this.pos += 1;
+      description = 'zero or one time (optional)';
+    } else if (ch === '{') {
+      const match = /^\{(\d+)(,(\d*))?\}/.exec(this.pattern.slice(this.pos));
+      if (match) {
+        this.pos += match[0].length;
+        if (match[2] === undefined) description = `exactly ${match[1]} times`;
+        else if (match[3] === '') description = `${match[1]} or more times`;
+        else description = `between ${match[1]} and ${match[3]} times`;
+      }
+    }
+
+    if (description && this.peek() === '?') {
+      this.pos += 1;
+      description += ', as few as possible';
+    }
+    return description;
+  }
+
+  private parseAtom(): RegexNode {
+    const ch = this.peek();
+    if (ch === '^') {
+      this.pos += 1;
+      return { type: 'anchorStart' };
+    }
+    if (ch === '$') {
+      this.pos += 1;
+      return { type: 'anchorEnd' };
+    }
+    if (ch === '.') {
+      this.pos += 1;
+      return { type: 'anyChar' };
+    }
+    if (ch === '(') return this.parseGroup();
+    if (ch === '[') return this.parseCharClass();
+    if (ch === '\\') return this.parseEscape();
+
+    this.pos += 1;
+    return { type: 'literal', text: ch };
+  }
+
+  private parseEscape(): RegexNode {
+    this.pos += 1; // consume backslash
+    const ch = this.peek();
+    this.pos += 1;
+
+    if (ch === 'b') return { type: 'wordBoundary', negated: false };
+    if (ch === 'B') return { type: 'wordBoundary', negated: true };
+    if (CHAR_CLASS_ESCAPES[ch]) return { type: 'charClass', description: CHAR_CLASS_ESCAPES[ch]! };
+    if (/[1-9]/.test(ch)) return { type: 'literal', text: `(whatever group ${ch} matched)` };
+    return { type: 'literal', text: ch };
+  }
+
+  private parseCharClass(): RegexNode {
+    this.pos += 1; // consume '['
+    let negated = false;
+    if (this.peek() === '^') {
+      negated = true;
+      this.pos += 1;
+    }
+
+    const parts: string[] = [];
+    while (this.pos < this.pattern.length && this.peek() !== ']') {
+      if (this.peek() === '\\') {
+        this.pos += 1;
+        const ch = this.peek();
+        this.pos += 1;
+        parts.push(CLASS_MEMBER_ESCAPES[ch] ?? `"${ch}"`);
+        continue;
+      }
+
+      const start = this.peek();
+      this.pos += 1;
+      if (this.peek() === '-' && this.peek(1) !== ']' && this.pos + 1 < this.pattern.length) {
+        this.pos += 1; // consume '-'
+        const end = this.peek();
+        this.pos += 1;
+        parts.push(`"${start}" to "${end}"`);
+      } else {
+        parts.push(`"${start}"`);
+      }
+    }
+    if (this.peek() === ']') this.pos += 1;
+
+    const list = parts.length > 0 ? parts.join(', ') : 'nothing';
+    return {
+      type: 'charClass',
+      description: negated ? `any character except ${list}` : `one of ${list}`,
+    };
+  }
+
+  private expectClose(): void {
+    if (this.peek() === ')') this.pos += 1;
+  }
+
+  private parseGroup(): RegexNode {
+    this.pos += 1; // consume '('
+    const rest = this.pattern.slice(this.pos);
+
+    if (rest.startsWith('?:')) {
+      this.pos += 2;
+      const child = this.parseAlternation();
+      this.expectClose();
+      return { type: 'group', kind: 'nonCapturing', child };
+    }
+    if (rest.startsWith('?=')) {
+      this.pos += 2;
+      const child = this.parseAlternation();
+      this.expectClose();
+      return { type: 'lookaround', kind: 'ahead', negated: false, child };
+    }
+    if (rest.startsWith('?!')) {
+      this.pos += 2;
+      const child = this.parseAlternation();
+      this.expectClose();
+      return { type: 'lookaround', kind: 'ahead', negated: true, child };
+    }
+    if (rest.startsWith('?<=')) {
+      this.pos += 3;
+      const child = this.parseAlternation();
+      this.expectClose();
+      return { type: 'lookaround', kind: 'behind', negated: false, child };
+    }
+    if (rest.startsWith('?<!')) {
+      this.pos += 3;
+      const child = this.parseAlternation();
+      this.expectClose();
+      return { type: 'lookaround', kind: 'behind', negated: true, child };
+    }
+
+    const named = /^\?<([^>]+)>/.exec(rest);
+    if (named) {
+      this.pos += named[0].length;
+      this.groupIndex += 1;
+      const index = this.groupIndex;
+      const child = this.parseAlternation();
+      this.expectClose();
+      return { type: 'group', kind: 'named', name: named[1], index, child };
+    }
+
+    this.groupIndex += 1;
+    const index = this.groupIndex;
+    const child = this.parseAlternation();
+    this.expectClose();
+    return { type: 'group', kind: 'capturing', index, child };
+  }
+}
+
+function describeNode(node: RegexNode): string {
+  switch (node.type) {
+    case 'literal':
+      return `the text "${node.text}"`;
+    case 'anyChar':
+      return 'any character';
+    case 'charClass':
+      return node.description;
+    case 'anchorStart':
+      return 'the start of the string';
+    case 'anchorEnd':
+      return 'the end of the string';
+    case 'wordBoundary':
+      return node.negated ? 'a position that is not a word boundary' : 'a word boundary';
+    case 'quantified':
+      return `${describeNode(node.child)}, repeated ${node.description}`;
+    case 'group': {
+      const inner = describeNode(node.child);
+      if (node.kind === 'named') return `a group named "${node.name}" matching ${inner}`;
+      if (node.kind === 'nonCapturing') return `a group (not captured) matching ${inner}`;
+      return `group ${node.index}, matching ${inner}`;
+    }
+    case 'lookaround': {
+      const inner = describeNode(node.child);
+      const prefix =
+        node.kind === 'ahead'
+          ? node.negated
+            ? 'not followed by'
+            : 'followed by'
+          : node.negated
+            ? 'not preceded by'
+            : 'preceded by';
+      return `${prefix} ${inner}`;
+    }
+    case 'alternation':
+      return node.options.map(describeNode).join(', or ');
+    case 'sequence':
+      return node.items.map(describeNode).join(', then ');
+  }
+}
+
+const capitalize = (text: string): string => (text.length > 0 ? text[0]!.toUpperCase() + text.slice(1) : text);
+
+/** Breaks a pattern down into plain-English bullet points, for a "what does this do?" view. */
+export function explainRegex(pattern: string, flags: string): ToolResult<string[]> {
+  const compiled = compileRegex(pattern, flags);
+  if (!compiled.ok) return compiled;
+
+  try {
+    const ast = new RegexExplainer(pattern).parseAlternation();
+    const lines =
+      ast.type === 'sequence' ? ast.items.map((item) => capitalize(describeNode(item))) : [capitalize(describeNode(ast))];
+
+    if (flags.includes('i')) lines.push('Matching ignores upper/lower case');
+    if (flags.includes('g')) lines.push('Finds every match in the text, not just the first');
+    if (flags.includes('m')) lines.push('^ and $ match the start/end of each line, not just the whole string');
+    if (flags.includes('s')) lines.push('The . also matches line breaks');
+
+    return ok(lines);
+  } catch (error) {
+    return err(messageFrom(error, 'Could not break this pattern down further.'));
+  }
+}
+
 /** Applies a replacement pattern, supporting $1 / $<name> back-references. */
 export function applyReplace(
   pattern: string,

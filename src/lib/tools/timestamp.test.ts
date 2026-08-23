@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { fromEpoch, fromDateString, guessUnit, describeRelative, nowBreakdown } from './timestamp';
+import {
+  fromEpoch,
+  fromDateString,
+  guessUnit,
+  describeRelative,
+  nowBreakdown,
+  formatInTimeZone,
+  COMMON_TIME_ZONES,
+} from './timestamp';
 
 // A fixed reference point so relative-time assertions are deterministic.
 const NOW = new Date('2026-08-22T12:00:00.000Z');
@@ -124,5 +132,44 @@ describe('nowBreakdown', () => {
 
   it('includes a resolved IANA time zone', () => {
     expect(nowBreakdown(NOW).timeZone.length).toBeGreaterThan(0);
+  });
+});
+
+describe('formatInTimeZone', () => {
+  it('formats a known instant in UTC', () => {
+    const result = formatInTimeZone(new Date('2024-01-01T00:00:00Z'), 'UTC');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toContain('2024');
+      expect(result.value).toContain('January');
+    }
+  });
+
+  it('produces a different wall-clock reading for a genuinely different zone', () => {
+    const date = new Date('2024-06-15T12:00:00Z');
+    const utc = formatInTimeZone(date, 'UTC');
+    const tokyo = formatInTimeZone(date, 'Asia/Tokyo');
+    expect(utc.ok).toBe(true);
+    expect(tokyo.ok).toBe(true);
+    if (utc.ok && tokyo.ok) expect(utc.value).not.toBe(tokyo.value);
+  });
+
+  it('rejects a time zone name the platform does not recognise', () => {
+    const result = formatInTimeZone(new Date(), 'Not/AZone');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/not a recognised/i);
+  });
+});
+
+describe('COMMON_TIME_ZONES', () => {
+  it('lists only zone names the platform actually recognises', () => {
+    for (const { zone } of COMMON_TIME_ZONES) {
+      expect(formatInTimeZone(new Date(), zone).ok).toBe(true);
+    }
+  });
+
+  it('has no duplicate zones', () => {
+    const zones = COMMON_TIME_ZONES.map((z) => z.zone);
+    expect(new Set(zones).size).toBe(zones.length);
   });
 });

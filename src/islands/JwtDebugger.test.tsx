@@ -77,3 +77,90 @@ describe('<JwtDebugger />', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/not valid JSON/i);
   });
 });
+
+describe('<JwtDebugger /> asymmetric verification', () => {
+  const toBase64Url = (bytes: Uint8Array): string => {
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  };
+  const encodeSegment = (value: unknown): string =>
+    toBase64Url(new TextEncoder().encode(JSON.stringify(value)));
+  const toPem = async (key: CryptoKey): Promise<string> => {
+    const spki = await crypto.subtle.exportKey('spki', key);
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(spki)));
+    const lines = base64.match(/.{1,64}/g) ?? [base64];
+    return `-----BEGIN PUBLIC KEY-----\n${lines.join('\n')}\n-----END PUBLIC KEY-----`;
+  };
+  const makeRs256Token = async (privateKey: CryptoKey) => {
+    const signingInput = `${encodeSegment({ alg: 'RS256', typ: 'JWT' })}.${encodeSegment({ sub: 'user-1' })}`;
+    const signature = await crypto.subtle.sign(
+      'RSASSA-PKCS1-v1_5',
+      privateKey,
+      new TextEncoder().encode(signingInput)
+    );
+    return `${signingInput}.${toBase64Url(new Uint8Array(signature))}`;
+  };
+
+  it('offers a public-key field instead of a secret for an RS256 token', async () => {
+    const keyPair = await crypto.subtle.generateKey(
+      { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+      true,
+      ['sign', 'verify']
+    );
+    const token = await makeRs256Token(keyPair.privateKey);
+
+    render(<JwtDebugger />);
+    typeInto(screen.getByPlaceholderText(/^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9/), token);
+
+    expect(await screen.findByLabelText(/verify signature \(rs256\)/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/verify signature \(hs256\)/i)).not.toBeInTheDocument();
+  });
+
+  it('verifies an RS256 signature against a pasted public key', async () => {
+    const keyPair = await crypto.subtle.generateKey(
+      { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+      true,
+      ['sign', 'verify']
+    );
+    const token = await makeRs256Token(keyPair.privateKey);
+    const pem = await toPem(keyPair.publicKey);
+
+    render(<JwtDebugger />);
+    typeInto(screen.getByPlaceholderText(/^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9/), token);
+    typeInto(await screen.findByLabelText(/verify signature \(rs256\)/i), pem);
+
+    expect(await screen.findByText(/signature verified/i)).toBeInTheDocument();
+  });
+
+  it('rejects an RS256 signature checked against the wrong public key', async () => {
+    const signingPair = await crypto.subtle.generateKey(
+      { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+      true,
+      ['sign', 'verify']
+    );
+    const otherPair = await crypto.subtle.generateKey(
+      { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+      true,
+      ['sign', 'verify']
+    );
+    const token = await makeRs256Token(signingPair.privateKey);
+    const wrongPem = await toPem(otherPair.publicKey);
+
+    render(<JwtDebugger />);
+    typeInto(screen.getByPlaceholderText(/^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9/), token);
+    typeInto(await screen.findByLabelText(/verify signature \(rs256\)/i), wrongPem);
+
+    expect(await screen.findByText(/does not match/i)).toBeInTheDocument();
+  });
+
+  it('explains that an unsupported algorithm cannot be verified here', async () => {
+    // A token declaring alg: "none".
+    const token = 'eyJhbGciOiJub25lIn0.eyJhIjoxfQ.';
+
+    render(<JwtDebugger />);
+    typeInto(screen.getByPlaceholderText(/^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9/), token);
+
+    expect(await screen.findByText(/cannot be checked here/i)).toBeInTheDocument();
+  });
+});

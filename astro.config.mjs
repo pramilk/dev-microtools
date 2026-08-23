@@ -39,7 +39,7 @@ export default defineConfig({
        * Listing them here pre-bundles them when the dev server boots instead.
        * Production builds are unaffected; this is purely a dev-server fix.
        */
-      include: ['diff', 'blueimp-md5'],
+      include: ['diff', 'blueimp-md5', 'spark-md5'],
     },
   },
 });

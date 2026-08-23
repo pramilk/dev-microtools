@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'preact/hooks';
-import { encodeUrl, decodeUrl, parseUrl, type UrlEncodeMode } from '../lib/tools/url';
+import { useEffect, useMemo, useState } from 'preact/hooks';
+import { encodeUrl, decodeUrl, parseUrl, buildUrl, type UrlEncodeMode } from '../lib/tools/url';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { OutputPane } from './shared/OutputPane';
+import { CopyButton } from './shared/CopyButton';
 
 type Direction = 'encode' | 'decode';
+type Param = { key: string; value: string };
 
 export default function UrlTool() {
   const [input, setInput] = useState('');
@@ -25,6 +27,26 @@ export default function UrlTool() {
 
   const output = result?.ok ? result.value : '';
   const error = result && !result.ok ? result.error : null;
+
+  // A working copy of the query parameters, editable as rows. Kept separate from
+  // `input` so editing a row never fights with whatever the user is typing in the
+  // main textarea — it only re-syncs when a genuinely different URL is parsed.
+  const [paramRows, setParamRows] = useState<Param[]>([]);
+  useEffect(() => {
+    setParamRows(parsed ? parsed.params : []);
+  }, [parsed]);
+
+  const builtUrl = parsed ? buildUrl({ ...parsed, params: paramRows }) : '';
+
+  const updateParam = (index: number, field: 'key' | 'value', value: string) => {
+    setParamRows((rows) => rows.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+  };
+  const removeParam = (index: number) => {
+    setParamRows((rows) => rows.filter((_, i) => i !== index));
+  };
+  const addParam = () => {
+    setParamRows((rows) => [...rows, { key: '', value: '' }]);
+  };
 
   return (
     <div class="tool">
@@ -158,19 +180,66 @@ export default function UrlTool() {
             )}
           </dl>
 
-          {parsed.params.length > 0 && (
-            <>
-              <h4 class="url-parts__title">Query parameters</h4>
-              <dl class="url-parts__grid">
-                {parsed.params.map((param, index) => (
-                  <>
-                    <dt key={`k-${index}`}>{param.key}</dt>
-                    <dd key={`v-${index}`}>{param.value}</dd>
-                  </>
-                ))}
-              </dl>
-            </>
+          <div class="url-parts__params-head">
+            <h4 class="url-parts__title">Query parameters</h4>
+            <button type="button" class="btn" onClick={addParam} title="Add a new query parameter">
+              + Add parameter
+            </button>
+          </div>
+
+          {paramRows.length > 0 ? (
+            <div class="param-rows">
+              {paramRows.map((param, index) => (
+                <div class="param-row" key={index}>
+                  <input
+                    class="input"
+                    placeholder="key"
+                    aria-label={`Parameter ${index + 1} key`}
+                    value={param.key}
+                    onInput={(event) => updateParam(index, 'key', (event.target as HTMLInputElement).value)}
+                  />
+                  <input
+                    class="input"
+                    placeholder="value"
+                    aria-label={`Parameter ${index + 1} value`}
+                    value={param.value}
+                    onInput={(event) => updateParam(index, 'value', (event.target as HTMLInputElement).value)}
+                  />
+                  <button
+                    type="button"
+                    class="btn"
+                    onClick={() => removeParam(index)}
+                    title="Remove this parameter"
+                    aria-label={`Remove parameter ${index + 1}`}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p class="field__hint">No query parameters yet — add one above.</p>
           )}
+
+          <div class="field">
+            <label class="field__label" for="url-built">
+              <span>URL with these parameters</span>
+            </label>
+            <div class="built-url">
+              <output id="url-built" class="built-url__text">
+                {builtUrl}
+              </output>
+              <CopyButton value={builtUrl} describe="URL" />
+              <button
+                type="button"
+                class="btn"
+                onClick={() => setInput(builtUrl)}
+                title="Load this URL into the input above, so it can be encoded, decoded or edited further"
+              >
+                Use as input
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -193,6 +262,22 @@ export default function UrlTool() {
         }
         .url-parts__grid dd {
           margin: 0; font-family: var(--font-mono); color: var(--text); word-break: break-all;
+        }
+        .url-parts__params-head {
+          display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+        }
+        .param-rows { display: flex; flex-direction: column; gap: var(--space-2); }
+        .param-row {
+          display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--space-2); align-items: center;
+        }
+        .built-url {
+          display: flex; align-items: center; gap: var(--space-2);
+          border: 1px solid var(--border); border-radius: var(--radius);
+          background: var(--surface-2); padding: var(--space-2) var(--space-3);
+        }
+        .built-url__text {
+          flex: 1; font-family: var(--font-mono); font-size: var(--text-sm);
+          word-break: break-all; min-width: 0;
         }
       `}</style>
     </div>

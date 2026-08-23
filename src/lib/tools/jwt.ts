@@ -186,3 +186,86 @@ export async function verifyHs256(token: string, secret: string): Promise<ToolRe
     return err(messageFrom(error, 'Could not verify the signature.'));
   }
 }
+
+const RSA_HASHES: Record<string, string> = { RS256: 'SHA-256', RS384: 'SHA-384', RS512: 'SHA-512' };
+const EC_CURVES: Record<string, { hash: string; namedCurve: string }> = {
+  ES256: { hash: 'SHA-256', namedCurve: 'P-256' },
+  ES384: { hash: 'SHA-384', namedCurve: 'P-384' },
+  ES512: { hash: 'SHA-512', namedCurve: 'P-521' },
+};
+
+/** The algorithms `verifyAsymmetric` below can check, given a public key. */
+export const ASYMMETRIC_ALGORITHMS = [...Object.keys(RSA_HASHES), ...Object.keys(EC_CURVES)];
+
+export const isAsymmetricAlgorithm = (alg: string | undefined): boolean =>
+  alg !== undefined && ASYMMETRIC_ALGORITHMS.includes(alg);
+
+/** Decodes a PEM-wrapped key into the raw DER bytes `SubtleCrypto` expects. */
+function pemToBytes(pem: string) {
+  const base64 = pem
+    .replace(/-----BEGIN [^-]+-----/g, '')
+    .replace(/-----END [^-]+-----/g, '')
+    .replace(/\s+/g, '');
+  const binary = atob(base64);
+  // A plain `new Uint8Array(length)` is what TypeScript's DOM lib types as
+  // `Uint8Array<ArrayBuffer>` — the fixed-length overload of `Uint8Array.from`
+  // widens to `ArrayBufferLike`, which `importKey`'s `BufferSource` param rejects.
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+/**
+ * Verifies an RS256/384/512 or ES256/384/512 signature against a public key.
+ *
+ * Deliberately verify-only: signing with these algorithms needs the matching private
+ * key, and a private key is not something this tool should ever ask someone to paste
+ * in, even though nothing here leaves the browser — HS256 signing stays the one
+ * "create a token" path, where the secret is something you'd share to begin with.
+ */
+export async function verifyAsymmetric(token: string, publicKeyPem: string): Promise<ToolResult<boolean>> {
+  const decoded = decodeJwt(token);
+  if (!decoded.ok) return err(decoded.error);
+
+  const alg = decoded.value.header.alg;
+  if (!isAsymmetricAlgorithm(alg)) {
+    return err(
+      `This tool can verify RS256/384/512 or ES256/384/512 here. This token uses ${alg ?? 'an unspecified algorithm'}.`
+    );
+  }
+  if (publicKeyPem.trim() === '') return err('Paste the public key (PEM format) to verify against.');
+
+  const isRsa = alg! in RSA_HASHES;
+
+  let keyBytes: Uint8Array<ArrayBuffer>;
+  try {
+    keyBytes = pemToBytes(publicKeyPem);
+  } catch {
+    return err('Could not read that public key. Paste it exactly as given, including the BEGIN/END lines.');
+  }
+
+  try {
+    const importParams = isRsa
+      ? { name: 'RSASSA-PKCS1-v1_5', hash: RSA_HASHES[alg!]! }
+      : { name: 'ECDSA', namedCurve: EC_CURVES[alg!]!.namedCurve };
+
+    const key = await crypto.subtle.importKey('spki', keyBytes, importParams, false, ['verify']);
+
+    const binary = atob(fromUrlSafe(decoded.value.signature));
+    const signatureBytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+
+    const verifyParams = isRsa ? 'RSASSA-PKCS1-v1_5' : { name: 'ECDSA', hash: EC_CURVES[alg!]!.hash };
+
+    const valid = await crypto.subtle.verify(
+      verifyParams,
+      key,
+      signatureBytes,
+      new TextEncoder().encode(decoded.value.signingInput)
+    );
+    return ok(valid);
+  } catch (error) {
+    return err(
+      messageFrom(error, "Could not verify the signature — check the key matches this token's algorithm.")
+    );
+  }
+}

@@ -76,4 +76,32 @@ describe('<RegexTester />', () => {
 
     expect(await screen.findByText('2 matches')).toBeInTheDocument();
   });
+
+  it('explains the pattern in plain English when asked', async () => {
+    render(<RegexTester />);
+    typeInto(screen.getByLabelText(/regular expression/i), '\\d+');
+
+    fireEvent.click(screen.getByLabelText(/explain this pattern/i));
+    expect(await screen.findByText(/digit/i)).toBeInTheDocument();
+  });
+
+  it('reports an explanation error for an invalid pattern', async () => {
+    render(<RegexTester />);
+    typeInto(screen.getByLabelText(/regular expression/i), '[unclosed');
+    fireEvent.click(screen.getByLabelText(/explain this pattern/i));
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+  });
+
+  it('tests a list of lines independently and reports pass/fail per line', async () => {
+    render(<RegexTester />);
+    typeInto(screen.getByLabelText(/regular expression/i), '^\\d+$');
+
+    fireEvent.click(screen.getByLabelText(/test a list of lines/i));
+    typeInto(screen.getByLabelText(/one item per line/i), '123\nabc');
+
+    expect(await screen.findByText('1 of 2 match')).toBeInTheDocument();
+    expect(screen.getByText('123')).toBeInTheDocument();
+    expect(screen.getByText('abc')).toBeInTheDocument();
+  });
 });

@@ -1,13 +1,28 @@
-import { useCallback, useEffect, useState } from 'preact/hooks';
-import { generateUuids, inspectUuid, type UuidVersion } from '../lib/tools/uuid';
+import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
+import {
+  generateUuids,
+  inspectUuid,
+  formatUuids,
+  UUID_BULK_FORMATS,
+  type UuidVersion,
+  type UuidBulkFormat,
+} from '../lib/tools/uuid';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { OutputPane } from './shared/OutputPane';
 import { CopyButton } from './shared/CopyButton';
+
+const FORMAT_LABELS: Record<UuidBulkFormat, { label: string; hint: string }> = {
+  lines: { label: 'One per line', hint: 'Plain list — one UUID per line' },
+  json: { label: 'JSON array', hint: 'A JSON array of strings, e.g. for a fixtures file' },
+  csv: { label: 'Comma-separated', hint: 'A single comma-separated line' },
+  sql: { label: 'SQL values', hint: "A ('uuid'), list ready to paste into an INSERT ... VALUES statement" },
+};
 
 export default function UuidGenerator() {
   const [version, setVersion] = useState<UuidVersion>('v4');
   const [count, setCount] = useState(5);
   const [uuids, setUuids] = useState<string[]>([]);
+  const [format, setFormat] = useState<UuidBulkFormat>('lines');
   const [error, setError] = useState<string | null>(null);
 
   const [inspectInput, setInspectInput] = useState('');
@@ -28,6 +43,8 @@ export default function UuidGenerator() {
     generate();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- first render only
   }, []);
+
+  const output = useMemo(() => formatUuids(uuids, format), [uuids, format]);
 
   const inspection = inspectInput.trim() === '' ? null : inspectUuid(inspectInput);
 
@@ -78,15 +95,31 @@ export default function UuidGenerator() {
           <span aria-hidden="true">↻</span> Generate
         </button>
 
+        <label class="checkbox" title="How the batch below is formatted — pick the shape you need to paste elsewhere">
+          <span class="field__hint">Format</span>
+          <select
+            class="select"
+            value={format}
+            aria-label="Output format"
+            onChange={(event) => setFormat((event.target as HTMLSelectElement).value as UuidBulkFormat)}
+          >
+            {UUID_BULK_FORMATS.map((value) => (
+              <option key={value} value={value} title={FORMAT_LABELS[value].hint}>
+                {FORMAT_LABELS[value].label}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <span class="tool-bar__spacer" />
-        <CopyButton value={uuids.join('\n')} label="Copy all" describe="UUIDs" />
+        <CopyButton value={output} label="Copy all" describe="UUIDs" />
       </div>
 
       <ErrorMessage message={error} />
 
       <OutputPane
         label={`Generated ${version.toUpperCase()} UUIDs`}
-        value={uuids.join('\n')}
+        value={output}
         placeholder="Press Generate to create UUIDs."
         describe="UUIDs"
         tall

@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { decodeJwt, inspectExpiry, signHs256, verifyHs256 } from '../lib/tools/jwt';
+import {
+  decodeJwt,
+  inspectExpiry,
+  signHs256,
+  verifyHs256,
+  verifyAsymmetric,
+  isAsymmetricAlgorithm,
+} from '../lib/tools/jwt';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { OutputPane } from './shared/OutputPane';
 
@@ -27,6 +34,7 @@ export default function JwtDebugger() {
   // Decode side
   const [token, setToken] = useState('');
   const [secret, setSecret] = useState('');
+  const [publicKey, setPublicKey] = useState('');
   const [verification, setVerification] = useState<Verification>({ checked: false });
 
   // Encode side
@@ -41,25 +49,52 @@ export default function JwtDebugger() {
 
   const expiry = useMemo(() => (value ? inspectExpiry(value.payload) : null), [value]);
 
-  // Re-verify whenever the token or secret changes, rather than on a button press.
+  const alg = value?.header.alg;
+  const isAsymmetric = isAsymmetricAlgorithm(alg);
+
+  // Re-verify whenever the token or key material changes, rather than on a button press.
   useEffect(() => {
-    if (!value || secret === '') {
+    if (!value) {
       setVerification({ checked: false });
       return;
     }
 
-    let cancelled = false;
-    void verifyHs256(token, secret).then((result) => {
-      if (cancelled) return;
-      setVerification(
-        result.ok ? { checked: true, valid: result.value } : { checked: true, error: result.error }
-      );
-    });
+    if (isAsymmetric) {
+      if (publicKey.trim() === '') {
+        setVerification({ checked: false });
+        return;
+      }
+      let cancelled = false;
+      void verifyAsymmetric(token, publicKey).then((result) => {
+        if (cancelled) return;
+        setVerification(
+          result.ok ? { checked: true, valid: result.value } : { checked: true, error: result.error }
+        );
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
 
-    return () => {
-      cancelled = true;
-    };
-  }, [token, secret, value]);
+    if (alg === 'HS256') {
+      if (secret === '') {
+        setVerification({ checked: false });
+        return;
+      }
+      let cancelled = false;
+      void verifyHs256(token, secret).then((result) => {
+        if (cancelled) return;
+        setVerification(
+          result.ok ? { checked: true, valid: result.value } : { checked: true, error: result.error }
+        );
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setVerification({ checked: false });
+  }, [token, secret, publicKey, value, isAsymmetric, alg]);
 
   const sign = async () => {
     setSignError(null);
@@ -238,22 +273,55 @@ export default function JwtDebugger() {
                 </div>
               )}
 
-              <div class="field">
-                <label class="field__label" for="jwt-secret">
-                  <span>Verify signature (HS256)</span>
-                  <span class="field__hint">Checked locally — the secret never leaves the page</span>
-                </label>
-                <input
-                  id="jwt-secret"
-                  class="input"
-                  type="password"
-                  spellcheck={false}
-                  autocomplete="off"
-                  placeholder="Enter the shared secret to check the signature…"
-                  value={secret}
-                  onInput={(event) => setSecret((event.target as HTMLInputElement).value)}
-                />
-              </div>
+              {alg === 'HS256' && (
+                <div class="field">
+                  <label class="field__label" for="jwt-secret">
+                    <span>Verify signature (HS256)</span>
+                    <span class="field__hint">Checked locally — the secret never leaves the page</span>
+                  </label>
+                  <input
+                    id="jwt-secret"
+                    class="input"
+                    type="password"
+                    spellcheck={false}
+                    autocomplete="off"
+                    placeholder="Enter the shared secret to check the signature…"
+                    value={secret}
+                    onInput={(event) => setSecret((event.target as HTMLInputElement).value)}
+                  />
+                </div>
+              )}
+
+              {isAsymmetric && (
+                <div class="field">
+                  <label class="field__label" for="jwt-public-key">
+                    <span>Verify signature ({alg})</span>
+                    <span class="field__hint">Paste the PEM-encoded public key — checked locally</span>
+                  </label>
+                  <textarea
+                    id="jwt-public-key"
+                    class="textarea textarea--short jwt-token"
+                    spellcheck={false}
+                    autocomplete="off"
+                    placeholder="-----BEGIN PUBLIC KEY-----…"
+                    value={publicKey}
+                    onInput={(event) => setPublicKey((event.target as HTMLTextAreaElement).value)}
+                  />
+                </div>
+              )}
+
+              {alg !== 'HS256' && !isAsymmetric && (
+                <p class="msg msg--warning">
+                  <span class="msg__icon" aria-hidden="true">
+                    !
+                  </span>
+                  <span>
+                    This tool can verify HS256 (with a shared secret) and RS256/384/512 or
+                    ES256/384/512 (with a public key). This token declares{' '}
+                    {alg ? <code>{alg}</code> : 'no algorithm'}, so its signature cannot be checked here.
+                  </span>
+                </p>
+              )}
 
               {verification.checked && 'error' in verification && (
                 <ErrorMessage message={verification.error} />
@@ -265,8 +333,12 @@ export default function JwtDebugger() {
                   </span>
                   <span>
                     {verification.valid
-                      ? 'Signature verified — this token was signed with that secret and has not been altered.'
-                      : 'Signature does not match. Either the secret is wrong or the token has been tampered with.'}
+                      ? isAsymmetric
+                        ? 'Signature verified — this token was signed with the matching private key and has not been altered.'
+                        : 'Signature verified — this token was signed with that secret and has not been altered.'
+                      : isAsymmetric
+                        ? 'Signature does not match. Either this is not the matching public key, or the token has been tampered with.'
+                        : 'Signature does not match. Either the secret is wrong or the token has been tampered with.'}
                   </span>
                 </p>
               )}

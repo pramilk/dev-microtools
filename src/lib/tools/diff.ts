@@ -113,3 +113,85 @@ export async function compareJson(
 
   return compareTexts(a.value, b.value, 'line');
 }
+
+export interface SideBySideRow {
+  left: string | null;
+  right: string | null;
+  /** Line numbers on each side, `null` where that side has no line (a pure add/remove). */
+  leftLine: number | null;
+  rightLine: number | null;
+  type: 'unchanged' | 'added' | 'removed' | 'changed';
+}
+
+/** Splits a diffLines value into its lines, dropping the trailing empty line a trailing newline produces. */
+const splitLines = (value: string): string[] => {
+  const lines = value.split('\n');
+  if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+  return lines;
+};
+
+/**
+ * Rearranges a flat unified diff into aligned left/right rows for a two-column view.
+ *
+ * A removed part immediately followed by an added part is treated as one "changed"
+ * block and paired line-by-line, so an edited line reads as a replacement rather than
+ * a deletion stacked on top of an unrelated-looking insertion.
+ */
+export function toSideBySideRows(parts: DiffPart[]): SideBySideRow[] {
+  const rows: SideBySideRow[] = [];
+  let leftLine = 0;
+  let rightLine = 0;
+  let i = 0;
+
+  while (i < parts.length) {
+    const part = parts[i]!;
+
+    if (part.type === 'unchanged') {
+      for (const line of splitLines(part.value)) {
+        leftLine += 1;
+        rightLine += 1;
+        rows.push({ left: line, right: line, leftLine, rightLine, type: 'unchanged' });
+      }
+      i += 1;
+      continue;
+    }
+
+    if (part.type === 'removed' && parts[i + 1]?.type === 'added') {
+      const removedLines = splitLines(part.value);
+      const addedLines = splitLines(parts[i + 1]!.value);
+      const max = Math.max(removedLines.length, addedLines.length);
+      for (let j = 0; j < max; j += 1) {
+        const l = removedLines[j] ?? null;
+        const r = addedLines[j] ?? null;
+        if (l !== null) leftLine += 1;
+        if (r !== null) rightLine += 1;
+        rows.push({
+          left: l,
+          right: r,
+          leftLine: l !== null ? leftLine : null,
+          rightLine: r !== null ? rightLine : null,
+          type: 'changed',
+        });
+      }
+      i += 2;
+      continue;
+    }
+
+    if (part.type === 'removed') {
+      for (const line of splitLines(part.value)) {
+        leftLine += 1;
+        rows.push({ left: line, right: null, leftLine, rightLine: null, type: 'removed' });
+      }
+      i += 1;
+      continue;
+    }
+
+    for (const line of splitLines(part.value)) {
+      rightLine += 1;
+      rows.push({ left: null, right: line, leftLine: null, rightLine, type: 'added' });
+    }
+    i += 1;
+  }
+
+  return rows;
+}

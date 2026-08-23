@@ -107,3 +107,34 @@ export function fromDateString(
 
 /** Current time, for the "now" readout the page shows on load. */
 export const nowBreakdown = (now: Date = new Date()): TimestampBreakdown => describe(now, now);
+
+/** A handful of widely-useful zones, for a quick "add another time zone" picker. */
+export const COMMON_TIME_ZONES: { label: string; zone: string }[] = [
+  { label: 'UTC', zone: 'UTC' },
+  { label: 'New York', zone: 'America/New_York' },
+  { label: 'Chicago', zone: 'America/Chicago' },
+  { label: 'Los Angeles', zone: 'America/Los_Angeles' },
+  { label: 'São Paulo', zone: 'America/Sao_Paulo' },
+  { label: 'London', zone: 'Europe/London' },
+  { label: 'Paris', zone: 'Europe/Paris' },
+  { label: 'Berlin', zone: 'Europe/Berlin' },
+  { label: 'Moscow', zone: 'Europe/Moscow' },
+  { label: 'Dubai', zone: 'Asia/Dubai' },
+  { label: 'Mumbai', zone: 'Asia/Kolkata' },
+  { label: 'Singapore', zone: 'Asia/Singapore' },
+  { label: 'Shanghai', zone: 'Asia/Shanghai' },
+  { label: 'Tokyo', zone: 'Asia/Tokyo' },
+  { label: 'Sydney', zone: 'Australia/Sydney' },
+  { label: 'Auckland', zone: 'Pacific/Auckland' },
+];
+
+/** Renders an instant as a full date/time string in an arbitrary IANA time zone. */
+export function formatInTimeZone(date: Date, timeZone: string): ToolResult<string> {
+  let formatter: Intl.DateTimeFormat;
+  try {
+    formatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'full', timeStyle: 'long', timeZone });
+  } catch {
+    return err(`"${timeZone}" is not a recognised IANA time zone name, e.g. "America/New_York".`);
+  }
+  return ok(formatter.format(date));
+}

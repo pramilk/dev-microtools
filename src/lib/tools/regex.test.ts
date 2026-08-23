@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { compileRegex, runRegex, toSegments, applyReplace } from './regex';
+import { compileRegex, runRegex, toSegments, applyReplace, testLines, explainRegex } from './regex';
 
 describe('compileRegex', () => {
   it('compiles a valid pattern', () => {
@@ -131,5 +131,141 @@ describe('applyReplace', () => {
 
   it('propagates an invalid pattern', () => {
     expect(applyReplace('(', 'g', 'x', 'y').ok).toBe(false);
+  });
+});
+
+describe('testLines', () => {
+  it('reports pass/fail per line', () => {
+    const result = testLines('^\\d+$', '', '123\nabc\n456');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.map((r) => r.matched)).toEqual([true, false, true]);
+    }
+  });
+
+  it('counts matches per line', () => {
+    const result = testLines('\\d+', '', 'a1 b2 c3\nno digits here');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value[0]).toMatchObject({ matched: true, matchCount: 3 });
+      expect(result.value[1]).toMatchObject({ matched: false, matchCount: 0 });
+    }
+  });
+
+  it('works whether or not the caller already passed the global flag', () => {
+    const withoutG = testLines('a', '', 'aaa');
+    const withG = testLines('a', 'g', 'aaa');
+    expect(withoutG.ok && withG.ok).toBe(true);
+    if (withoutG.ok && withG.ok) {
+      expect(withoutG.value[0]!.matchCount).toBe(3);
+      expect(withG.value[0]!.matchCount).toBe(3);
+    }
+  });
+
+  it('rejects empty input', () => {
+    expect(testLines('a', '', '').ok).toBe(false);
+  });
+
+  it('propagates an invalid pattern', () => {
+    expect(testLines('(', '', 'x').ok).toBe(false);
+  });
+});
+
+describe('explainRegex', () => {
+  it('describes a literal run and a digit class as separate bullets', () => {
+    const result = explainRegex('cat\\d', '');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const joined = result.value.join(' ');
+      expect(joined).toMatch(/"cat"/);
+      expect(joined).toMatch(/digit/);
+    }
+  });
+
+  it('describes a quantifier', () => {
+    const result = explainRegex('a+', '');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value[0]).toMatch(/one or more times/);
+  });
+
+  it('describes a lazy quantifier', () => {
+    const result = explainRegex('a+?', '');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value[0]).toMatch(/as few as possible/);
+  });
+
+  it('describes a bounded quantifier', () => {
+    const result = explainRegex('a{2,4}', '');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value[0]).toMatch(/between 2 and 4 times/);
+  });
+
+  it('describes anchors', () => {
+    const result = explainRegex('^abc$', '');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.join(' ')).toMatch(/start of the string/);
+      expect(result.value.join(' ')).toMatch(/end of the string/);
+    }
+  });
+
+  it('describes a custom character class with a range', () => {
+    const result = explainRegex('[a-z0-9]', '');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value[0]).toMatch(/"a" to "z"/);
+  });
+
+  it('describes a negated character class', () => {
+    const result = explainRegex('[^abc]', '');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value[0]).toMatch(/except/);
+  });
+
+  it('describes a named capturing group', () => {
+    const result = explainRegex('(?<year>\\d{4})', '');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value[0]).toMatch(/named "year"/);
+  });
+
+  it('describes a non-capturing group', () => {
+    const result = explainRegex('(?:abc)+', '');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value[0]).toMatch(/not captured/);
+  });
+
+  it('describes alternation', () => {
+    const result = explainRegex('cat|dog', '');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value[0]).toMatch(/"cat".*or.*"dog"/);
+  });
+
+  it('describes a positive lookahead', () => {
+    const result = explainRegex('foo(?=bar)', '');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.join(' ')).toMatch(/followed by/i);
+  });
+
+  it('describes a negative lookbehind', () => {
+    const result = explainRegex('(?<!foo)bar', '');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.join(' ')).toMatch(/not preceded by/i);
+  });
+
+  it('mentions active flags', () => {
+    const result = explainRegex('abc', 'gi');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const joined = result.value.join(' ');
+      expect(joined).toMatch(/ignores upper\/lower case/);
+      expect(joined).toMatch(/every match/);
+    }
+  });
+
+  it('propagates an invalid pattern', () => {
+    expect(explainRegex('(', '').ok).toBe(false);
+  });
+
+  it('rejects an empty pattern', () => {
+    expect(explainRegex('', '').ok).toBe(false);
   });
 });

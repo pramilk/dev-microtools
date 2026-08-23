@@ -1,5 +1,12 @@
 import { useMemo, useState } from 'preact/hooks';
-import { runRegex, toSegments, applyReplace, REGEX_FLAGS } from '../lib/tools/regex';
+import {
+  runRegex,
+  toSegments,
+  applyReplace,
+  explainRegex,
+  testLines,
+  REGEX_FLAGS,
+} from '../lib/tools/regex';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { OutputPane } from './shared/OutputPane';
 
@@ -13,6 +20,9 @@ export default function RegexTester() {
   const [subject, setSubject] = useState('');
   const [replacement, setReplacement] = useState('');
   const [showReplace, setShowReplace] = useState(false);
+  const [showExplain, setShowExplain] = useState(false);
+  const [showLineTest, setShowLineTest] = useState(false);
+  const [testList, setTestList] = useState('');
 
   const run = useMemo(() => {
     if (pattern === '' || subject === '') return null;
@@ -31,6 +41,16 @@ export default function RegexTester() {
     if (!showReplace || pattern === '' || subject === '') return null;
     return applyReplace(pattern, flags, subject, replacement);
   }, [showReplace, pattern, flags, subject, replacement]);
+
+  const explanation = useMemo(() => {
+    if (!showExplain || pattern === '') return null;
+    return explainRegex(pattern, flags);
+  }, [showExplain, pattern, flags]);
+
+  const lineResults = useMemo(() => {
+    if (!showLineTest || pattern === '' || testList === '') return null;
+    return testLines(pattern, flags, testList);
+  }, [showLineTest, pattern, flags, testList]);
 
   const toggleFlag = (flag: string) => {
     setFlags((current) =>
@@ -64,6 +84,29 @@ export default function RegexTester() {
           </span>
         </div>
       </div>
+
+      <label class="checkbox" title="Break the pattern down into a plain-English, step-by-step description">
+        <input
+          type="checkbox"
+          checked={showExplain}
+          onChange={(event) => setShowExplain((event.target as HTMLInputElement).checked)}
+        />
+        Explain this pattern
+      </label>
+
+      {showExplain && explanation && (
+        <div class="field">
+          {explanation.ok ? (
+            <ul class="explain-list">
+              {explanation.value.map((line, index) => (
+                <li key={index}>{line}</li>
+              ))}
+            </ul>
+          ) : (
+            <ErrorMessage message={explanation.error} />
+          )}
+        </div>
+      )}
 
       <div class="tool-bar" role="group" aria-label="Flags">
         {REGEX_FLAGS.map(({ flag, label, hint }) => (
@@ -186,6 +229,61 @@ export default function RegexTester() {
         </div>
       )}
 
+      <label class="checkbox" title="Test each line of a list independently — useful for validating a batch of values">
+        <input
+          type="checkbox"
+          checked={showLineTest}
+          onChange={(event) => setShowLineTest((event.target as HTMLInputElement).checked)}
+        />
+        Test a list of lines
+      </label>
+
+      {showLineTest && (
+        <>
+          <div class="field">
+            <label class="field__label" for="rx-line-test">
+              <span>One item per line</span>
+              <span class="field__hint">Each line is tested against the pattern on its own</span>
+            </label>
+            <textarea
+              id="rx-line-test"
+              class="textarea"
+              spellcheck={false}
+              autocomplete="off"
+              placeholder={'ada@example.com\nnot-an-email\ngrace.hopper@navy.mil'}
+              value={testList}
+              onInput={(event) => setTestList((event.target as HTMLTextAreaElement).value)}
+            />
+          </div>
+
+          {lineResults && !lineResults.ok && <ErrorMessage message={lineResults.error} />}
+
+          {lineResults?.ok && (
+            <div class="field">
+              <span class="field__label">
+                <span>Results</span>
+                <span class="field__hint">
+                  {lineResults.value.filter((r) => r.matched).length} of {lineResults.value.length} match
+                </span>
+              </span>
+              <div class="line-results">
+                {lineResults.value.map((row, index) => (
+                  <div key={index} class={`line-row${row.matched ? ' line-row--pass' : ' line-row--fail'}`}>
+                    <span class="line-row__icon" aria-hidden="true">
+                      {row.matched ? '✓' : '✗'}
+                    </span>
+                    <code class="line-row__text">{row.line === '' ? '(empty line)' : row.line}</code>
+                    {row.matched && row.matchCount > 1 && (
+                      <span class="line-row__count">×{row.matchCount}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       <label class="checkbox" title="Preview a find-and-replace using this pattern, without changing anything">
         <input
           type="checkbox"
@@ -281,6 +379,27 @@ export default function RegexTester() {
         .match__group-name {
           font-family: var(--font-mono); color: var(--accent); font-weight: 600;
         }
+        .explain-list {
+          margin: 0; padding-left: var(--space-5);
+          border: 1px solid var(--border); border-radius: var(--radius);
+          background: var(--surface); padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
+          display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--text-sm);
+        }
+        .line-results {
+          display: flex; flex-direction: column; gap: var(--space-1);
+          max-height: 18rem; overflow-y: auto;
+        }
+        .line-row {
+          display: flex; align-items: center; gap: var(--space-2);
+          border: 1px solid var(--border); border-radius: var(--radius);
+          padding: .25rem .6rem; font-size: var(--text-sm);
+        }
+        .line-row--pass { border-color: var(--success-border); background: var(--success-subtle); }
+        .line-row--fail { border-color: var(--danger-border); background: var(--danger-subtle); }
+        .line-row--pass .line-row__icon { color: var(--success); }
+        .line-row--fail .line-row__icon { color: var(--danger); }
+        .line-row__text { flex: 1; word-break: break-all; }
+        .line-row__count { font-size: var(--text-xs); color: var(--text-muted); }
       `}</style>
     </div>
   );

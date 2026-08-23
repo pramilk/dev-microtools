@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import { formatJson, minifyJson, sortJsonKeys, parseJson, analyseJson, type IndentStyle } from '../lib/tools/json';
 import type { RepairedJson } from '../lib/tools/jsonRepair';
 import { ErrorMessage } from './shared/ErrorMessage';
-import { OutputPane } from './shared/OutputPane';
+import { CopyButton } from './shared/CopyButton';
 
 const SAMPLE = '{"name":"ada","langs":["js","ts"],"active":true,"meta":{"id":42,"tags":null}}';
 const BROKEN_SAMPLE = `{
@@ -14,6 +14,7 @@ const BROKEN_SAMPLE = `{
 }`;
 
 type Action = 'format' | 'minify' | 'sort';
+type View = 'text' | 'tree';
 
 /** Runs the selected action over a source document. */
 const applyAction = (source: string, action: Action, indent: IndentStyle) => {
@@ -22,11 +23,85 @@ const applyAction = (source: string, action: Action, indent: IndentStyle) => {
   return formatJson(source, indent);
 };
 
+/** One node of the JSON tree view. Objects/arrays are collapsible; scalars are leaves. */
+function JsonTreeNode({
+  label,
+  value,
+  path,
+  collapsed,
+  toggle,
+}: {
+  label: string | null;
+  value: unknown;
+  path: string;
+  collapsed: Set<string>;
+  toggle: (path: string) => void;
+}) {
+  const isContainer = value !== null && typeof value === 'object';
+
+  if (!isContainer) {
+    const kind = value === null ? 'null' : typeof value;
+    return (
+      <div class="tree-row">
+        {label !== null && <span class="tree-key">{label}: </span>}
+        <span class={`tree-scalar tree-scalar--${kind}`}>{JSON.stringify(value)}</span>
+      </div>
+    );
+  }
+
+  const isArray = Array.isArray(value);
+  const entries: [string, unknown][] = isArray
+    ? (value as unknown[]).map((item, index) => [String(index), item])
+    : Object.entries(value as Record<string, unknown>);
+  const isCollapsed = collapsed.has(path);
+  const summary = isArray ? `Array(${entries.length})` : `Object(${entries.length})`;
+
+  return (
+    <div class="tree-node">
+      <button
+        type="button"
+        class="tree-toggle"
+        onClick={() => toggle(path)}
+        aria-expanded={!isCollapsed}
+      >
+        <span aria-hidden="true">{isCollapsed ? '▸' : '▾'}</span>
+        {label !== null && <span class="tree-key">{label}: </span>}
+        <span class="tree-summary">{summary}</span>
+      </button>
+      {!isCollapsed && (
+        <div class="tree-children">
+          {entries.length === 0 && <p class="tree-empty">(empty)</p>}
+          {entries.map(([key, item]) => (
+            <JsonTreeNode
+              key={key}
+              label={isArray ? null : key}
+              value={item}
+              path={`${path}/${key}`}
+              collapsed={collapsed}
+              toggle={toggle}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function JsonFormatter() {
   const [input, setInput] = useState('');
   const [indent, setIndent] = useState<IndentStyle>(2);
   const [action, setAction] = useState<Action>('format');
   const [autoFix, setAutoFix] = useState(true);
+  const [view, setView] = useState<View>('text');
+  const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set());
+  const toggleCollapsed = (path: string) => {
+    setCollapsedPaths((current) => {
+      const next = new Set(current);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  };
 
   /** The result of running the action over exactly what the user typed. */
   const rawResult = useMemo(() => {
@@ -94,6 +169,16 @@ export default function JsonFormatter() {
     if (source.trim() === '') return null;
     const parsed = parseJson(source);
     return parsed.ok ? analyseJson(parsed.value) : null;
+  }, [input, usingRepair, repair]);
+
+  // A separate parse for the tree view: it renders the actual value, not the
+  // formatted string, so it can collapse/expand independently of Beautify/Minify/Sort.
+  // `undefined` means "nothing to show" — JSON.parse can legitimately produce `null`.
+  const treeValue = useMemo(() => {
+    const source = usingRepair && repair ? repair.json : input;
+    if (source.trim() === '') return undefined;
+    const parsed = parseJson(source);
+    return parsed.ok ? parsed.value : undefined;
   }, [input, usingRepair, repair]);
 
   const output = result?.ok ? result.value : '';
@@ -203,13 +288,55 @@ export default function JsonFormatter() {
           />
         </div>
 
-        <OutputPane
-          label="Result"
-          value={output}
-          placeholder="Formatted JSON appears here."
-          describe="JSON"
-          tall
-        />
+        <div class="field">
+          <div class="field__label">
+            <span>Result</span>
+            <span class="tool-bar__group">
+              <div class="seg" role="group" aria-label="Result view">
+                <button
+                  type="button"
+                  class="seg__btn"
+                  aria-pressed={view === 'text'}
+                  onClick={() => setView('text')}
+                  title="Show the formatted JSON as text"
+                >
+                  Text
+                </button>
+                <button
+                  type="button"
+                  class="seg__btn"
+                  aria-pressed={view === 'tree'}
+                  disabled={treeValue === undefined}
+                  onClick={() => setView('tree')}
+                  title={
+                    treeValue === undefined
+                      ? 'Valid JSON is needed to show the tree view'
+                      : 'Browse the document as a collapsible tree — useful for large or deeply nested JSON'
+                  }
+                >
+                  Tree
+                </button>
+              </div>
+              <CopyButton value={output} describe="JSON" />
+            </span>
+          </div>
+
+          {view === 'tree' && treeValue !== undefined ? (
+            <div class="tree-view output output--tall" aria-label="JSON as a collapsible tree">
+              <JsonTreeNode
+                label={null}
+                value={treeValue}
+                path="$"
+                collapsed={collapsedPaths}
+                toggle={toggleCollapsed}
+              />
+            </div>
+          ) : (
+            <pre class={`output output--tall${output === '' ? ' output--empty' : ''}`} tabIndex={0}>
+              {output === '' ? 'Formatted JSON appears here.' : output}
+            </pre>
+          )}
+        </div>
       </div>
 
       <div id="json-error">
@@ -310,6 +437,24 @@ export default function JsonFormatter() {
           font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted);
         }
         .repair__caveat { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
+        .tree-view { overflow: auto; font-family: var(--font-mono); font-size: var(--text-sm); }
+        .tree-node { display: flex; flex-direction: column; }
+        .tree-toggle {
+          display: flex; align-items: center; gap: .35em; background: none; border: none;
+          cursor: pointer; font: inherit; color: var(--text); padding: .1rem 0; text-align: left;
+        }
+        .tree-toggle:hover { color: var(--accent); }
+        .tree-summary { color: var(--text-subtle); }
+        .tree-children {
+          margin-left: .55em; padding-left: .75em; border-left: 1px dashed var(--border);
+        }
+        .tree-empty { margin: 0; color: var(--text-subtle); font-style: italic; padding-left: 1.2em; }
+        .tree-row { padding: .1rem 0; }
+        .tree-key { color: var(--accent); font-weight: 600; }
+        .tree-scalar--string { color: var(--success); }
+        .tree-scalar--number { color: var(--warning); }
+        .tree-scalar--boolean { color: var(--accent); }
+        .tree-scalar--null { color: var(--text-subtle); font-style: italic; }
       `}</style>
     </div>
   );

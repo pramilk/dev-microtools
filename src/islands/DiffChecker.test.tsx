@@ -10,7 +10,7 @@ describe('<DiffChecker />', () => {
   it('reports identical texts as identical', async () => {
     render(<DiffChecker />);
     typeInto(screen.getByLabelText(/original/i), 'same');
-    typeInto(screen.getByLabelText(/changed/i), 'same');
+    typeInto(screen.getByLabelText(/compare with/i), 'same');
 
     expect(await screen.findByText(/texts are identical/i)).toBeInTheDocument();
   });
@@ -18,7 +18,7 @@ describe('<DiffChecker />', () => {
   it('shows added and removed counts when texts differ', async () => {
     render(<DiffChecker />);
     typeInto(screen.getByLabelText(/original/i), 'a\nb\n');
-    typeInto(screen.getByLabelText(/changed/i), 'a\nc\n');
+    typeInto(screen.getByLabelText(/compare with/i), 'a\nc\n');
 
     // Scoped to the stats row, since the legend below also contains "added".
     const stats = await screen.findByText(/added/, { selector: '.stats__item' });
@@ -30,7 +30,7 @@ describe('<DiffChecker />', () => {
     render(<DiffChecker />);
     fireEvent.click(screen.getByRole('button', { name: /^json$/i }));
     typeInto(screen.getByLabelText(/original/i), '{"b":2,"a":1}');
-    typeInto(screen.getByLabelText(/changed/i), '{"a":1,"b":2}');
+    typeInto(screen.getByLabelText(/compare with/i), '{"a":1,"b":2}');
 
     expect(await screen.findByText(/equivalent json/i)).toBeInTheDocument();
   });
@@ -39,7 +39,7 @@ describe('<DiffChecker />', () => {
     render(<DiffChecker />);
     fireEvent.click(screen.getByRole('button', { name: /^json$/i }));
     typeInto(screen.getByLabelText(/original/i), 'nope');
-    typeInto(screen.getByLabelText(/changed/i), '{"a":1}');
+    typeInto(screen.getByLabelText(/compare with/i), '{"a":1}');
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/left/i);
   });
@@ -48,7 +48,7 @@ describe('<DiffChecker />', () => {
     render(<DiffChecker />);
     fireEvent.click(screen.getByRole('button', { name: /^json$/i }));
     typeInto(screen.getByLabelText(/original/i), '{"a":1}');
-    typeInto(screen.getByLabelText(/changed/i), '{"a":2}');
+    typeInto(screen.getByLabelText(/compare with/i), '{"a":2}');
 
     expect(await screen.findByText(/^differences$/i)).toBeInTheDocument();
   });
@@ -56,7 +56,7 @@ describe('<DiffChecker />', () => {
   it('can ignore case when comparing text', async () => {
     render(<DiffChecker />);
     typeInto(screen.getByLabelText(/original/i), 'Hello');
-    typeInto(screen.getByLabelText(/changed/i), 'hello');
+    typeInto(screen.getByLabelText(/compare with/i), 'hello');
     await screen.findByText(/^differences$/i);
 
     fireEvent.click(screen.getByLabelText(/ignore case/i));
@@ -71,5 +71,49 @@ describe('<DiffChecker />', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /clear both/i }));
     expect(left.value).toBe('');
+  });
+
+  it('loads a plain-text worked example when in Text mode', async () => {
+    render(<DiffChecker />);
+    fireEvent.click(screen.getByRole('button', { name: /load sample/i }));
+
+    const left = screen.getByLabelText(/original/i) as HTMLTextAreaElement;
+    const right = screen.getByLabelText(/compare with/i) as HTMLTextAreaElement;
+    expect(left.value).not.toBe('');
+    expect(left.value).not.toContain('{');
+    expect(right.value).not.toBe('');
+    expect(await screen.findByText(/^differences$/i)).toBeInTheDocument();
+  });
+
+  it('loads a JSON worked example when in JSON mode', async () => {
+    render(<DiffChecker />);
+    fireEvent.click(screen.getByRole('button', { name: /^json$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /load sample/i }));
+
+    const left = screen.getByLabelText(/original/i) as HTMLTextAreaElement;
+    const right = screen.getByLabelText(/compare with/i) as HTMLTextAreaElement;
+    expect(left.value).toContain('{');
+    expect(right.value).toContain('{');
+    expect(await screen.findByText(/^differences$/i)).toBeInTheDocument();
+  });
+
+  it('offers a side-by-side layout for a line-level comparison', async () => {
+    render(<DiffChecker />);
+    typeInto(screen.getByLabelText(/original/i), 'a\nb\n');
+    typeInto(screen.getByLabelText(/compare with/i), 'a\nc\n');
+    await screen.findByText(/^differences$/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /side by side/i }));
+    expect(screen.getByLabelText(/differences, shown in two aligned columns/i)).toBeInTheDocument();
+  });
+
+  it('disables side-by-side for a word-level comparison', async () => {
+    render(<DiffChecker />);
+    fireEvent.click(screen.getByRole('button', { name: /by word/i }));
+    typeInto(screen.getByLabelText(/original/i), 'the quick fox');
+    typeInto(screen.getByLabelText(/compare with/i), 'the slow fox');
+    await screen.findByText(/^differences$/i);
+
+    expect(screen.getByRole('button', { name: /side by side/i })).toBeDisabled();
   });
 });

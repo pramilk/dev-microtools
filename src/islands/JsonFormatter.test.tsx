@@ -238,3 +238,52 @@ describe('<JsonFormatter /> with auto-fix turned off', () => {
     expect(await screen.findByText(/"name": "ada"/)).toBeInTheDocument();
   });
 });
+
+describe('<JsonFormatter /> tree view', () => {
+  it('disables the Tree button until the input is valid JSON', () => {
+    render(<JsonFormatter />);
+    expect(screen.getByRole('button', { name: /^tree$/i })).toBeDisabled();
+  });
+
+  it('shows the document as a collapsible tree once selected', async () => {
+    render(<JsonFormatter />);
+    typeInto(screen.getByLabelText(/json input/i), '{"name":"ada","tags":["a","b"]}');
+    await screen.findByText(/"name": "ada"/);
+
+    fireEvent.click(screen.getByRole('button', { name: /^tree$/i }));
+
+    expect(screen.getByLabelText(/json as a collapsible tree/i)).toBeInTheDocument();
+    expect(screen.getByText('name:')).toBeInTheDocument();
+    expect(screen.getByText('"ada"')).toBeInTheDocument();
+    expect(screen.getByText('Array(2)')).toBeInTheDocument();
+  });
+
+  it('collapses and re-expands a branch', async () => {
+    render(<JsonFormatter />);
+    typeInto(screen.getByLabelText(/json input/i), '{"tags":["a","b"]}');
+    await screen.findByText(/"tags"/);
+    fireEvent.click(screen.getByRole('button', { name: /^tree$/i }));
+
+    const branch = screen.getByRole('button', { name: /Array\(2\)/i });
+    expect(screen.getByText('"a"')).toBeInTheDocument();
+
+    fireEvent.click(branch);
+    expect(screen.queryByText('"a"')).not.toBeInTheDocument();
+
+    fireEvent.click(branch);
+    expect(screen.getByText('"a"')).toBeInTheDocument();
+  });
+
+  it('falls back to text view when the input stops being valid JSON', async () => {
+    render(<JsonFormatter />);
+    // Auto-fix off, so tree availability reflects the raw input's validity directly.
+    fireEvent.click(screen.getByLabelText(/auto-fix/i));
+    typeInto(screen.getByLabelText(/json input/i), '{"a":1}');
+    await screen.findByText(/"a": 1/);
+    fireEvent.click(screen.getByRole('button', { name: /^tree$/i }));
+    expect(screen.getByLabelText(/json as a collapsible tree/i)).toBeInTheDocument();
+
+    typeInto(screen.getByLabelText(/json input/i), 'not json at all');
+    expect(screen.queryByLabelText(/json as a collapsible tree/i)).not.toBeInTheDocument();
+  });
+});

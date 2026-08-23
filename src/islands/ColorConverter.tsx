@@ -1,5 +1,11 @@
 import { useMemo, useState } from 'preact/hooks';
-import { convertColor, parseColor, rgbToHex } from '../lib/tools/color';
+import {
+  convertColor,
+  parseColor,
+  rgbToHex,
+  nearestAccessibleShade,
+  NAMED_COLOR_NAMES,
+} from '../lib/tools/color';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { CopyButton } from './shared/CopyButton';
 
@@ -28,12 +34,34 @@ export default function ColorConverter() {
   const white = value ? contrastVerdict(value.contrastWhite) : null;
   const black = value ? contrastVerdict(value.contrastBlack) : null;
 
+  const parsedRgb = useMemo(() => {
+    const parsed = parseColor(input);
+    return parsed.ok ? parsed.value : null;
+  }, [input]);
+
+  // Only worth suggesting a fix once AA (4.5:1) actually fails — anything at or
+  // above that is already a legible choice.
+  const whiteSuggestion = useMemo(
+    () =>
+      parsedRgb && value && value.contrastWhite < 4.5
+        ? nearestAccessibleShade(parsedRgb, 'white')
+        : null,
+    [parsedRgb, value]
+  );
+  const blackSuggestion = useMemo(
+    () =>
+      parsedRgb && value && value.contrastBlack < 4.5
+        ? nearestAccessibleShade(parsedRgb, 'black')
+        : null,
+    [parsedRgb, value]
+  );
+
   return (
     <div class="tool">
       <div class="tool-bar">
         <div class="field" style="flex:1 1 16rem">
           <label class="field__label" for="color-input">
-            <span>Colour</span>
+            <span>Color</span>
             <span class="field__hint">hex, rgb() or hsl()</span>
           </label>
           <input
@@ -41,11 +69,17 @@ export default function ColorConverter() {
             class="input"
             spellcheck={false}
             autocomplete="off"
-            placeholder="#3cbcd4"
+            list="color-names"
+            placeholder="#3cbcd4 or a name like teal"
             value={input}
             aria-invalid={error !== null}
             onInput={(event) => setInput((event.target as HTMLInputElement).value)}
           />
+          <datalist id="color-names">
+            {NAMED_COLOR_NAMES.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
         </div>
 
         <div class="field">
@@ -113,11 +147,31 @@ export default function ColorConverter() {
               <strong class="tnum">{value.contrastWhite.toFixed(2)}:1</strong>
               <span class={`badge badge--${white!.tone}`}>{white!.label}</span>
             </p>
+            {whiteSuggestion && (
+              <p class="contrast__suggestion">
+                Try{' '}
+                <button type="button" class="swatch-btn" onClick={() => setInput(rgbToHex(whiteSuggestion))}>
+                  <span class="swatch-btn__chip" style={`background:${rgbToHex(whiteSuggestion)}`} aria-hidden="true" />
+                  <code>{rgbToHex(whiteSuggestion)}</code>
+                </button>{' '}
+                instead — the closest shade of this colour that reaches 4.5:1 on white.
+              </p>
+            )}
             <p class="contrast__row">
               <span>Against black</span>
               <strong class="tnum">{value.contrastBlack.toFixed(2)}:1</strong>
               <span class={`badge badge--${black!.tone}`}>{black!.label}</span>
             </p>
+            {blackSuggestion && (
+              <p class="contrast__suggestion">
+                Try{' '}
+                <button type="button" class="swatch-btn" onClick={() => setInput(rgbToHex(blackSuggestion))}>
+                  <span class="swatch-btn__chip" style={`background:${rgbToHex(blackSuggestion)}`} aria-hidden="true" />
+                  <code>{rgbToHex(blackSuggestion)}</code>
+                </button>{' '}
+                instead — the closest shade of this colour that reaches 4.5:1 on black.
+              </p>
+            )}
             <p class="field__hint">
               WCAG asks for 4.5:1 for normal body text and 3:1 for large text.
             </p>
@@ -187,6 +241,20 @@ export default function ColorConverter() {
         }
         .badge--error {
           color: var(--danger); background: var(--danger-subtle); border-color: var(--danger-border);
+        }
+        .contrast__suggestion {
+          margin: 0; font-size: var(--text-xs); color: var(--text-muted);
+          display: flex; align-items: center; gap: .3em; flex-wrap: wrap;
+        }
+        .swatch-btn {
+          display: inline-flex; align-items: center; gap: .4em;
+          border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+          background: var(--surface); padding: .1em .5em; cursor: pointer;
+          font: inherit; font-size: var(--text-xs); color: var(--text);
+        }
+        .swatch-btn:hover { background: var(--surface-2); }
+        .swatch-btn__chip {
+          width: .9em; height: .9em; border-radius: 3px; border: 1px solid var(--border-strong);
         }
       `}</style>
     </div>

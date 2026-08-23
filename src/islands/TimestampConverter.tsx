@@ -3,6 +3,8 @@ import {
   fromEpoch,
   fromDateString,
   nowBreakdown,
+  formatInTimeZone,
+  COMMON_TIME_ZONES,
   type TimestampBreakdown,
   type TimestampUnit,
 } from '../lib/tools/timestamp';
@@ -44,6 +46,17 @@ export default function TimestampConverter() {
 
   const value = result?.ok ? result.value : null;
   const error = result && !result.ok ? result.error : null;
+
+  const [extraZones, setExtraZones] = useState<string[]>([]);
+  const availableZones = COMMON_TIME_ZONES.filter((z) => !extraZones.includes(z.zone));
+
+  const zoneReadings = useMemo(() => {
+    if (!value) return [];
+    return extraZones.map((zone) => ({
+      zone,
+      result: formatInTimeZone(new Date(value.milliseconds), zone),
+    }));
+  }, [value, extraZones]);
 
   /**
    * Switches direction without losing the result: if the current input is a valid
@@ -174,7 +187,61 @@ export default function TimestampConverter() {
           <Row label="Your local time" value={value.local} />
           <Row label="Relative" value={value.relative} />
           <Row label="Day of week" value={value.dayOfWeek} />
+          {zoneReadings.map(({ zone, result: zoneResult }) => (
+            <>
+              <dt key={`k-${zone}`}>
+                {zone}
+                <button
+                  type="button"
+                  class="zone-remove"
+                  onClick={() => setExtraZones((zones) => zones.filter((z) => z !== zone))}
+                  title={`Remove ${zone}`}
+                  aria-label={`Remove ${zone}`}
+                >
+                  ✕
+                </button>
+              </dt>
+              <dd key={`v-${zone}`}>
+                {zoneResult.ok ? (
+                  <>
+                    <span class="ts-value">{zoneResult.value}</span>
+                    <CopyButton value={zoneResult.value} describe={zone} />
+                  </>
+                ) : (
+                  <span class="ts-value ts-value--error">{zoneResult.error}</span>
+                )}
+              </dd>
+            </>
+          ))}
         </dl>
+      )}
+
+      {value && (
+        <div class="tool-bar">
+          <label class="checkbox" title="Show this time converted into another time zone as well">
+            <span class="field__hint">Add time zone</span>
+            <select
+              class="select"
+              value=""
+              aria-label="Add a time zone"
+              disabled={availableZones.length === 0}
+              onChange={(event) => {
+                const zone = (event.target as HTMLSelectElement).value;
+                if (zone) setExtraZones((zones) => [...zones, zone]);
+                (event.target as HTMLSelectElement).value = '';
+              }}
+            >
+              <option value="" disabled>
+                Choose a city…
+              </option>
+              {availableZones.map(({ label, zone }) => (
+                <option key={zone} value={zone}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       )}
 
       <style>{`
@@ -207,6 +274,12 @@ export default function TimestampConverter() {
           font-family: var(--font-mono); font-variant-numeric: tabular-nums;
           word-break: break-word; min-width: 0;
         }
+        .ts-value--error { color: var(--danger); font-family: inherit; }
+        .zone-remove {
+          background: none; border: none; cursor: pointer; color: var(--text-subtle);
+          font-size: var(--text-xs); margin-left: .4em; padding: 0;
+        }
+        .zone-remove:hover { color: var(--danger); }
       `}</style>
     </div>
   );

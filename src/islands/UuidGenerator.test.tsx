@@ -66,4 +66,16 @@ describe('<UuidGenerator />', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/8-4-4-4-12/);
   });
+
+  it('reformats the batch as a JSON array when that format is selected', async () => {
+    render(<UuidGenerator />);
+    await screen.findByText(UUID_SHAPE);
+
+    fireEvent.change(screen.getByLabelText(/output format/i), { target: { value: 'json' } });
+
+    const output = await screen.findByText(/^\[/);
+    const parsed = JSON.parse(output.textContent!);
+    expect(Array.isArray(parsed)).toBe(true);
+    expect(parsed).toHaveLength(5);
+  });
 });

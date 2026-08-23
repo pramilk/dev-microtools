@@ -41,6 +41,37 @@ export function encodeBase64(input: string, urlSafe = false): ToolResult<string>
   }
 }
 
+const bytesToBase64 = (bytes: Uint8Array): string => btoa(toBinaryString(bytes));
+
+/**
+ * Encodes an entire file to base64 — the point being to embed it as a `data:` URL,
+ * e.g. inlining a small image directly in CSS or HTML.
+ */
+export async function encodeFileToBase64(
+  file: File
+): Promise<ToolResult<{ base64: string; dataUrl: string; mimeType: string }>> {
+  if (file.size === 0) return err('That file is empty — nothing to encode.');
+
+  let buffer: ArrayBuffer;
+  try {
+    buffer = await file.arrayBuffer();
+  } catch (error) {
+    return err(messageFrom(error, 'Could not read that file.'));
+  }
+
+  try {
+    const base64 = bytesToBase64(new Uint8Array(buffer));
+    const mimeType = file.type || 'application/octet-stream';
+    return ok({ base64, dataUrl: `data:${mimeType};base64,${base64}`, mimeType });
+  } catch (error) {
+    return err(messageFrom(error, 'Could not encode that file.'));
+  }
+}
+
+/** True for a `data:image/...;base64,...` URL — used to offer an image preview. */
+export const isImageDataUrl = (input: string): boolean =>
+  /^data:image\/[a-z0-9.+-]+;base64,/i.test(input.trim());
+
 export function decodeBase64(input: string): ToolResult<string> {
   const trimmed = input.trim();
   if (trimmed === '') return err('Nothing to decode — paste a base64 string first.');
