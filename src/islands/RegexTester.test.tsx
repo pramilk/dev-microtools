@@ -45,7 +45,9 @@ describe('<RegexTester />', () => {
     typeInto(screen.getByLabelText(/regular expression/i), '(?<year>\\d{4})');
     typeInto(screen.getByLabelText(/test string/i), '2026');
 
-    expect(await screen.findByText('year')).toBeInTheDocument();
+    // "year" now appears both as the pattern-breakdown badge and the match-details label.
+    const occurrences = await screen.findAllByText('year');
+    expect(occurrences.length).toBeGreaterThan(0);
   });
 
   it('respects the case-insensitive flag', async () => {
@@ -75,6 +77,32 @@ describe('<RegexTester />', () => {
     fireEvent.click(screen.getByRole('button', { name: /load sample/i }));
 
     expect(await screen.findByText('2 matches')).toBeInTheDocument();
+  });
+
+  it('loads a common pattern from the presets menu', async () => {
+    render(<RegexTester />);
+    fireEvent.change(screen.getByLabelText(/load a common pattern/i), { target: { value: 'ipv4' } });
+
+    expect((screen.getByLabelText(/regular expression/i) as HTMLInputElement).value).toMatch(/\\d\{1,3\}/);
+    expect(await screen.findByText('2 matches')).toBeInTheDocument();
+  });
+
+  it('tints capturing groups in the pattern and pairs the tint with match details', async () => {
+    render(<RegexTester />);
+    typeInto(screen.getByLabelText(/regular expression/i), '(?<year>\\d{4})-(?<month>\\d{2})');
+    typeInto(screen.getByLabelText(/test string/i), '2026-08');
+
+    expect(await screen.findByText('Pattern groups')).toBeInTheDocument();
+    const badges = screen.getAllByText('year');
+    expect(badges.length).toBeGreaterThan(0);
+    expect(screen.getAllByText('month').length).toBeGreaterThan(0);
+  });
+
+  it('warns when the pattern uses another regex flavour\'s syntax', async () => {
+    render(<RegexTester />);
+    typeInto(screen.getByLabelText(/regular expression/i), '(?P<year>\\d{4})');
+
+    expect(await screen.findByText(/Python\/PCRE syntax/i)).toBeInTheDocument();
   });
 
   it('explains the pattern in plain English when asked', async () => {

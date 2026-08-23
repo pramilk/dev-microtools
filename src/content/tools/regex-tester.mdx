@@ -19,9 +19,10 @@ useCases:
   - Working out why an existing pattern fails on a particular input, by watching the highlighting change as you adjust it.
   - Previewing a find-and-replace with back-references before applying it across a codebase.
 howTo:
-  - Type your pattern into the expression field — write it without the surrounding slashes.
+  - Type your pattern into the expression field — write it without the surrounding slashes, or pick a starting point from the "Common patterns" menu.
   - Toggle the flags you need. Global finds every match rather than just the first; ignore case does what it says.
   - Paste your test string below. Matches highlight live, and each one is listed with its position and groups.
+  - If your pattern has capturing groups, the "Pattern groups" panel tints each one — the same tint reappears on its value under Match details, so you can see which part of the pattern produced which captured text.
   - Tick "Show replace" to add a replacement field, where $1 or $&lt;name&gt; insert captured groups.
 example:
   label: Extracting the user and domain from email addresses with named groups.
@@ -32,7 +33,7 @@ example:
   note: Named groups make a pattern far easier to read six months later than $1 and $2 do, and every modern JavaScript engine supports them.
 faq:
   - q: Which regex flavour does this use?
-    a: JavaScript's, because the pattern runs in your browser's native engine. Most syntax is shared across languages, but there are real differences — JavaScript has no atomic groups or possessive quantifiers, and its lookbehind support is newer than some engines'. If your pattern is destined for Python, PCRE or Go, test it there too before relying on it.
+    a: JavaScript's, because the pattern runs in your browser's native engine. Most syntax is shared across languages, but there are real differences — JavaScript has no atomic groups or possessive quantifiers, and its lookbehind support is newer than some engines'. If your pattern is destined for Python, PCRE or Go, test it there too before relying on it. If you paste in syntax from another flavour, such as Python's `(?P<name>...)` named groups, the tool flags it with a note explaining the JavaScript equivalent instead of just failing to parse.
   - q: Why does my pattern match nothing when it works elsewhere?
     a: >-
       The most common cause is a missing global flag, which limits you to the first match. The second is escaping: if you copied the pattern out of a string literal in code, it may contain doubled backslashes that need reducing to single ones here. Enter the raw pattern, not the quoted string version of it.

@@ -26,6 +26,132 @@ export const REGEX_FLAGS = [
   { flag: 'y', label: 'sticky', hint: 'Match only from lastIndex' },
 ] as const;
 
+export interface PatternPreset {
+  id: string;
+  label: string;
+  pattern: string;
+  flags: string;
+  /** Sample subject text that demonstrates the preset when loaded. */
+  sample: string;
+  description: string;
+}
+
+/** Ready-to-use patterns for people who would rather start from something working than a blank field. */
+export const COMMON_PATTERNS: PatternPreset[] = [
+  {
+    id: 'email',
+    label: 'Email address',
+    pattern: '(?<user>[\\w.+-]+)@(?<domain>[\\w-]+\\.[\\w.]+)',
+    flags: 'g',
+    sample: 'Contact ada@example.com or grace.hopper@navy.mil.\nInvalid: not-an-email@, @nope.com',
+    description: 'Captures the user and domain parts of an email address separately.',
+  },
+  {
+    id: 'url',
+    label: 'URL',
+    pattern: 'https?:\\/\\/[^\\s"\'<>]+',
+    flags: 'g',
+    sample: 'Visit https://example.com/docs or http://sub.example.org/path?q=1 for details.',
+    description: 'Matches http(s) URLs up to the next whitespace or quote.',
+  },
+  {
+    id: 'ipv4',
+    label: 'IPv4 address',
+    pattern: '\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b',
+    flags: 'g',
+    sample: 'Server 192.168.1.1 is reachable; 10.0.0.256 is not a valid address.',
+    description: 'Matches four dot-separated number groups; does not validate that each is 0-255.',
+  },
+  {
+    id: 'phone-us',
+    label: 'US phone number',
+    pattern: '\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}',
+    flags: 'g',
+    sample: 'Call (555) 123-4567 or 555.987.6543.',
+    description: 'Matches common US phone formats with optional parentheses and separators.',
+  },
+  {
+    id: 'date-iso',
+    label: 'ISO date (YYYY-MM-DD)',
+    pattern: '(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})',
+    flags: 'g',
+    sample: 'Created on 2026-01-15, updated 2026-08-22.',
+    description: 'Captures year, month and day from an ISO 8601 date.',
+  },
+  {
+    id: 'hex-color',
+    label: 'Hex color',
+    pattern: '#[0-9a-fA-F]{3,8}\\b',
+    flags: 'g',
+    sample: 'Brand colors: #0b6e80, #fff, and #FF00FF are all valid.',
+    description: 'Matches 3, 4, 6 or 8-digit hex color codes, including the leading #.',
+  },
+  {
+    id: 'uuid',
+    label: 'UUID',
+    pattern: '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}',
+    flags: 'g',
+    sample: 'Request id 550e8400-e29b-41d4-a716-446655440000 failed; retry id 6ba7b810-9dad-11d1-80b4-00c04fd430c8.',
+    description: 'Matches a UUID in the standard 8-4-4-4-12 hex format, of any version.',
+  },
+  {
+    id: 'slug',
+    label: 'Slug (kebab-case)',
+    pattern: '\\b[a-z0-9]+(?:-[a-z0-9]+)*\\b',
+    flags: 'g',
+    sample: 'Valid slugs: hello-world, regex-tester-tool. Not a slug: Hello_World!',
+    description: 'Matches a lowercase, hyphen-separated slug such as "my-blog-post". Also matches plain lowercase words, since a single word is a valid slug too.',
+  },
+  {
+    id: 'html-tag',
+    label: 'HTML tag',
+    pattern: '<\\/?[a-zA-Z][a-zA-Z0-9]*(?:\\s[^<>]*)?>',
+    flags: 'g',
+    sample: 'Use <p class="intro">text</p> and a self-closing <br/> tag.',
+    description: 'Matches an opening, closing or self-closing HTML tag — a quick check, not a full HTML parser.',
+  },
+  {
+    id: 'hashtag',
+    label: 'Hashtag',
+    pattern: '#\\w+',
+    flags: 'g',
+    sample: 'Loving this #regex #tutorial today! Not a tag: a lone # by itself.',
+    description: 'Matches a # followed by one or more word characters.',
+  },
+  {
+    id: 'time-24h',
+    label: 'Time (24-hour)',
+    pattern: '\\b([01]\\d|2[0-3]):[0-5]\\d\\b',
+    flags: 'g',
+    sample: 'Meeting at 09:30, lunch at 13:00, and the store closes at 23:59. Not valid: 25:61.',
+    description: 'Matches an HH:MM 24-hour time, validating that the hour is 00-23 and the minute is 00-59.',
+  },
+  {
+    id: 'mac-address',
+    label: 'MAC address',
+    pattern: '\\b(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}\\b',
+    flags: 'g',
+    sample: 'Device MAC is 00:1A:2B:3C:4D:5E, gateway is FF:FF:FF:FF:FF:FF.',
+    description: 'Matches a colon-separated MAC address.',
+  },
+  {
+    id: 'credit-card',
+    label: 'Credit card number',
+    pattern: '\\b(?:\\d[ -]?){13,16}\\b',
+    flags: 'g',
+    sample: 'Card on file: 4111 1111 1111 1111, backup: 5500-0000-0000-0004.',
+    description: 'Matches 13-16 digits with optional spaces or dashes between them. Does not validate the number with a checksum like Luhn.',
+  },
+  {
+    id: 'whitespace-trim',
+    label: 'Leading/trailing whitespace',
+    pattern: '^[ \\t]+|[ \\t]+$',
+    flags: 'gm',
+    sample: '  leading spaces\ntrailing spaces  \n\tno extra space here',
+    description: 'Matches runs of spaces or tabs at the start or end of each line — useful for a find-and-replace that trims them.',
+  },
+];
+
 /** Guards against catastrophic backtracking locking up the tab. */
 const MAX_MATCHES = 10_000;
 
@@ -473,6 +599,170 @@ export function explainRegex(pattern: string, flags: string): ToolResult<string[
   } catch (error) {
     return err(messageFrom(error, 'Could not break this pattern down further.'));
   }
+}
+
+export type PatternSegmentNode =
+  | { type: 'text'; text: string }
+  | { type: 'group'; index: number; name?: string; children: PatternSegmentNode[] };
+
+/** Non-capturing/lookaround openers JS parses as `(?…` but that do not consume a capture slot. */
+const NON_CAPTURING_OPENERS = ['(?:', '(?=', '(?!', '(?<=', '(?<!'];
+
+/**
+ * Walks a pattern's parentheses and character classes to build a tree that mirrors its
+ * nesting, so the UI can render each capturing group as its own highlighted region without
+ * re-implementing full regex parsing. Deliberately tolerant of malformed input (unterminated
+ * classes/groups) since it also runs while the user is mid-edit.
+ */
+export function buildPatternTree(pattern: string): PatternSegmentNode[] {
+  let pos = 0;
+  let groupCounter = 0;
+
+  const parseCharClass = (): string => {
+    const start = pos;
+    pos += 1; // consume '['
+    if (pattern[pos] === '^') pos += 1;
+    if (pattern[pos] === ']') pos += 1; // a ']' right after '[' or '[^' is literal
+    while (pos < pattern.length && pattern[pos] !== ']') {
+      pos += pattern[pos] === '\\' ? 2 : 1;
+    }
+    if (pattern[pos] === ']') pos += 1;
+    return pattern.slice(start, pos);
+  };
+
+  const parseSequence = (stopAtCloseParen: boolean): PatternSegmentNode[] => {
+    const nodes: PatternSegmentNode[] = [];
+    let textBuf = '';
+    const flush = () => {
+      if (textBuf !== '') {
+        nodes.push({ type: 'text', text: textBuf });
+        textBuf = '';
+      }
+    };
+
+    while (pos < pattern.length) {
+      const ch = pattern[pos];
+
+      if (ch === ')' && stopAtCloseParen) {
+        flush();
+        return nodes;
+      }
+      if (ch === '\\') {
+        textBuf += pattern.slice(pos, pos + 2);
+        pos += 2;
+        continue;
+      }
+      if (ch === '[') {
+        textBuf += parseCharClass();
+        continue;
+      }
+      if (ch === '(') {
+        const rest = pattern.slice(pos);
+        const nonCapturing = NON_CAPTURING_OPENERS.find((opener) => rest.startsWith(opener));
+        const named = /^\(\?<([^>]+)>/.exec(rest);
+
+        if (nonCapturing) {
+          textBuf += nonCapturing;
+          pos += nonCapturing.length;
+          const inner = parseSequence(true);
+          flush();
+          nodes.push(...inner);
+          if (pattern[pos] === ')') {
+            nodes.push({ type: 'text', text: ')' });
+            pos += 1;
+          }
+          continue;
+        }
+
+        const opener = named ? named[0] : '(';
+        pos += opener.length;
+        groupCounter += 1;
+        const index = groupCounter;
+        const children = parseSequence(true);
+        children.unshift({ type: 'text', text: opener });
+        if (pattern[pos] === ')') {
+          children.push({ type: 'text', text: ')' });
+          pos += 1;
+        }
+        flush();
+        nodes.push({ type: 'group', index, name: named?.[1], children });
+        continue;
+      }
+
+      textBuf += ch;
+      pos += 1;
+    }
+
+    flush();
+    return nodes;
+  };
+
+  return parseSequence(false);
+}
+
+/** Flattens a pattern tree into a left-to-right list of its capturing groups. */
+export function flattenPatternGroups(nodes: PatternSegmentNode[]): { index: number; name?: string }[] {
+  const result: { index: number; name?: string }[] = [];
+  for (const node of nodes) {
+    if (node.type === 'group') {
+      result.push({ index: node.index, name: node.name });
+      result.push(...flattenPatternGroups(node.children));
+    }
+  }
+  return result;
+}
+
+/** Number of distinct tint levels the UI cycles through when color-coding groups. */
+export const GROUP_TINT_COUNT = 5;
+
+interface FlavorHint {
+  test: RegExp;
+  message: string;
+}
+
+/**
+ * Syntax that is common in other regex flavours (PCRE, Python) but is either invalid or
+ * silently means something different in JavaScript. These are heuristic substring checks,
+ * not a parser for other flavours — the goal is a helpful nudge, not a guarantee.
+ */
+const FLAVOR_HINTS: FlavorHint[] = [
+  {
+    test: /\(\?P<[^>]+>/,
+    message:
+      '(?P<name>...) is Python/PCRE syntax for a named group — JavaScript uses (?<name>...), without the P.',
+  },
+  {
+    test: /\(\?P=\w+\)/,
+    message: "(?P=name) is Python's syntax for a named back-reference — JavaScript uses \\k<name> instead.",
+  },
+  {
+    test: /\(\?>/,
+    message: '(?>...) is an atomic group, which JavaScript does not support. Restructure the pattern to avoid relying on it.',
+  },
+  {
+    test: /(?:[*+?]|\{\d+(?:,\d*)?\})\+/,
+    message:
+      'Possessive quantifiers (like *+ or ++) are not supported in JavaScript. Use a normal quantifier, or restructure the pattern to avoid the backtracking they were preventing.',
+  },
+  {
+    test: /\[\[:\w+:\]\]/,
+    message:
+      '[[:alpha:]]-style POSIX classes are not valid in JavaScript. Use a character class like [a-zA-Z], or a Unicode property escape such as \\p{L} with the u flag.',
+  },
+  {
+    test: /\(\?[a-zA-Z]+[):]/,
+    message: 'Inline mode modifiers like (?i) are not supported in JavaScript. Use the flag checkboxes above instead.',
+  },
+  {
+    test: /\\[AZz](?![a-zA-Z])/,
+    message:
+      '\\A, \\Z and \\z are Perl/PCRE anchors for the very start or end of the string. JavaScript does not support them — \\A matches a literal "A" instead. Use ^ and $ instead.',
+  },
+];
+
+/** Flags syntax in `pattern` that belongs to another regex flavour and behaves differently (or fails) in JavaScript. */
+export function detectFlavorHints(pattern: string): string[] {
+  return FLAVOR_HINTS.filter(({ test }) => test.test(pattern)).map(({ message }) => message);
 }
 
 /** Applies a replacement pattern, supporting $1 / $<name> back-references. */

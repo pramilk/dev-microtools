@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
+import type { ComponentChildren } from 'preact';
 import {
   runRegex,
   toSegments,
@@ -6,6 +7,12 @@ import {
   explainRegex,
   testLines,
   REGEX_FLAGS,
+  COMMON_PATTERNS,
+  buildPatternTree,
+  flattenPatternGroups,
+  detectFlavorHints,
+  GROUP_TINT_COUNT,
+  type PatternSegmentNode,
 } from '../lib/tools/regex';
 import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
@@ -13,9 +20,26 @@ import { OutputPane } from './shared/OutputPane';
 import { ShareLinkButton } from './shared/ShareLinkButton';
 import { useTextFileDrop } from './shared/useTextFileDrop';
 
-const SAMPLE_PATTERN = '(?<user>[\\w.+-]+)@(?<domain>[\\w-]+\\.[\\w.]+)';
-const SAMPLE_TEXT = `Contact ada@example.com or grace.hopper@navy.mil.
-Invalid: not-an-email@, @nope.com`;
+const SAMPLE = COMMON_PATTERNS[0]!;
+
+const tintClass = (index: number): string => `group-tint-${(index - 1) % GROUP_TINT_COUNT}`;
+
+/** Renders a pattern's parsed tree, tinting each capturing group so it can be visually paired with its match. */
+function renderPatternTree(nodes: PatternSegmentNode[]): ComponentChildren {
+  return nodes.map((node, i) => {
+    if (node.type === 'text') return <span key={i}>{node.text}</span>;
+    return (
+      <mark
+        key={i}
+        class={`pattern-group ${tintClass(node.index)}`}
+        title={node.name ? `Group "${node.name}"` : `Group ${node.index}`}
+      >
+        <sup class="pattern-group__badge">{node.name ?? node.index}</sup>
+        {renderPatternTree(node.children)}
+      </mark>
+    );
+  });
+}
 
 interface ShareState {
   pattern: string;
@@ -78,6 +102,14 @@ export default function RegexTester() {
     return testLines(pattern, flags, testList);
   }, [showLineTest, pattern, flags, testList]);
 
+  const patternTree = useMemo(() => (pattern !== '' ? buildPatternTree(pattern) : []), [pattern]);
+  const groupList = useMemo(() => flattenPatternGroups(patternTree), [patternTree]);
+  const nameToIndex = useMemo(
+    () => new Map(groupList.filter((g) => g.name !== undefined).map((g) => [g.name!, g.index])),
+    [groupList]
+  );
+  const flavorHints = useMemo(() => (pattern !== '' ? detectFlavorHints(pattern) : []), [pattern]);
+
   const toggleFlag = (flag: string) => {
     setFlags((current) =>
       current.includes(flag) ? current.replace(flag, '') : current + flag
@@ -110,6 +142,31 @@ export default function RegexTester() {
           </span>
         </div>
       </div>
+
+      {flavorHints.length > 0 && (
+        <div class="msg-list">
+          {flavorHints.map((hint, index) => (
+            <p key={index} class="msg msg--warning">
+              <span class="msg__icon" aria-hidden="true">
+                !
+              </span>
+              <span>{hint}</span>
+            </p>
+          ))}
+        </div>
+      )}
+
+      {groupList.length > 0 && (
+        <div class="field">
+          <span class="field__label">
+            <span>Pattern groups</span>
+            <span class="field__hint">Each capturing group is tinted, and matches the same tint below</span>
+          </span>
+          <div class="pattern-breakdown" aria-hidden="true">
+            {renderPatternTree(patternTree)}
+          </div>
+        </div>
+      )}
 
       <label class="checkbox" title="Break the pattern down into a plain-English, step-by-step description">
         <input
@@ -153,13 +210,38 @@ export default function RegexTester() {
           getState={() => ({ pattern, flags, subject, replacement: showReplace ? replacement : '' })}
           describe="this pattern"
         />
+        <select
+          class="input rx-preset-select"
+          aria-label="Load a common pattern"
+          title="Start from a ready-made pattern for a common case"
+          value=""
+          onChange={(event) => {
+            const select = event.target as HTMLSelectElement;
+            const preset = COMMON_PATTERNS.find((p) => p.id === select.value);
+            if (preset) {
+              setPattern(preset.pattern);
+              setFlags(preset.flags);
+              setSubject(preset.sample);
+            }
+            select.value = '';
+          }}
+        >
+          <option value="" disabled>
+            Common patterns…
+          </option>
+          {COMMON_PATTERNS.map((preset) => (
+            <option key={preset.id} value={preset.id}>
+              {preset.label}
+            </option>
+          ))}
+        </select>
         <button
           type="button"
           class="btn"
           onClick={() => {
-            setPattern(SAMPLE_PATTERN);
-            setSubject(SAMPLE_TEXT);
-            setFlags('g');
+            setPattern(SAMPLE.pattern);
+            setSubject(SAMPLE.sample);
+            setFlags(SAMPLE.flags);
           }}
           title="Load an example pattern and text to try the tool"
         >
@@ -236,17 +318,23 @@ export default function RegexTester() {
                 {match.groups.length > 0 && (
                   <div class="match__groups">
                     {match.groups.map((group, groupIndex) => (
-                      <span key={groupIndex} class="match__group">
+                      <span key={groupIndex} class={`match__group ${tintClass(groupIndex + 1)}`}>
                         <span class="match__group-name">${groupIndex + 1}</span>
                         <code>{group ?? '(undefined)'}</code>
                       </span>
                     ))}
-                    {Object.entries(match.named).map(([name, group]) => (
-                      <span key={name} class="match__group">
-                        <span class="match__group-name">{name}</span>
-                        <code>{group ?? '(undefined)'}</code>
-                      </span>
-                    ))}
+                    {Object.entries(match.named).map(([name, group]) => {
+                      const groupIndex = nameToIndex.get(name);
+                      return (
+                        <span
+                          key={name}
+                          class={`match__group${groupIndex !== undefined ? ` ${tintClass(groupIndex)}` : ''}`}
+                        >
+                          <span class="match__group-name">{name}</span>
+                          <code>{group ?? '(undefined)'}</code>
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -362,6 +450,21 @@ export default function RegexTester() {
           color: var(--text-subtle); font-size: var(--text-sm);
         }
         .rx-input__field { flex: 1; }
+        .rx-preset-select { width: auto; max-width: 12rem; font-size: var(--text-sm); }
+        .msg-list { display: flex; flex-direction: column; gap: var(--space-2); }
+        .pattern-breakdown {
+          border: 1px solid var(--border); border-radius: var(--radius);
+          background: var(--surface-2); padding: var(--space-3);
+          font-family: var(--font-mono); font-size: var(--text-sm);
+          white-space: pre-wrap; word-break: break-word; line-height: 1.9;
+        }
+        .pattern-group {
+          border-radius: 3px; padding: 0 2px; position: relative;
+        }
+        .pattern-group__badge {
+          font-family: var(--font-sans); font-size: 0.6em; font-weight: 700;
+          color: var(--text-muted); margin-right: 1px;
+        }
         .flag {
           display: inline-flex; align-items: center; gap: .4em;
           padding: .25rem .6rem; border: 1px solid var(--border-strong);
@@ -431,6 +534,14 @@ export default function RegexTester() {
         .line-row--fail .line-row__icon { color: var(--danger); }
         .line-row__text { flex: 1; word-break: break-all; }
         .line-row__count { font-size: var(--text-xs); color: var(--text-muted); }
+
+        /* Group tints: shades of the single accent colour, cycled by group index, so a
+           group's colour in the pattern breakdown matches its colour in match details. */
+        .group-tint-0 { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+        .group-tint-1 { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+        .group-tint-2 { background: color-mix(in srgb, var(--accent) 44%, transparent); }
+        .group-tint-3 { background: color-mix(in srgb, var(--accent) 58%, transparent); }
+        .group-tint-4 { background: color-mix(in srgb, var(--accent) 24%, transparent); outline: 1px dashed var(--accent-border); }
       `}</style>
     </div>
   );

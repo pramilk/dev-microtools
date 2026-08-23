@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { compileRegex, runRegex, toSegments, applyReplace, testLines, explainRegex } from './regex';
+import {
+  compileRegex,
+  runRegex,
+  toSegments,
+  applyReplace,
+  testLines,
+  explainRegex,
+  buildPatternTree,
+  flattenPatternGroups,
+  detectFlavorHints,
+  COMMON_PATTERNS,
+} from './regex';
 
 describe('compileRegex', () => {
   it('compiles a valid pattern', () => {
@@ -267,5 +278,106 @@ describe('explainRegex', () => {
 
   it('rejects an empty pattern', () => {
     expect(explainRegex('', '').ok).toBe(false);
+  });
+});
+
+describe('buildPatternTree / flattenPatternGroups', () => {
+  it('finds a single numbered group and reproduces its text', () => {
+    const tree = buildPatternTree('a(b)c');
+    const groups = flattenPatternGroups(tree);
+    expect(groups).toEqual([{ index: 1, name: undefined }]);
+  });
+
+  it('assigns indexes left-to-right, including for nested groups', () => {
+    const tree = buildPatternTree('(a(b)c)(d)');
+    const groups = flattenPatternGroups(tree);
+    expect(groups.map((g) => g.index)).toEqual([1, 2, 3]);
+  });
+
+  it('captures the name of a named group', () => {
+    const tree = buildPatternTree('(?<year>\\d{4})');
+    const groups = flattenPatternGroups(tree);
+    expect(groups).toEqual([{ index: 1, name: 'year' }]);
+  });
+
+  it('does not assign an index to non-capturing groups or lookaround', () => {
+    const tree = buildPatternTree('(?:abc)(?=x)(?!y)(?<=z)(?<!w)(v)');
+    const groups = flattenPatternGroups(tree);
+    expect(groups).toEqual([{ index: 1, name: undefined }]);
+  });
+
+  it('does not treat a group-like sequence inside a character class as a group', () => {
+    const tree = buildPatternTree('[(a)](b)');
+    const groups = flattenPatternGroups(tree);
+    expect(groups).toEqual([{ index: 1, name: undefined }]);
+  });
+
+  it('does not crash on malformed input such as an unclosed group', () => {
+    expect(() => buildPatternTree('(abc')).not.toThrow();
+    expect(() => buildPatternTree('[abc')).not.toThrow();
+  });
+
+  it('rebuilds to the exact original pattern text', () => {
+    const flattenText = (nodes: ReturnType<typeof buildPatternTree>): string =>
+      nodes.map((n) => (n.type === 'text' ? n.text : flattenText(n.children))).join('');
+    const pattern = '(?<user>[\\w.+-]+)@(?:foo|(?<domain>[\\w-]+))';
+    expect(flattenText(buildPatternTree(pattern))).toBe(pattern);
+  });
+});
+
+describe('detectFlavorHints', () => {
+  it('flags Python/PCRE named group syntax', () => {
+    const hints = detectFlavorHints('(?P<year>\\d{4})');
+    expect(hints.some((h) => h.includes('(?P<name>'))).toBe(true);
+  });
+
+  it('flags a Python named back-reference', () => {
+    const hints = detectFlavorHints('(?P<a>x)(?P=a)');
+    expect(hints.some((h) => h.includes('(?P=name)'))).toBe(true);
+  });
+
+  it('flags an atomic group', () => {
+    expect(detectFlavorHints('(?>abc)').some((h) => h.includes('atomic group'))).toBe(true);
+  });
+
+  it('flags a possessive quantifier', () => {
+    expect(detectFlavorHints('a++').some((h) => h.includes('Possessive'))).toBe(true);
+  });
+
+  it('flags a POSIX character class', () => {
+    expect(detectFlavorHints('[[:alpha:]]+').some((h) => h.includes('POSIX'))).toBe(true);
+  });
+
+  it('flags an inline mode modifier', () => {
+    expect(detectFlavorHints('(?i)abc').some((h) => h.includes('Inline mode'))).toBe(true);
+  });
+
+  it('flags \\A / \\Z / \\z anchors', () => {
+    expect(detectFlavorHints('\\Aabc\\z').some((h) => h.includes('\\A'))).toBe(true);
+  });
+
+  it('returns nothing for an ordinary JavaScript pattern', () => {
+    expect(detectFlavorHints('(?<user>[\\w.+-]+)@(?<domain>[\\w-]+)')).toEqual([]);
+  });
+
+  it('does not confuse a named group with an inline modifier', () => {
+    expect(detectFlavorHints('(?<year>\\d{4})')).toEqual([]);
+  });
+});
+
+describe('COMMON_PATTERNS', () => {
+  it('every preset compiles and matches at least once in its own sample', () => {
+    for (const preset of COMMON_PATTERNS) {
+      const result = runRegex(preset.pattern, preset.flags, preset.sample);
+      expect(result.ok, `${preset.id} should compile`).toBe(true);
+      if (result.ok) {
+        expect(result.value.matches.length, `${preset.id} should match its sample`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('has a unique id for every preset', () => {
+    const ids = COMMON_PATTERNS.map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
