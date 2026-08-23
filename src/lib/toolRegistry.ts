@@ -18,6 +18,10 @@ import UserAgentParser from '../islands/UserAgentParser';
 import CronExplainer from '../islands/CronExplainer';
 import DataFormatConverter from '../islands/DataFormatConverter';
 import CidrCalculator from '../islands/CidrCalculator';
+import SqlFormatter from '../islands/SqlFormatter';
+import Minifier from '../islands/Minifier';
+import ImageBase64Tool from '../islands/ImageBase64Tool';
+import FakeDataGenerator from '../islands/FakeDataGenerator';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -45,6 +49,10 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'cron-expression-explainer': CronExplainer,
   'data-format-converter': DataFormatConverter,
   'cidr-subnet-calculator': CidrCalculator,
+  'sql-formatter': SqlFormatter,
+  'html-css-js-minifier': Minifier,
+  'image-base64-converter': ImageBase64Tool,
+  'fake-data-generator': FakeDataGenerator,
 };
 
 /**

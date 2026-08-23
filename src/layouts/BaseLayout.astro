@@ -19,6 +19,14 @@ const { title, description, canonicalPath, schema = [], noindex = false } = Astr
 const canonical = new URL(canonicalPath ?? Astro.url.pathname, Astro.site ?? SITE.url).href;
 const fullTitle = title === SITE.name ? title : `${title} | ${SITE.name}`;
 const ogImage = new URL('/og-image.png', Astro.site ?? SITE.url).href;
+
+/**
+ * `JSON.stringify` alone doesn't escape "</script" — FAQ copy that happens to mention a
+ * literal `</script>` tag (as the HTML/CSS/JS minifier's does) would otherwise terminate
+ * this script element early and spill the rest of the JSON as visible page text. `<` has
+ * no special meaning in JSON, so escaping every occurrence is always safe here.
+ */
+const toSafeJsonLd = (value: unknown): string => JSON.stringify(value).replace(/</g, '\\u003c');
 ---
 
 <!doctype html>
@@ -57,7 +65,7 @@ const ogImage = new URL('/og-image.png', Astro.site ?? SITE.url).href;
         <script
           type="application/ld+json"
           is:inline
-          set:html={JSON.stringify(entry)}
+          set:html={toSafeJsonLd(entry)}
         />
       ))
     }

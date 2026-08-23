@@ -1,0 +1,60 @@
+---
+title: Fake Data Generator
+headline: Fake Data Generator for Testing & Prototyping
+description: Generate realistic fake test data — names, emails, addresses, UUIDs and more — as JSON or CSV. Runs in your browser. Free, no sign-up required.
+summary: Generate realistic fake names, emails, addresses and more as JSON or CSV.
+category: Generate
+order: 22
+updated: 2026-08-23
+whatIsIt: >-
+  Testing, prototyping and demos all need data that looks real without being real — a
+  spreadsheet of made-up customers, a JSON fixture for an API test, a CSV to try an import
+  flow against. This tool builds rows of fake data from a set of fields you choose (name,
+  email, address, company, UUID, a custom-range number, and more), and exports them as JSON or
+  CSV. Every field within a row is generated together, so a name and its matching email stay
+  consistent with each other, and an optional seed lets the exact same dataset be regenerated
+  again later — useful for a reproducible test fixture, not just a one-off sample.
+useCases:
+  - Generating realistic-looking sample rows for a UI mockup or demo, without using anyone's real data.
+  - Building a JSON or CSV test fixture for an API test suite or a database seed script.
+  - Trying out a CSV import flow with a range of column types (text, numbers, dates, booleans) before pointing it at real data.
+  - Producing a batch of test UUIDs, emails, or IDs for load-testing or QA scenarios.
+howTo:
+  - Add the fields you need and give each one a column name — pick from names, contact info, addresses, company info, or generic types like integer, boolean, date and UUID.
+  - Set a numeric range for integer/float fields, and choose how many rows to generate.
+  - Choose JSON or CSV as the output format.
+  - Copy the result, download it as a file, or pin the seed shown below the output to regenerate this exact dataset again later.
+example:
+  label: Three rows with a name, email and job title.
+  input: 'Fields: Full name, Email, Job title — 3 rows, JSON'
+  output: |-
+    [
+      { "Full name": "Ada Chen", "Email": "ada.chen@example.com", "Job title": "Data Analyst" },
+      { "Full name": "Noah Silva", "Email": "noah.silva@testmail.dev", "Job title": "UX Designer" },
+      { "Full name": "Priya Kim", "Email": "priya.kim@mail.example", "Job title": "Product Manager" }
+    ]
+  note: Each row's name and email are generated together, so the email always matches the name in that same row rather than being drawn independently.
+faq:
+  - q: Is this data actually real?
+    a: No — every value is drawn from curated fake name, address, company and word lists, or generated numerically (UUIDs, numbers, dates, booleans). Email addresses use non-routable placeholder domains rather than real ones. Any resemblance to a real person, company or address is coincidental, the same way it would be with any fake-data tool.
+  - q: What does the seed actually do?
+    a: 'It makes the "random" output reproducible. With no seed, a fresh random batch is drawn every time and shown below the output so it can be reused later. Entering that same number back into the Seed field regenerates byte-for-byte identical data — useful for a test fixture that needs to be the same across CI runs, or for sharing a specific dataset with a teammate via the "Copy link" button, which also carries the pinned seed.'
+  - q: Are the address, city, state and country fields geographically consistent with each other?
+    a: No, deliberately not — each is drawn independently, so a generated row might pair a city with a state or country it doesn't actually belong to. Building a real place hierarchy (which cities belong to which state, which states to which country) is a much bigger dataset than this tool curates; if geographic consistency matters for your use case, treat these fields as independently plausible-looking placeholders, not a real gazetteer.
+  - q: Why aren't the generated UUIDs from crypto.randomUUID()?
+    a: Because a pinned seed needs to reproduce every field identically, including UUIDs, and the browser's real UUID generator is intentionally not seedable — that's what makes it a good source of real randomness elsewhere on this site (the UUID Generator tool). Here, a UUID-shaped value is instead derived from the same seeded generator as every other field, which is what makes "reuse this seed" apply to the whole row consistently.
+  - q: Is there a limit on how many rows I can generate?
+    a: Yes, 1,000 rows per batch — generation runs synchronously in your browser tab, and 1,000 rows across several fields is already a substantial fixture for UI testing, prototyping or a CSV import trial. A larger dataset is usually better produced by a real seeding script anyway, where "reproducible from a seed" matters even more.
+related:
+  - uuid-generator
+  - password-generator
+  - data-format-converter
+---
+
+## Why fields in the same row are generated together
+
+A row where "Full name" says "Ada Chen" but "Email" says "noah.silva@example.com" looks
+obviously fake in a way that undermines the point of a realistic-looking fixture. This tool
+generates a person's name once per row, then derives every name-based field (full name, first
+name, last name, email, username) from that same value, so a row reads as one consistent
+person rather than several independently rolled fields glued together.

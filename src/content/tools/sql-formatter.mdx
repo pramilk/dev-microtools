@@ -1,0 +1,73 @@
+---
+title: SQL Formatter
+headline: SQL Formatter & Beautifier
+description: Format and beautify SQL queries with dialect-aware syntax for MySQL, PostgreSQL, SQL Server, Oracle and more. Runs in your browser. Free, no sign-up required.
+summary: Beautify a SQL query with consistent indentation and keyword casing.
+category: Format
+order: 19
+updated: 2026-08-23
+whatIsIt: >-
+  A SQL query written on one long line, or copied out of an application log, is hard to read
+  and harder to review — joins, subqueries and conditions all run together with no visual
+  structure. This tool reformats a query with consistent indentation, line breaks around
+  clauses (`SELECT`, `FROM`, `WHERE`, `JOIN`, `GROUP BY`), and configurable keyword casing, so
+  the structure of the query is visible at a glance. It's dialect-aware — MySQL, PostgreSQL,
+  SQL Server, Oracle and several others each have their own quoting and casting syntax
+  (backticks, double-quoted identifiers, square brackets, `::type`), and picking the matching
+  dialect keeps those intact instead of misreading them as errors.
+useCases:
+  - Cleaning up a minified or single-line query pulled from an application log, ORM debug output, or a database's slow-query log before reading it.
+  - Formatting a query consistently before pasting it into a pull request or documentation, so reviewers can actually follow the logic.
+  - Standardising keyword casing (upper, lower, or left as-is) across a codebase or a team's SQL style guide.
+  - Making a deeply nested query with several joins and subqueries readable by giving every clause its own indentation level.
+howTo:
+  - Paste a SQL query, or click "Load example" to see a working sample.
+  - Pick the SQL dialect that matches your database — this affects how identifiers, casts and dialect-specific syntax are parsed.
+  - Choose a keyword case (UPPER, lower, or preserve as typed) and an indent width.
+  - Copy the formatted result, download it as a .sql file, or copy a link that restores this exact query and its options.
+example:
+  label: A single-line query with a join, filter and aggregation, formatted.
+  input: "select o.id, c.name, sum(o.total) as revenue from orders o join customers c on c.id = o.customer_id where o.status = 'paid' group by o.id, c.name order by revenue desc;"
+  output: |-
+    SELECT
+      o.id,
+      c.name,
+      sum(o.total) AS revenue
+    FROM
+      orders o
+      JOIN customers c ON c.id = o.customer_id
+    WHERE
+      o.status = 'paid'
+    GROUP BY
+      o.id,
+      c.name
+    ORDER BY
+      revenue DESC;
+  note: Each clause starts its own line, and JOIN conditions are indented under the FROM they belong to, so the query's structure is visible without reading every token.
+faq:
+  - q: Why does the dialect I pick matter?
+    a: Because SQL dialects genuinely disagree on syntax, not just keywords — MySQL quotes identifiers with backticks, SQL Server uses square brackets, PostgreSQL uses `::type` for casts and double-quoted identifiers, Oracle's PL/SQL has its own block and variable syntax. Picking the wrong dialect can make valid syntax look like a parse error, or format dialect-specific syntax incorrectly. If you're not sure, "Standard SQL" handles common ANSI syntax reasonably, but the closest matching dialect gives the most reliable result.
+  - q: Does this validate that my query is correct, or just format it?
+    a: It's a formatter, not a query validator — it doesn't check that a table or column exists, that a join makes semantic sense, or that the query would actually run against your schema. It does catch genuine syntax errors (an unclosed parenthesis, an unterminated string) because the formatter has to be able to parse the query's structure to reformat it, but a syntactically valid query that's wrong for other reasons will format cleanly without warning.
+  - q: Will this change what my query does?
+    a: No — formatting only changes whitespace, line breaks and keyword casing, never the query's logic, identifiers, string contents, or the order of operations. A comment, a string literal, and every identifier are preserved exactly as written.
+  - q: What does an error message here actually mean?
+    a: It means the formatter couldn't parse the query's structure — usually an unbalanced parenthesis, an unterminated quote, or syntax specific to a dialect other than the one selected. The error names the token it got stuck on and the line/column, which is usually enough to spot the mismatched character; switching dialects is also worth trying if the syntax is valid in your actual database.
+  - q: Is there a size limit?
+    a: Yes, 500,000 characters — parsing and formatting both run synchronously in your browser tab with no server to offload to, so an unbounded query would freeze the page with no way to show progress. That covers any realistically hand-written or generated query; a query that large is almost always generated and better formatted by the tool that generated it.
+related:
+  - json-formatter
+  - regex-tester
+  - diff-checker
+  - html-css-js-minifier
+---
+
+## Why formatting needs a real parser, not regular expressions
+
+A regex-based "SQL beautifier" that just looks for keywords and inserts line breaks breaks on
+a keyword that appears inside a string literal or a comment (`WHERE name = 'FROM the UK'`),
+or on dialect-specific syntax it wasn't written to expect. This tool uses
+[`sql-formatter`](https://github.com/sql-formatter-org/sql-formatter), a widely used,
+open-source library that actually tokenizes and parses the query per-dialect before
+reformatting it — the same reason this site reaches for a real library rather than a
+hand-rolled parser for YAML, another format whose grammar is too easy to misread by hand.

@@ -1,0 +1,56 @@
+---
+title: Image ↔ Base64 Converter
+headline: Image to Base64 Converter (and Back)
+description: Convert an image to a base64 data URL, or decode base64 back into a downloadable image. Runs entirely in your browser. Free, no sign-up required.
+summary: Convert an image to base64 for inlining in CSS/HTML, or decode base64 back into an image.
+category: Convert
+order: 21
+updated: 2026-08-23
+whatIsIt: >-
+  A `data:` URL embeds a file's content directly inside a string, so an image can be inlined
+  straight into HTML or CSS with no separate file request. This tool converts an image file
+  into that base64-encoded form, ready to paste into an `<img src>` or a CSS `url()`, and does
+  the reverse too: paste a base64 string or a data URL back in and get a live preview plus a
+  downloadable image file. Decoding accepts a bare base64 string with no prefix by sniffing the
+  image format directly from its bytes (the same technique a browser or image viewer uses),
+  since a bare string carries no declared type of its own.
+useCases:
+  - Inlining a small icon or logo directly into a CSS stylesheet or HTML file to save an extra network request.
+  - Embedding an image inside a JSON payload, a config file, or an email template that can't reference an external file.
+  - Recovering a viewable, downloadable image from a base64 string found in an API response, a browser's network inspector, or a log file.
+  - Checking what an unlabelled base64 blob actually is before deciding what to do with it.
+howTo:
+  - Choose a direction — "Image → Base64" to encode a file, or "Base64 → Image" to decode a string.
+  - To encode, drag an image onto the drop zone or choose a file; the base64 data URL and ready-to-paste `<img>`/CSS snippets appear immediately.
+  - To decode, paste a bare base64 string or a full `data:image/…;base64,…` URL, or click "Load example" to see a working sample; a live preview and detected image type appear immediately.
+  - Copy the result, download the decoded image as a file, or copy a link that restores a pasted base64 string.
+example:
+  label: A tiny PNG, encoded to base64 and back.
+  input: A 1×1 red pixel PNG file
+  output: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+  note: Pasting that same string back into "Base64 → Image" (with or without the "data:image/png;base64," prefix) reconstructs the identical pixel.
+faq:
+  - q: Why is there a file size limit on encoding?
+    a: Base64 always inflates size by roughly a third (4 characters of text for every 3 bytes of binary data), so a large photo becomes an even larger string — usually the wrong tradeoff for inlining. The 15 MB source-file limit keeps the resulting base64 string, which is held entirely in your browser tab's memory as plain text, from becoming unwieldy. For anything that large, link to the file normally instead of inlining it.
+  - q: How does decoding work when I paste base64 with no "data:" prefix?
+    a: 'The decoder reads the first several decoded bytes and checks them against the known byte signatures real image formats start with — PNG, JPEG, GIF, WEBP, BMP and ICO all begin with a fixed byte sequence, and SVG (being plain text, not binary) is recognised by finding an `<svg` tag instead. If nothing matches, the string is rejected as not being a recognisable image rather than guessed at, since guessing wrong would show a broken image with no explanation.'
+  - q: Is a `data:` URL always a good idea for images?
+    a: Not always — it trades a separate cacheable network request for a larger HTML/CSS payload that can't be cached independently or reused across pages. It's a good fit for small, single-use icons (especially ones that would otherwise cost a whole extra request), and a poor fit for a photo or an image reused across many pages, where a normal linked file usually performs better.
+  - q: Does this upload my image anywhere?
+    a: No — encoding and decoding both happen entirely in your browser using the File and Canvas APIs; the image is never sent to a server. That's true of every tool on this site, but it's worth stating plainly here since uploading an image is exactly what this tool might otherwise sound like it does.
+  - q: Why does decoding a "data:" URL trust its declared type instead of sniffing it too?
+    a: Because a well-formed `data:image/png;base64,...` URL already states its type explicitly as part of the format — re-deriving it from the bytes would be redundant, and if the two ever disagreed, silently preferring the sniffed guess over what was explicitly declared would be more surprising, not less. Sniffing is used only for a bare payload, which has nothing else to go on.
+related:
+  - base64-encode-decode
+  - qr-code-generator
+  - color-converter
+---
+
+## Why decoding sniffs the format instead of asking
+
+A bare base64 string, unlike a `data:` URL, has no type field anywhere in it — it's just an
+encoded stream of bytes. Guessing "probably a PNG" and rendering it as one regardless of what
+it actually is would either silently show a broken image or, worse, mis-render something that
+happened to decode without erroring. Reading the first few bytes and matching them against each
+format's real signature (the same check a browser's own image decoder performs before parsing)
+means the detected type is actually correct, not just assumed.

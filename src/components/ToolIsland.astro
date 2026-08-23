@@ -17,6 +17,10 @@ import UserAgentParser from '../islands/UserAgentParser';
 import CronExplainer from '../islands/CronExplainer';
 import DataFormatConverter from '../islands/DataFormatConverter';
 import CidrCalculator from '../islands/CidrCalculator';
+import SqlFormatter from '../islands/SqlFormatter';
+import Minifier from '../islands/Minifier';
+import ImageBase64Tool from '../islands/ImageBase64Tool';
+import FakeDataGenerator from '../islands/FakeDataGenerator';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -59,3 +63,7 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'cron-expression-explainer' && <CronExplainer client:load />}
 {slug === 'data-format-converter' && <DataFormatConverter client:load />}
 {slug === 'cidr-subnet-calculator' && <CidrCalculator client:load />}
+{slug === 'sql-formatter' && <SqlFormatter client:load />}
+{slug === 'html-css-js-minifier' && <Minifier client:load />}
+{slug === 'image-base64-converter' && <ImageBase64Tool client:load />}
+{slug === 'fake-data-generator' && <FakeDataGenerator client:load />}

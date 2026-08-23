@@ -1,0 +1,65 @@
+---
+title: HTML / CSS / JS Minifier
+headline: HTML, CSS & JavaScript Minifier
+description: Minify HTML, CSS or JavaScript to reduce file size for production. Runs entirely in your browser. Free, no sign-up required.
+summary: Shrink HTML, CSS or JavaScript by stripping comments and unnecessary whitespace.
+category: Format
+order: 20
+updated: 2026-08-23
+whatIsIt: >-
+  Minification strips everything from a file that a browser doesn't need to run it —
+  comments, indentation, line breaks — so it downloads and parses faster without changing
+  what it does. This tool minifies HTML, CSS and JavaScript, picked from one selector. CSS and
+  HTML use a careful hand-written pass that never touches whitespace inside a string, a
+  `calc()` expression, or a `<pre>`/`<script>`/`<style>` block, since those are exactly the
+  places a naive minifier silently breaks things. JavaScript uses
+  [Terser](https://terser.org), a real parser-based minifier, because safely minifying
+  JavaScript — telling a regular expression apart from a division, knowing where semicolons
+  can be safely omitted — genuinely requires parsing the code, not pattern-matching it.
+useCases:
+  - Shrinking a CSS or JS bundle before shipping it to production, when a build pipeline isn't set up or is overkill for a single file.
+  - Minifying an inline `<style>` or `<script>` block, or a small standalone HTML fragment, without pulling in a full bundler.
+  - Comparing minified output size against the original to estimate a real transfer-size saving before adopting a build step.
+  - Preparing a code snippet for a size-constrained context (an email template, a bookmarklet, a URL-embedded script).
+howTo:
+  - Pick HTML, CSS or JavaScript from the language selector.
+  - Paste code, drop a file, or click "Load example" to see a working sample.
+  - The minified result appears immediately, along with the size reduction.
+  - Copy the result, download it as a file, or copy a link that restores this exact input.
+example:
+  label: A small CSS rule, minified.
+  input: |-
+    /* card styles */
+    .card {
+      display: flex;
+      padding: 16px;
+    }
+  output: .card{display:flex;padding:16px}
+  note: The comment and all line breaks are gone, but the meaningful single space inside any calc() or nth-child() argument elsewhere in a stylesheet would be preserved exactly.
+faq:
+  - q: Why does the CSS/HTML minifier sometimes leave a space I expected it to remove?
+    a: 'By design, in two specific places: whitespace inside parentheses (so `calc(100% - 10px)` and `:nth-child(2n + 1)` keep the single space their syntax requires), and whitespace between two HTML tags (so `<span>A</span> <span>B</span>` never collapses into "AB" by losing the space that keeps them visually separate). A hand-rolled minifier that strips those unconditionally is a real, common bug — this tool trades a few extra bytes for never producing broken output.'
+  - q: Why does JavaScript minification rename my variables?
+    a: 'Terser''s default settings both compress (rewriting expressions to a shorter equivalent) and mangle (renaming local variables and function parameters to single letters) — this is standard production-minifier behaviour and is what makes JS minification produce the biggest size reduction of the three languages here. It only renames names that are local to a scope; anything reachable from outside the minified code (a global, an exported name) is left alone.'
+  - q: Does this recursively minify a `<script>` or `<style>` block inside HTML input?
+    a: No — content inside `<script>`, `<style>`, `<pre>` and `<textarea>` is always copied through untouched when minifying HTML, deliberately. Minifying an embedded script correctly requires knowing where it actually ends (a `</script>` inside a string literal shouldn't count), and getting that wrong silently truncates code — safer to leave it as-is. Minify embedded CSS or JS separately by switching the language selector.
+  - q: Will minifying change what my code does?
+    a: 'For CSS and HTML, no — only insignificant whitespace and comments are removed. For JavaScript, Terser''s default compression is semantics-preserving by design (it''s one of the most widely used production minifiers on the web, and correctness bugs are treated as release-blocking upstream) but, as with any code transformation, test the minified output before shipping it, the same as you would after running any build tool.'
+  - q: Is there a size limit?
+    a: Yes, 1,000,000 characters — minification runs synchronously in your browser tab with no server to offload to, so an unbounded input would freeze the page with no way to show progress. That covers any hand-written file or reasonably sized generated bundle; anything larger is better handled by a real build pipeline anyway.
+related:
+  - sql-formatter
+  - json-formatter
+  - regex-tester
+---
+
+## Why CSS and HTML use a hand-written minifier, but JavaScript doesn't
+
+CSS and HTML's minification rules are simple enough to get right without a full parser: strip
+comments, collapse whitespace, and leave a short list of exceptions (parentheses, raw-text
+tags) alone. JavaScript is a different order of complexity — the same `/` character means
+"divide" in one position and "start a regular expression" in another, and getting that wrong
+produces code that throws or behaves differently, not just code that looks different. That's
+the same reasoning this site already applies to YAML parsing (real parser) versus CSV parsing
+(hand-rolled): use a real, well-tested library exactly where a grammar is too easy to misread
+by hand, and nowhere else.
