@@ -12,14 +12,14 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && node scripts/optimize-images.mjs",
     "preview": "astro preview",
     "astro": "astro",
     "check": "astro check",
     "test": "vitest run",
     "test:watch": "vitest",
-    "deploy": "npm run test && npx astro check && npx astro build && npx wrangler deploy --env staging",
-    "deploy:prod": "npm run test && npx astro check && npx astro build && npx wrangler deploy"
+    "deploy": "npm run test && npx astro check && npm run build && npx wrangler deploy --env staging",
+    "deploy:prod": "npm run test && npx astro check && npm run build && npx wrangler deploy"
   },
   "dependencies": {
     "@astrojs/mdx": "^7.0.5",
@@ -45,6 +45,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/spark-md5": "^3.0.5",
     "jsdom": "^30.0.1",
+    "sharp": "^0.35.3",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10",
     "zod": "^4.4.3"
