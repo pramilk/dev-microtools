@@ -141,6 +141,10 @@ export default function ImageFormatConverter() {
   const [batchError, setBatchError] = useState<string | null>(null);
   const [zipping, setZipping] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  /** Job whose transparency-loss warning has been dismissed — keyed by job id, since the
+   *  warning is job-specific and a fresh conversion could re-introduce it for a different
+   *  job while this one stays dismissed. */
+  const [dismissedTransparencyJobId, setDismissedTransparencyJobId] = useState<string | null>(null);
   const jobSeqRef = useRef<Map<string, number>>(new Map());
   const jobsRef = useRef<ImageJob[]>([]);
   jobsRef.current = jobs;
@@ -248,6 +252,7 @@ export default function ImageFormatConverter() {
     setJobs([]);
     setBatchError(null);
     setSelectedJobId(null);
+    setDismissedTransparencyJobId(null);
     setFormat('image/png');
     setQuality(DEFAULT_QUALITY);
     setDebouncedQuality(DEFAULT_QUALITY);
@@ -355,20 +360,6 @@ export default function ImageFormatConverter() {
         <p class="field__hint">ICO is capped at {MAX_ICO_DIMENSION}×{MAX_ICO_DIMENSION}px — a larger image is downscaled to fit, preserving proportions.</p>
       )}
 
-      {LOSSY_TARGET_FORMATS.has(format) && jobs.length > 0 && (
-        <label class="control" title="70-85% is usually visually indistinguishable from the original while cutting file size dramatically.">
-          <span class="field__hint">Quality ({Math.round(quality * 100)}%)</span>
-          <input
-            type="range"
-            min="1"
-            max="100"
-            value={Math.round(quality * 100)}
-            aria-label="Quality"
-            onInput={(event) => setQuality(Number((event.target as HTMLInputElement).value) / 100)}
-          />
-        </label>
-      )}
-
       <MultiFileDropzone
         onFilesSelected={addFiles}
         roomRemaining={Math.max(0, MAX_BATCH_FILES - jobs.length)}
@@ -460,12 +451,21 @@ export default function ImageFormatConverter() {
             </p>
           )}
 
-          {selectedJob.result?.transparencyLost && (
+          {selectedJob.result?.transparencyLost && dismissedTransparencyJobId !== selectedJob.id && (
             <p class="msg msg--warning">
               <span class="msg__icon" aria-hidden="true">
                 !
               </span>
               <span>Transparency was lost converting to JPEG — it has no alpha channel, so transparent areas were filled with a solid background.</span>
+              <button
+                type="button"
+                class="msg__dismiss"
+                onClick={() => setDismissedTransparencyJobId(selectedJob.id)}
+                aria-label="Dismiss this warning"
+                title="Dismiss"
+              >
+                ✕
+              </button>
             </p>
           )}
 
@@ -478,17 +478,33 @@ export default function ImageFormatConverter() {
 
           {selectedJob.result && (
             <>
-              <p class="job__stats" data-testid="selected-job-stats">
-                <SavingsBadge beforeBytes={selectedJob.file.size} afterBytes={selectedJob.result.blob.size} large />
-                <span class="field__hint">
-                  {formatBytes(selectedJob.file.size)} → {formatBytes(selectedJob.result.blob.size)} · {selectedJob.result.width}×{selectedJob.result.height}px
-                </span>
-                {selectedJob.status === 'converting' && (
+              <div class="job-detail__meta">
+                <p class="job__stats" data-testid="selected-job-stats">
+                  <SavingsBadge beforeBytes={selectedJob.file.size} afterBytes={selectedJob.result.blob.size} large />
                   <span class="field__hint">
-                    <span class="job__spinner" aria-hidden="true" /> Updating…
+                    {formatBytes(selectedJob.file.size)} → {formatBytes(selectedJob.result.blob.size)} · {selectedJob.result.width}×{selectedJob.result.height}px
                   </span>
+                  {selectedJob.status === 'converting' && (
+                    <span class="field__hint">
+                      <span class="job__spinner" aria-hidden="true" /> Updating…
+                    </span>
+                  )}
+                </p>
+                {LOSSY_TARGET_FORMATS.has(format) && (
+                  <label class="control control--inline" title="70-85% is usually visually indistinguishable from the original while cutting file size dramatically.">
+                    <span class="field__hint">Quality ({Math.round(quality * 100)}%)</span>
+                    <input
+                      type="range"
+                      min="1"
+                      max="100"
+                      value={Math.round(quality * 100)}
+                      aria-label="Quality"
+                      onInput={(event) => setQuality(Number((event.target as HTMLInputElement).value) / 100)}
+                    />
+                    <span class="control__hint">Recommended: 70–85%</span>
+                  </label>
                 )}
-              </p>
+              </div>
               <div class="panes panes--split">
                 <div class="field">
                   <span class="field__label">Original</span>
@@ -500,12 +516,7 @@ export default function ImageFormatConverter() {
                   </p>
                 </div>
                 <div class="field">
-                  <div class="field__label">
-                    <span>Converted</span>
-                    <button type="button" class="btn" onClick={() => downloadJob(selectedJob)} title={`Save as ${outputFileName(selectedJob.file.name, selectedJob.result.format)}`}>
-                      <span aria-hidden="true">⭳</span> Download
-                    </button>
-                  </div>
+                  <span class="field__label">Converted</span>
                   <div class={`image-preview${selectedJob.result.format !== 'image/jpeg' ? ' image-preview--checkerboard' : ''}`}>
                     <img src={selectedJob.result.url} alt={`${selectedJob.file.name}, converted to ${TARGET_FORMAT_LABELS[selectedJob.result.format]}`} />
                   </div>
@@ -546,7 +557,22 @@ export default function ImageFormatConverter() {
 
         .job-detail { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border); }
         .job-detail__name { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); margin: 0 0 var(--space-2); overflow-wrap: anywhere; }
-        .job__stats { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin: 0 0 var(--space-3); }
+        /* .msg itself carries no margin (it's used inline elsewhere too) — add the gap here
+           so a warning never sits flush against whatever follows it in this panel. */
+        .job-detail .msg { margin: 0 0 var(--space-3); }
+        .msg__dismiss {
+          margin-left: auto; flex-shrink: 0; background: none; border: none; padding: 0 0 0 var(--space-2);
+          color: inherit; opacity: 0.7; cursor: pointer; font-size: var(--text-sm); line-height: 1.5;
+        }
+        .msg__dismiss:hover { opacity: 1; }
+        .job__stats { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin: 0; }
+        /* Puts the Quality control on the same line as the savings stats when there's room —
+           roughly above the "Converted" pane below, right next to the result it affects —
+           and lets it wrap to its own line on a narrow viewport instead of overflowing. */
+        .job-detail__meta {
+          display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3);
+          flex-wrap: wrap; margin: 0 0 var(--space-3);
+        }
         .job__error-flag { font-size: var(--text-sm); font-weight: 600; color: var(--danger); }
         .job__warning-flag { color: var(--warning); font-size: var(--text-base); line-height: 1; cursor: help; }
         .job__spinner {
@@ -566,6 +592,7 @@ export default function ImageFormatConverter() {
         }
 
         .control { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-3); max-width: 20rem; }
+        .control--inline { margin-top: 0; min-width: 12rem; flex: 1 1 12rem; max-width: 20rem; }
         .control__hint { font-size: var(--text-xs); color: var(--text-subtle); }
 
         .image-preview {
