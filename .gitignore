@@ -25,3 +25,6 @@ pnpm-debug.log*
 
 # Playwright MCP screenshots/snapshots
 .playwright-mcp/
+
+# internal roadmap/strategy notes — not for public visibility
+.assets/PLAN.md
