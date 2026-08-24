@@ -14,6 +14,11 @@ export default defineConfig({
   // No adapter needed to deploy to Cloudflare Workers static assets.
   output: 'static',
   trailingSlash: 'always',
+  // Static build-time redirect: /feedback/ has no content of its own, it just forwards
+  // to GitHub Issues so the site can link to a stable internal URL from the nav.
+  redirects: {
+    '/feedback': 'https://github.com/pramilk/dev-microtools/issues/new',
+  },
   integrations: [preact(), mdx(), sitemap()],
   build: {
     // Emit `/tools/foo/index.html` so URLs stay trailing-slash consistent.
