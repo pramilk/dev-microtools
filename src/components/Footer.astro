@@ -1,10 +1,14 @@
 ---
 import { getCollection } from 'astro:content';
 import { SITE } from '../lib/site';
+import { CATEGORIES } from '../lib/categories';
 
 // Full tool index in the footer: every tool is reachable in one click from every
 // page. This is both a usability win and how newly published tools get crawled fast.
 const tools = (await getCollection('tools')).sort((a, b) => a.data.order - b.data.order);
+// Grouped by category, same as the homepage and sidebar — section order comes from
+// CATEGORIES, not tool.order, which only sorts tools within a category.
+const categories = CATEGORIES.filter((category) => tools.some((tool) => tool.data.category === category));
 const year = new Date().getFullYear();
 ---
 
@@ -12,15 +16,24 @@ const year = new Date().getFullYear();
   <div class="container site-footer__inner">
     <nav class="footer-tools" aria-label="All tools">
       <h2 class="footer-heading">All tools</h2>
-      <ul class="footer-tools__list">
+      <div class="footer-tools__categories">
         {
-          tools.map((tool) => (
-            <li>
-              <a href={`/${tool.id}/`}>{tool.data.title}</a>
-            </li>
+          categories.map((category) => (
+            <div class="footer-tools__group">
+              <h3 class="footer-tools__group-title">{category}</h3>
+              <ul class="footer-tools__list">
+                {tools
+                  .filter((tool) => tool.data.category === category)
+                  .map((tool) => (
+                    <li>
+                      <a href={`/${tool.id}/`}>{tool.data.title}</a>
+                    </li>
+                  ))}
+              </ul>
+            </div>
           ))
         }
-      </ul>
+      </div>
     </nav>
 
     <div class="footer-meta">
@@ -75,13 +88,29 @@ const year = new Date().getFullYear();
     margin-bottom: var(--space-3);
   }
 
+  .footer-tools__categories {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    gap: var(--space-5) var(--space-4);
+  }
+
+  .footer-tools__group-title {
+    font-size: var(--text-xs);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    margin: 0 0 var(--space-2);
+  }
+
   .footer-tools__list {
     list-style: none;
     margin: 0;
     padding: 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-    gap: var(--space-2) var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
   }
 
   .footer-tools__list a {
