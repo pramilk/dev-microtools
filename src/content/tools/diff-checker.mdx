@@ -56,3 +56,10 @@ related:
 If you only need to know *whether* two things differ, not *how*, hashing both and comparing
 the digests is far quicker — especially for large inputs. Reach for the diff when the
 answer to "are these different?" is yes and the next question is "where?".
+
+## What computes the diff
+
+Comparisons run on [`diff`](https://github.com/kpdecker/jsdiff) (BSD-3-Clause licensed), a
+small, open-source library that implements the same Myers diff algorithm behind `git diff`
+— a proven, widely used implementation rather than a hand-rolled comparison that would be
+far more likely to get an edge case wrong.

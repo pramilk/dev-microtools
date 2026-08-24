@@ -86,3 +86,9 @@ comment or unused `xmlns:xlink` declarations), collapses redundant groups, and r
 coordinate precision most renderers never use (`40.123456789` becomes `40.12`). It leaves
 anything that affects appearance untouched — colors, paths, and structure needed to render
 the image stay exactly as they were.
+
+## What powers the optimization
+
+This tool runs [SVGO](https://github.com/svg/svgo) (MIT licensed) — the same optimizer
+behind most SVG build-tool integrations — compiled to its official browser build, so
+optimization happens entirely client-side with no server round-trip.

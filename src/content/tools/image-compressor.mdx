@@ -60,3 +60,11 @@ WebP while cutting file size dramatically — go lower only for thumbnails or pr
 some visible compression is acceptable. Downscaling with the max-dimension option is often
 the single biggest lever: an image twice as wide and twice as tall as it needs to be has
 roughly four times the pixel data to encode, regardless of quality setting.
+
+## What powers compression and downloads
+
+JPEG, WebP, and the baseline PNG pass all use the browser's own Canvas API. The extra
+lossless PNG pass runs [`@jsquash/oxipng`](https://github.com/jamsinclair/jSquash)
+(Apache-2.0 licensed), a WebAssembly build of the Oxipng optimizer, and the "download all
+as zip" option is built with [`fflate`](https://github.com/101arrowz/fflate) (MIT
+licensed), a small, fast zip implementation — both run entirely in your browser.

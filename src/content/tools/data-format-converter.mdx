@@ -58,6 +58,7 @@ related:
 YAML's grammar is genuinely complex — block and flow styles, anchors and aliases,
 multi-line scalars, implicit typing — the kind of thing where a hand-rolled parser produces
 subtle, silent misreadings rather than a clear failure. This tool uses the small,
-well-established `js-yaml` library for that reason. CSV's grammar, by contrast, is simple
+well-established [`js-yaml`](https://github.com/nodeca/js-yaml) library (MIT licensed) for
+that reason. CSV's grammar, by contrast, is simple
 enough (fields, a delimiter, and one quoting rule) to implement directly and test
 exhaustively, so it doesn't carry that same dependency risk.

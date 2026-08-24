@@ -51,3 +51,9 @@ related:
 ## A note on cost factor and hardware
 
 The right cost factor depends on the hardware doing the hashing and how much latency a login flow can tolerate — a common server-side guideline is to pick the highest cost that keeps a single hash under roughly 100-250ms on your production hardware. Because this tool runs in a browser tab rather than a server, its round cap is set well below what a real deployment might use; treat the hashes it produces as good for inspection and testing, and re-generate production hashes with your server's own bcrypt library so the cost factor matches your actual infrastructure.
+
+## What computes the hash
+
+Hashing and verification run on [`bcryptjs`](https://github.com/dcodeIO/bcrypt.js)
+(BSD-3-Clause licensed), a pure-JavaScript implementation of bcrypt with no native module
+or WebAssembly dependency — chosen specifically because it runs entirely client-side.

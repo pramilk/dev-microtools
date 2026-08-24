@@ -53,3 +53,10 @@ related:
 A QR code that encodes a full, long URL works, but produces a denser, harder-to-scan
 pattern than one encoding a short link. If a URL is long — with tracking parameters, for
 instance — consider generating the code from a shortened version instead.
+
+## What generates the code
+
+QR codes are built with [`qrcode-generator`](https://github.com/kazuhikoarase/qrcode-generator)
+(MIT licensed), a small, open-source library that implements the QR standard's encoding and
+error-correction directly. The result is then drawn onto an in-page canvas for the PNG/SVG
+export — nothing is generated server-side.

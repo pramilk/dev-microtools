@@ -60,3 +60,12 @@ This tool hashes text. To check a downloaded file against a published checksum, 
 operating system's built-in command instead — `sha256sum file` on Linux,
 `shasum -a 256 file` on macOS, or `Get-FileHash file` in PowerShell on Windows. Those read
 the file's actual bytes, which is what the published checksum was computed over.
+
+## What computes MD5
+
+SHA-1 and the SHA-2 family are computed by the browser's built-in Web Crypto API. MD5 is
+deliberately excluded from that API — it's cryptographically broken — so it's provided
+instead by two small, open-source, MIT licensed libraries, loaded only when MD5 is actually
+requested: [`blueimp-md5`](https://github.com/blueimp/JavaScript-MD5) for text, and
+[`spark-md5`](https://github.com/satazor/js-spark-md5) for files, since it can hash an
+`ArrayBuffer` directly rather than corrupting binary bytes by re-encoding them as text.
