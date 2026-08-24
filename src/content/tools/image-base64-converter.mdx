@@ -21,8 +21,8 @@ useCases:
   - Checking what an unlabelled base64 blob actually is before deciding what to do with it.
 howTo:
   - Choose a direction — "Image → Base64" to encode a file, or "Base64 → Image" to decode a string.
-  - To encode, drag an image onto the drop zone or choose a file; the base64 data URL and ready-to-paste `<img>`/CSS snippets appear immediately.
-  - To decode, paste a bare base64 string or a full `data:image/…;base64,…` URL, or click "Load example" to see a working sample; a live preview and detected image type appear immediately.
+  - To encode, drag an image onto the drop zone, choose a file, or click "Load example" to try a sample image; the base64 data URL and ready-to-paste `<img>`/CSS snippets appear immediately.
+  - To decode, paste a bare base64 string or a full `data:image/…;base64,…` URL, or click "Load example" for that same sample already encoded; a live preview and detected image type appear immediately.
   - Copy the result, download the decoded image as a file, or copy a link that restores a pasted base64 string.
 example:
   label: A tiny PNG, encoded to base64 and back.
@@ -42,7 +42,7 @@ faq:
     a: Because a well-formed `data:image/png;base64,...` URL already states its type explicitly as part of the format — re-deriving it from the bytes would be redundant, and if the two ever disagreed, silently preferring the sniffed guess over what was explicitly declared would be more surprising, not less. Sniffing is used only for a bare payload, which has nothing else to go on.
 related:
   - base64-encode-decode
-  - qr-code-generator
+  - image-format-converter
   - color-converter
   - image-compressor
 ---

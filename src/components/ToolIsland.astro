@@ -30,6 +30,7 @@ import ImageCompressor from '../islands/ImageCompressor';
 import SvgOptimizer from '../islands/SvgOptimizer';
 import CurlCommandBuilder from '../islands/CurlCommandBuilder';
 import ImageCropper from '../islands/ImageCropper';
+import ImageFormatConverter from '../islands/ImageFormatConverter';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -85,3 +86,4 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'svg-optimizer' && <SvgOptimizer client:load />}
 {slug === 'curl-command-builder' && <CurlCommandBuilder client:load />}
 {slug === 'image-cropper' && <ImageCropper client:load />}
+{slug === 'image-format-converter' && <ImageFormatConverter client:load />}

@@ -1,0 +1,84 @@
+---
+title: Image Format Converter
+headline: Image Format Converter — PNG, JPEG, WebP, BMP & ICO
+description: Convert images between PNG, JPEG, WebP, BMP and ICO in your browser. Batch up to 30 files, rasterize SVG, grab a GIF's first frame, download as a zip.
+summary: Convert one or many images between PNG, JPEG, WebP, BMP and ICO — including SVG rasterization — right in your browser.
+category: Images
+order: 32
+updated: 2026-08-24
+whatIsIt: >-
+  This tool converts one or many images at once from whatever format they're already in
+  into PNG, JPEG, WebP, BMP, or ICO, using the browser's own Canvas API to decode and
+  re-encode each one — the same code path a browser already uses to display an image on
+  screen. PNG, JPEG, and WebP are produced by the canvas's own encoder; BMP and ICO have no
+  browser-native encoder at all, so this tool writes their file formats by hand from the
+  canvas's raw pixel data — an uncompressed 32-bit BMP with a standard bitmap header, and an
+  ICO container wrapping a losslessly-encoded PNG, the same approach every modern favicon
+  generator uses. Input isn't limited to the five output formats: anything the browser can
+  decode works, including rasterizing an SVG into a real pixel-based image and grabbing a
+  still frame from an animated GIF. Drop in up to 30 images at once and every one converts
+  to the same target format; a quality slider appears for the two lossy targets (JPEG,
+  WebP), ICO output is automatically capped and downscaled to fit its 256×256px practical
+  limit, and a clear warning appears whenever converting to JPEG would flatten real
+  transparency onto a solid background, since JPEG has no alpha channel at all. Finished
+  images download individually or all at once as a zip.
+useCases:
+  - Turning a batch of PNG screenshots or logos into JPEGs when a form, upload target, or CMS only accepts that one format.
+  - Rasterizing an SVG icon into a PNG at its natural size for a context that can't render vector graphics.
+  - Converting a set of photos to WebP for smaller files that still keep full transparency support, unlike JPEG.
+  - Building a favicon.ico from a square PNG or logo without installing a dedicated icon-generation tool.
+  - Producing an uncompressed BMP when a legacy tool, embedded device, or old Windows utility specifically requires one.
+  - Grabbing a single still frame out of an animated GIF as a real PNG or JPEG file.
+howTo:
+  - Drop in one or many images (up to 30 at once), or choose them from your device — almost any format the browser can display works as input.
+  - Pick a target format from PNG, JPEG, WebP, BMP, or ICO — every image in the batch converts to it.
+  - For JPEG or WebP, drag the quality slider and watch each image's converted size update live.
+  - Select any image's row to see its full size comparison and, for JPEG, its transparency warning if it had any.
+  - Download one image at a time, or grab the whole finished batch as a single zip.
+example:
+  label: A generated sample image with transparency, converted to JPEG.
+  input: 'A 480×480 PNG circle with a transparent background.'
+  output: 'The same image re-encoded as JPEG, with a visible warning that the transparent background was flattened onto a solid fill.'
+  note: Press "Load example" to generate a real sample image and see the actual conversion and transparency warning for yourself.
+faq:
+  - q: Does this upload my image anywhere?
+    a: No. Decoding and re-encoding both happen in your browser using the Canvas API, and the BMP/ICO encoders are plain JavaScript that also run locally — nothing you choose is ever sent to a server, which is true of every tool on this site.
+  - q: Why can this tool produce BMP and ICO when Image Compressor can't?
+    a: No browser's canvas encoder supports BMP or ICO output at all — it only ever produces PNG, JPEG, or WebP. This tool gets around that by writing those two file formats by hand from the canvas's raw pixel data instead of relying on the browser to do it, which Image Compressor (focused purely on shrinking file size, not format breadth) doesn't need to do.
+  - q: Why does ICO output cap the image at 256×256px?
+    a: That's the practical ceiling of the ICO format itself — its directory entry can only address a width or height up to 256 pixels. A larger source image is automatically downscaled to fit within that, preserving its proportions, rather than producing a technically invalid file.
+  - q: Can I convert an SVG with this tool?
+    a: "Yes — drop in an SVG and it rasterizes into a real pixel image at whichever target format you pick, the same way a browser renders it for display. If you need to *edit or shrink* SVG markup rather than rasterize it, use the SVG Optimizer instead; this tool is one-way, vector to raster only."
+  - q: What happens if I convert an animated GIF?
+    a: Only its first frame converts — canvas-based re-encoding has no concept of animation, so every frame after the first is discarded. A warning appears the moment you choose a GIF so this is never a silent surprise.
+  - q: Why did my image lose its transparent background?
+    a: JPEG has no alpha channel at all, so converting any image with real transparency (a PNG, WebP, or BMP with a genuinely transparent area) to JPEG fills that area with a solid background. This tool checks for that and shows a clear warning whenever it happens — PNG, WebP, and BMP output all keep transparency intact.
+  - q: What's the largest image this will handle?
+    a: Files up to 25 MB each. Decoding and re-encoding both happen synchronously in your browser tab, so a much larger file risks becoming unresponsive rather than failing gracefully — resize a very large image with a desktop tool first if you hit this limit.
+  - q: Can I convert a batch of images at once?
+    a: Yes — drop or choose as many images as you like (up to 30 in one batch) and every image converts to the same target format and quality setting. Each finishes independently with its own size comparison, and you can download one at a time or grab the whole finished batch as a single .zip file.
+related:
+  - image-compressor
+  - svg-optimizer
+  - image-base64-converter
+  - image-cropper
+---
+
+## Choosing a target format
+
+PNG stays fully lossless and keeps transparency, making it the safe default for
+screenshots, logos, and anything with sharp edges or text. JPEG produces the smallest files
+for photos but has no transparency support at all. WebP is usually the best of both worlds
+on a modern site — smaller than JPEG at equivalent quality, and it still supports
+transparency — but it isn't universally supported by every legacy tool. BMP is
+intentionally uncompressed, useful mainly when a specific legacy application or embedded
+tool demands one. ICO exists purely for favicons and application icons, and is capped
+accordingly.
+
+## What powers this conversion
+
+PNG, JPEG, and WebP output all go through the browser's own Canvas API, the same decoder
+and encoder a browser already uses to display an image. BMP and ICO have no such
+browser-native encoder, so this tool writes both file formats itself: an uncompressed
+32-bit bitmap for BMP, and a minimal ICO container wrapping a PNG-compressed image for ICO
+— both plain JavaScript, running entirely in your browser with no external library.

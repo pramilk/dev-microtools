@@ -35,6 +35,7 @@ using any tool and you'll see no outbound request carrying your input.
 | [Image Compressor](https://devmicrotools.com/image-compressor/) | Images | Compress JPEG, PNG, or WebP images in your browser — batch multiple files, compare before/after, download as a zip. |
 | [SVG Optimizer](https://devmicrotools.com/svg-optimizer/) | Images | Strip comments, metadata, and editor cruft from SVG markup — tune precision, compare before/after, download. |
 | [Image Cropper](https://devmicrotools.com/image-cropper/) | Images | Crop an image to a selected area and resize it to exact pixel dimensions, right in your browser. |
+| [Image Format Converter](https://devmicrotools.com/image-format-converter/) | Images | Convert one or many images between PNG, JPEG, WebP, BMP and ICO — including SVG rasterization — right in your browser. |
 | [Regex Tester](https://devmicrotools.com/regex-tester/) | Inspect | Test regular expressions with live highlighting, groups and replace preview. |
 | [JWT Debugger](https://devmicrotools.com/jwt-decoder/) | Inspect | Decode, verify and sign JSON Web Tokens without uploading them anywhere. |
 | [User-Agent Parser](https://devmicrotools.com/user-agent-parser/) | Inspect | Parse a User-Agent string into browser, OS, rendering engine and device type. |

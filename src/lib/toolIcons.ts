@@ -42,6 +42,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'svg-optimizer': 'SVG',
   'curl-command-builder': 'CURL',
   'image-cropper': 'CROP',
+  'image-format-converter': 'FMT',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

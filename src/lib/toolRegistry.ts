@@ -31,6 +31,7 @@ import ImageCompressor from '../islands/ImageCompressor';
 import SvgOptimizer from '../islands/SvgOptimizer';
 import CurlCommandBuilder from '../islands/CurlCommandBuilder';
 import ImageCropper from '../islands/ImageCropper';
+import ImageFormatConverter from '../islands/ImageFormatConverter';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -71,6 +72,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'svg-optimizer': SvgOptimizer,
   'curl-command-builder': CurlCommandBuilder,
   'image-cropper': ImageCropper,
+  'image-format-converter': ImageFormatConverter,
 };
 
 /**

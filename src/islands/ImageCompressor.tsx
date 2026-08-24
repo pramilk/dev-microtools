@@ -15,6 +15,8 @@ import { formatBytes } from './shared/formatBytes';
 import { SavingsBadge } from './shared/SavingsBadge';
 import { CompareSlider } from './shared/CompareSlider';
 import { ErrorMessage } from './shared/ErrorMessage';
+import { canvasHasTransparency } from './shared/canvasTransparency';
+import { MultiFileDropzone } from './shared/MultiFileDropzone';
 
 /** Floor for the Max dimension slider — a UI bound only (the underlying field accepts any positive number by typing it), just low enough that dragging never produces a degenerate near-zero image. */
 const MIN_DIMENSION_SLIDER = 16;
@@ -56,15 +58,6 @@ const nextJobId = (): string => `job-${(jobSeq += 1)}`;
  */
 /** Source formats that can actually carry an alpha channel — checking for real transparency is only worth the pixel scan below when converting one of these to JPEG, the one output format with no alpha support at all. */
 const ALPHA_CAPABLE_SOURCE_TYPES = new Set(['image/png', 'image/webp', 'image/avif']);
-
-/** Scans the alpha channel of whatever's currently drawn on `context` for any non-opaque pixel. Only called for a JPEG-bound image whose source format can carry alpha — cheap in the common case (most such images have no real transparency to find, but this still has to touch every pixel to be sure), and never run at all for the two formats (WebP, PNG) that don't need this warning. */
-function canvasHasTransparency(context: CanvasRenderingContext2D, width: number, height: number): boolean {
-  const { data } = context.getImageData(0, 0, width, height);
-  for (let i = 3; i < data.length; i += 4) {
-    if (data[i] < 255) return true;
-  }
-  return false;
-}
 
 async function compressImage(
   file: File,
@@ -165,54 +158,6 @@ const SUPPORTED_KEEP_FORMATS = new Set<string>(OUTPUT_FORMATS);
 /** The format a given file actually compresses to: its own format when "Keep original format" is on and that format is one of the three this tool can encode, otherwise the batch-wide fallback format selected in the tool-bar. */
 const effectiveFormat = (file: File, fallback: OutputFormat, keepOriginal: boolean): OutputFormat =>
   keepOriginal && SUPPORTED_KEEP_FORMATS.has(file.type) ? (file.type as OutputFormat) : fallback;
-
-/** A drop zone that accepts one or many images at once — unlike the shared single-file `FileDropzone`, which every other file-based tool here uses. */
-function MultiFileDropzone({ onFilesSelected, roomRemaining }: { onFilesSelected: (files: File[]) => void; roomRemaining: number }) {
-  const [dragOver, setDragOver] = useState(false);
-
-  return (
-    <div
-      class={`dropzone${dragOver ? ' dropzone--active' : ''}`}
-      onDragOver={(event) => {
-        event.preventDefault();
-        setDragOver(true);
-      }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={(event) => {
-        event.preventDefault();
-        setDragOver(false);
-        const files = Array.from(event.dataTransfer?.files ?? []);
-        if (files.length > 0) onFilesSelected(files);
-      }}
-    >
-      {/* Reflects how many more images the batch can actually take, not always the flat
-          MAX_BATCH_FILES cap — once some are already added, "up to 30" reads as wrong. */}
-      <p>
-        {roomRemaining === MAX_BATCH_FILES
-          ? `Drag one or more images here (up to ${MAX_BATCH_FILES} at once), or`
-          : roomRemaining > 0
-            ? `Drag more images here (${roomRemaining} more allowed), or`
-            : `Batch is full (${MAX_BATCH_FILES} max) — remove one to add another, or`}
-      </p>
-      <label class="btn">
-        Choose images
-        <input
-          type="file"
-          class="sr-only"
-          accept="image/*"
-          multiple
-          aria-label="Choose images to compress"
-          onChange={(event) => {
-            const input = event.target as HTMLInputElement;
-            const files = Array.from(input.files ?? []);
-            if (files.length > 0) onFilesSelected(files);
-            input.value = '';
-          }}
-        />
-      </label>
-    </div>
-  );
-}
 
 /** A format-button or "Keep original format" change waiting on user confirmation, since either can re-compress and rename every image already in the batch. Holds which one is pending so the banner can phrase itself correctly and `confirmPendingAction` knows which state to commit. */
 type PendingAction = { kind: 'format'; value: OutputFormat } | { kind: 'keepOriginal'; value: boolean };
@@ -569,7 +514,13 @@ export default function ImageCompressor() {
         </p>
       )}
 
-      <MultiFileDropzone onFilesSelected={addFiles} roomRemaining={Math.max(0, MAX_BATCH_FILES - jobs.length)} />
+      <MultiFileDropzone
+        onFilesSelected={addFiles}
+        roomRemaining={Math.max(0, MAX_BATCH_FILES - jobs.length)}
+        maxFiles={MAX_BATCH_FILES}
+        chooseLabel="Choose images to compress"
+        accept="image/*"
+      />
 
       <ErrorMessage message={batchError} />
 
@@ -802,15 +753,6 @@ export default function ImageCompressor() {
       )}
 
       <style>{`
-        .dropzone {
-          border: 2px dashed var(--border-strong); border-radius: var(--radius-lg);
-          padding: var(--space-6) var(--space-4); text-align: center;
-          display: flex; flex-direction: column; align-items: center; justify-content: center;
-          gap: var(--space-2); color: var(--text-muted); background: var(--surface);
-          min-height: 8rem;
-        }
-        .dropzone--active { border-color: var(--accent); background: var(--accent-subtle); }
-
         /* Compact, clickable gallery — select a row to view its full comparison below,
            rather than stacking a full compare slider under every single image. */
         .job-list { list-style: none; margin: var(--space-4) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }

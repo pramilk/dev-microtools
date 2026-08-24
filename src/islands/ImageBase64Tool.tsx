@@ -19,9 +19,19 @@ interface ShareState {
   input: string;
 }
 
-/** A genuine 48×48 PNG smiley (transparent background) — small, but actually visible and a bit more fun than a plain swatch. */
+/** A genuine 48×48 PNG smiley (transparent background) — small, but actually visible and a bit more fun than a plain swatch. Reused as the sample for *both* directions, so "Load example" always fills in the same image whichever way the tool is facing. */
 const SAMPLE_BASE64 =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAA8UlEQVR4nO3WwQ3DMAxD0QzRs/cfpHu5QG8NepBEUrRbC/DR8X9IguS6zpxZZ+bzMSPL3fkx0ejlMGi4DcIOb4Wo46WIrngJojueinDFUxDueAjhjoYR7mAI4I6FEdELjjHeqxqU3S+JryKq+ymA++HZCGT/bwM6HgHGfgpgGl5iOsC1DsC9SgDkhY2u6BnlO9AFkD1CyruQuTb0DigQtI/Z9gAHwvIvdD94u79RNELyH8RCZBc9PguoQipnhAFVRARSvW4qHgGoVhqwEqIUvwoCincjKPEuBDW+GyGJ70JI45WQtnA2xBb+bbaMPvPv8wIKArBdC6W1EQAAAABJRU5ErkJggg==';
+
+/** Decodes `SAMPLE_BASE64` back into a real `File`, so "Load example" on the encode side
+ *  can hand it straight to the dropzone via `setFile` — reusing `parseBase64Image` (already
+ *  imported for the decode direction) rather than a second, separate sample asset. */
+function sampleImageFile(): File {
+  const decoded = parseBase64Image(SAMPLE_BASE64);
+  // SAMPLE_BASE64 is a fixed, known-valid constant — this can't actually fail.
+  if (!decoded.ok) throw new Error('Sample image is invalid.');
+  return new File([new Uint8Array(decoded.value.bytes)], 'sample.png', { type: decoded.value.mimeType });
+}
 
 /** Guesses a file extension for the "Download" button from a decoded image's mime type. */
 const extensionFor = (mimeType: string): string => (mimeType === 'image/svg+xml' ? 'svg' : (mimeType.split('/')[1] ?? 'bin'));
@@ -120,11 +130,14 @@ export default function ImageBase64Tool() {
 
         <span class="tool-bar__spacer" />
         {direction === 'decode' && <ShareLinkButton getState={() => ({ input })} describe="this base64 image" />}
-        {direction === 'decode' && (
-          <button type="button" class="btn" onClick={() => setInput(SAMPLE_BASE64)} title="Load a small example">
-            Load example
-          </button>
-        )}
+        <button
+          type="button"
+          class="btn"
+          onClick={() => (direction === 'encode' ? setFile(sampleImageFile()) : setInput(SAMPLE_BASE64))}
+          title={direction === 'encode' ? 'Load a small sample image to encode' : 'Load a small example'}
+        >
+          Load example
+        </button>
         <button type="button" class="btn" onClick={clear} disabled={file === null && input === ''} title="Clear and start over">
           Clear
         </button>

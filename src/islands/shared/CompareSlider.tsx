@@ -147,6 +147,7 @@ export function CompareSlider({
           </div>
         </div>
       </div>
+      <p class="compare__hint field__hint">Tip: hold Ctrl (⌘ on Mac) and scroll, or use the +/− buttons, to zoom in for a closer look.</p>
       <input
         type="range"
         min="0"
@@ -173,6 +174,7 @@ export function CompareSlider({
            size with no wasted space, while resize:vertical lets a user who wants more room
            — a tall image, or a closer look while zoomed — drag the corner handle for it. */
         .compare__scroll { max-height: 50rem; min-height: 8rem; overflow: auto; resize: vertical; }
+        .compare__hint { margin: var(--space-2) 0 0; }
         .compare__stage {
           position: relative; overflow: hidden; margin: 0 auto; background: var(--surface-2);
           cursor: ew-resize; touch-action: none; user-select: none;

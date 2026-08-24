@@ -46,6 +46,16 @@ describe('<ImageBase64Tool />', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/doesn't look like an image/i);
   });
 
+  it('loads a sample image when "Load example" is pressed in Image → Base64', async () => {
+    render(<ImageBase64Tool />);
+
+    fireEvent.click(screen.getByRole('button', { name: /load example/i }));
+
+    const preview = await screen.findByAltText('sample.png');
+    expect(preview).toHaveAttribute('src', expect.stringContaining('data:image/png;base64,'));
+    expect(screen.getByText(/<img src="data:image\/png/)).toBeInTheDocument();
+  });
+
   it('loads a working example when "Load example" is pressed in Base64 → Image', async () => {
     render(<ImageBase64Tool />);
     fireEvent.click(screen.getByRole('button', { name: /base64 → image/i }));
