@@ -25,6 +25,12 @@ pnpm-debug.log*
 
 # Playwright MCP screenshots/snapshots
 .playwright-mcp/
+# Ad-hoc verification screenshots saved with a bare filename (no directory prefix) land
+# in the repo root instead of .playwright-mcp/ above — ignore any image file at root,
+# never inside public/, src/, or test-assets/, which this doesn't match.
+/*.png
+/*.jpg
+/*.jpeg
 
 # internal roadmap/strategy notes — not for public visibility
 .assets/PLAN.md
