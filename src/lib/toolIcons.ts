@@ -43,6 +43,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'curl-command-builder': 'CURL',
   'image-cropper': 'CROP',
   'image-format-converter': 'FMT',
+  'word-counter': 'WC',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

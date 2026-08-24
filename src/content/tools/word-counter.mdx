@@ -1,0 +1,73 @@
+---
+title: Word Counter
+headline: Word Counter, Character Counter & Case Converter
+description: Count words, characters and reading time, convert between nine text casings, and find and replace with live highlighting. Runs in your browser, nothing uploaded
+summary: Count words and characters, convert text case, and find and replace text — all in your browser.
+category: Inspect
+order: 33
+updated: 2026-08-24
+whatIsIt: >-
+  A word counter measures the size and shape of a piece of text — words, characters,
+  sentences, paragraphs, and how long it will take to read or speak aloud — so you can check
+  a draft against a limit before you submit it. This tool goes further than a plain count: it
+  also converts the text between nine common casing styles (from UPPERCASE and Title Case to
+  identifier styles like camelCase and snake_case), and includes a find-and-replace panel
+  that highlights every match live as you type. Everything runs locally in your browser —
+  the text you paste or drop in is never uploaded anywhere.
+useCases:
+  - Checking a tweet, meta description, or form field against a hard character limit before submitting it.
+  - Estimating how long a blog post, script, or presentation will take to read or speak aloud.
+  - Converting a phrase into camelCase or snake_case for a variable name, or into kebab-case for a URL slug.
+  - Cleaning up pasted text by finding and replacing a repeated typo, placeholder, or inconsistent term across a whole document.
+  - Spotting overused words in a draft using the most-frequent-words list before a final edit pass.
+howTo:
+  - Paste or type your text into the box, or drag a .txt file onto it — stats update live as you go.
+  - Read the stats row for word, character, sentence, paragraph and line counts, plus estimated reading and speaking time.
+  - Click a case button to convert the text in place — prose-style cases (UPPERCASE, lowercase, Title Case) keep your original spacing, while identifier-style cases (camelCase, snake_case, and the rest) rebuild the text as a single token per word, the way those formats work everywhere else.
+  - Tick "Find & replace" to search the text — matches highlight live below the box — then fill in a replacement and click "Replace all".
+  - Click "Copy report" to copy a plain-text summary of every stat, ready to paste into an email or ticket.
+example:
+  label: Running the counter on a short two-paragraph sample.
+  input: |-
+    The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquid jugs!
+
+    Word Counter runs entirely in your browser — nothing you type is ever uploaded. Try the case buttons below, or search for a word to see it highlighted.
+  output: |-
+    44 words · 238 characters (193 without spaces) · 4 sentences · 2 paragraphs
+    Reading time: ~14s · Speaking time: ~18s
+  note: The two pangram-style sentences pack in most of the alphabet, which is why the syllable and average-word-length stats look a little higher than typical prose.
+faq:
+  - q: Why does converting to camelCase or snake_case strip out my spacing, but Title Case doesn't?
+    a: Prose-style cases — UPPERCASE, lowercase, and Title Case — transform each word in place and leave your original spacing, line breaks, and punctuation exactly where they were. Identifier-style cases — camelCase, PascalCase, snake_case, CONSTANT_CASE, kebab-case, and dot.case — have no concept of whitespace at all in the contexts they're actually used (variable names, file names, CSS classes), so converting to one of them rebuilds the text as a single run of joined words, the same way it would look in real code.
+  - q: How accurate is the reading time estimate?
+    a: It's based on 200 words per minute, a commonly cited average for adult silent reading of straightforward text. Actual reading speed varies a lot by reader, familiarity with the subject, and text complexity, so treat it as a rough guide rather than a guarantee — useful for comparing two drafts, less useful as a precise promise to a reader.
+  - q: How is the syllable count calculated?
+    a: By counting groups of consecutive vowels in each word and applying a couple of standard adjustments, such as dropping a silent trailing "e". It's a heuristic, not a dictionary lookup, so it will occasionally be off by one on irregular words — but it's accurate enough for the readability estimates most people use it for.
+  - q: Is my text uploaded anywhere when I use this tool?
+    a: No. Every count, case conversion, and find-and-replace runs in your browser's own JavaScript engine. Nothing you type, paste, or drop as a file is ever sent to a server — you can confirm this yourself by opening your browser's DevTools Network tab while using the tool.
+  - q: Does find and replace support regular expressions?
+    a: No — it's a literal, exact-text search with an optional case-sensitivity toggle, which covers the common case of fixing a repeated typo or swapping one term for another. If you need pattern-based matching with capture groups, the Regex Tester on this site is the dedicated tool for that.
+related:
+  - regex-tester
+  - diff-checker
+---
+
+## Prose casing vs. identifier casing
+
+The nine case options split into two groups that behave differently, and it's worth knowing
+which is which before you click one. UPPERCASE, lowercase, and Title Case are "prose" cases —
+they change the letters and leave everything else, including your line breaks, alone. The
+other six — camelCase, PascalCase, snake_case, CONSTANT_CASE, kebab-case, and dot.case — are
+"identifier" cases borrowed from programming and URL conventions, where a name is always a
+single unbroken token. Converting to one of these treats each word in your text as a
+component of that token and joins them with the target style's separator (or no separator at
+all, for camelCase and PascalCase). Converting an already-cased identifier — `helloWorldExample`
+back to `snake_case`, for instance — works too: the tool recognises the existing camelCase
+boundaries and re-splits on them before rejoining.
+
+## Why a browser-only tool
+
+Word counts are often run on drafts that aren't finished yet — a document under legal
+review, a private message, an unpublished manuscript. Running entirely client-side means
+there's no version of this tool that could log or retain that text, by accident or
+otherwise, because it never leaves your machine.

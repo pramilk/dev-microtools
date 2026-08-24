@@ -42,6 +42,7 @@ using any tool and you'll see no outbound request carrying your input.
 | [Cron Expression Explainer](https://devmicrotools.com/cron-expression-explainer/) | Inspect | Explain a cron expression in plain English and see its next run times. |
 | [CIDR / Subnet Calculator](https://devmicrotools.com/cidr-subnet-calculator/) | Inspect | Calculate network address, broadcast address, host range and mask from a CIDR block. |
 | [URL Parser](https://devmicrotools.com/url-parser/) | Inspect | Decompose a URL into its parts and edit its query parameters live. |
+| [Word Counter](https://devmicrotools.com/word-counter/) | Inspect | Count words and characters, convert text case, and find and replace text — all in your browser. |
 | [CSS Gradient Generator](https://devmicrotools.com/css-gradient-generator/) | Style | Build linear, radial and conic gradients visually and copy the CSS. |
 | [CSS Box-Shadow Generator](https://devmicrotools.com/css-box-shadow-generator/) | Style | Build single or layered box-shadows visually and copy the CSS. |
 

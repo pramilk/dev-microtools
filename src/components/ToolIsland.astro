@@ -31,6 +31,7 @@ import SvgOptimizer from '../islands/SvgOptimizer';
 import CurlCommandBuilder from '../islands/CurlCommandBuilder';
 import ImageCropper from '../islands/ImageCropper';
 import ImageFormatConverter from '../islands/ImageFormatConverter';
+import WordCounter from '../islands/WordCounter';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -87,3 +88,4 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'curl-command-builder' && <CurlCommandBuilder client:load />}
 {slug === 'image-cropper' && <ImageCropper client:load />}
 {slug === 'image-format-converter' && <ImageFormatConverter client:load />}
+{slug === 'word-counter' && <WordCounter client:load />}
