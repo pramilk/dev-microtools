@@ -3,11 +3,14 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { SITE } from '../lib/site';
 import { TOOL_ICONS, DEFAULT_TOOL_ICON } from '../lib/toolIcons';
+import { CATEGORIES } from '../lib/categories';
 
 const tools = (await getCollection('tools')).sort((a, b) => a.data.order - b.data.order);
 
 // Group by category so the index has structure rather than being one long list.
-const categories = [...new Set(tools.map((tool) => tool.data.category))];
+// Section order comes from CATEGORIES, not tool.order — those only sort tools within
+// a category, not the categories themselves.
+const categories = CATEGORIES.filter((category) => tools.some((tool) => tool.data.category === category));
 
 const schema = [
   {

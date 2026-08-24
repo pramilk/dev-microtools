@@ -1,12 +1,15 @@
 ---
 import { getCollection } from 'astro:content';
 import { TOOL_ICONS, DEFAULT_TOOL_ICON } from '../lib/toolIcons';
+import { CATEGORIES } from '../lib/categories';
 
 // Persistent, site-wide tool navigation. Static content (search + the categorised
 // link list) is plain server-rendered HTML — only the filtering behaviour needs a
 // script, and it is a few lines of vanilla DOM code, not a hydrated component.
 const tools = (await getCollection('tools')).sort((a, b) => a.data.order - b.data.order);
-const categories = [...new Set(tools.map((tool) => tool.data.category))];
+// Section order comes from CATEGORIES, not tool.order — those only sort tools within
+// a category, not the categories themselves.
+const categories = CATEGORIES.filter((category) => tools.some((tool) => tool.data.category === category));
 const currentPath = Astro.url.pathname;
 ---
 
