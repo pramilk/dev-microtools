@@ -576,8 +576,11 @@ export default function QrCodeGenerator() {
         setEmailBody('Hi there, ...');
         break;
       case 'geo':
-        setGeoLat('40.689200');
-        setGeoLng('-74.044500');
+        // Fills the visible "Google Maps link" field (not the lat/lng fields directly,
+        // which live inside a collapsed "Enter coordinates manually" disclosure) — via the
+        // same parsing path a real pasted link goes through, so the sample looks filled in
+        // rather than silently only updating fields the user can't see.
+        handleGeoLinkInput('https://www.google.com/maps/place/@40.6892,-74.0445,17z');
         break;
     }
   };

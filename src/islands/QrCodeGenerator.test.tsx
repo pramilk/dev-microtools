@@ -143,6 +143,18 @@ describe('<QrCodeGenerator />', () => {
     expect(screen.getByText(/^\d+\/1500$/)).toHaveTextContent(/^(?!11\/)\d+\/1500$/);
   });
 
+  it('fills in the Google Maps link field when Load example is used in Location mode', async () => {
+    render(<QrCodeGenerator />);
+    fireEvent.click(screen.getByRole('button', { name: /^location$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^load example$/i }));
+
+    expect(screen.getByLabelText(/google maps link/i)).toHaveValue('https://www.google.com/maps/place/@40.6892,-74.0445,17z');
+    fireEvent.click(screen.getByText(/enter coordinates manually/i));
+    expect(screen.getByLabelText(/latitude/i)).toHaveValue('40.6892');
+    expect(screen.getByLabelText(/longitude/i)).toHaveValue('-74.0445');
+    await waitFor(() => expect(document.querySelector('.qr-preview__image svg')).toBeInTheDocument());
+  });
+
   it('shows a length counter for the SMS message that reflects the whole encoded payload', async () => {
     render(<QrCodeGenerator />);
     fireEvent.click(screen.getByRole('button', { name: /^sms$/i }));
