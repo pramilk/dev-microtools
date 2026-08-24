@@ -1,0 +1,87 @@
+---
+title: cURL Command Builder
+headline: cURL Command Builder — Generate curl Commands from a Form
+description: Build a copy-pasteable curl command from a method, URL, headers, body and auth, with proper shell escaping — entirely in your browser. Free, no sign-up.
+summary: Turn a method, URL, headers, body and auth into a correctly-escaped curl command.
+category: Generate
+order: 30
+updated: 2026-08-24
+whatIsIt: >-
+  Typing a curl command by hand is easy to get subtly wrong — a header value with a space
+  or an apostrophe, a JSON body full of double quotes, a URL with a query string, all need
+  careful shell quoting that's tedious to get right by hand and easy to get wrong when
+  editing an existing command. This tool builds the command from a plain form instead: pick
+  a method, enter a URL, add as many headers as you need, choose a body type, and optionally
+  set Basic auth credentials and a handful of common flags (follow redirects, skip TLS
+  verification, include response headers, silent mode). Every value is escaped for a POSIX
+  shell automatically, so what you copy runs correctly the first time. Output can be
+  formatted as a readable multi-line command (one flag per line, the same style most API
+  tools show in their own "copy as curl" examples) or collapsed to a single line for pasting
+  into a script. A "Send request" button optionally fires the built request for real,
+  straight from your browser, and shows the response status, headers, and body — with a
+  collapsible tree view for a JSON response — without needing curl or a terminal at all.
+useCases:
+  - Turning an API's documented request (method, headers, JSON body) into a curl command you can run immediately from a terminal.
+  - Building a request with a header value or JSON body that contains quotes or special characters, without hand-escaping them for the shell.
+  - Sharing a reproducible curl command with a teammate to demonstrate exactly how to hit an endpoint, including auth and headers.
+  - Quickly toggling flags like --insecure or --location while testing against a local or self-signed development server.
+  - Trying a request and browsing its JSON response as a tree before ever opening a terminal or a full API client.
+  - Generating a clean, multi-line curl command to paste into documentation or a bug report.
+howTo:
+  - Choose an HTTP method and enter the request URL.
+  - Add any headers as key/value rows — a Content-Type header is added automatically for a JSON body if you haven't set one yourself.
+  - Pick a body type (None, Raw, or JSON) and paste in the request body; JSON is validated as you type.
+  - Optionally fill in Basic auth credentials and toggle any of the common flags.
+  - Copy the generated command — switch between multi-line and single-line formatting first if you prefer — or press "Send request" to run it directly and see the response below.
+example:
+  label: A GET request with an Accept header, an auth header, and a query string.
+  input: 'A GET request to https://api.example.com/v1/users?role=engineer&active=true with an Accept: application/json header and an Authorization: Bearer TOKEN123 header.'
+  output: |-
+    curl \
+      -H 'Accept: application/json' \
+      -H 'Authorization: Bearer TOKEN123' \
+      'https://api.example.com/v1/users?role=engineer&active=true'
+  note: >-
+    Press "Load example" to fill in these exact fields and see the command build live —
+    it adapts to whichever method is currently selected, so a POST/PUT/PATCH/DELETE method
+    loads a JSON-body example instead of this header-and-query-string one.
+faq:
+  - q: Does this tool send my request anywhere?
+    a: "Only if you press \"Send request\" — building and copying the command never does. Pressing that button makes the request for real, directly from your own browser tab (not through any server of this site's), the same as any web page's own JavaScript can. Nothing is sent anywhere just from filling in the form or copying the command."
+  - q: Why did "Send request" fail when the exact same curl command works in a terminal?
+    a: Almost always CORS. A browser enforces cross-origin restrictions that curl simply doesn't have, so an API has to explicitly opt in to letting a page on this domain read its response — most APIs that aren't designed for this don't. The browser also can't tell a CORS block apart from a network or DNS failure, so the error shown here is necessarily a best guess rather than a precise cause. This is a fundamental browser limitation, not something this tool can work around.
+  - q: Does "Send request" honor every flag and option in the generated command?
+    a: No — only the method, URL, headers, body, and Basic auth are actually sent; those are the parts a browser's fetch API can express. -k (skip TLS verification) has no browser equivalent at all, and -L/-i/-s are curl CLI/output concepts with no matching fetch option, so the response shown always follows redirects and always includes headers regardless of those checkboxes.
+  - q: Why does the URL need quotes around it in the output?
+    a: A URL containing a query string with an ampersand (&) would otherwise be interpreted by the shell as "run this command, then start another one" — the ampersand is a shell control character, not just part of the text. Every value this tool inserts, including the URL, is wrapped in single quotes for exactly this reason, whether or not that particular value happens to need it.
+  - q: How does the shell escaping actually work?
+    a: Every value is wrapped in single quotes, which tells the shell to treat everything inside literally with no special characters. The one thing a single-quoted string can't contain is a literal single quote, so any apostrophe in your input is closed out, replaced with an escaped quote, and the quoting reopened — the standard POSIX technique, and the only case this tool has to handle specially.
+  - q: What does choosing "JSON" as the body type actually change?
+    a: "It validates the body as JSON while you type, so a typo shows up immediately instead of failing later when you actually run the command, and it automatically adds a Content-Type: application/json header if you haven't already set one — you can still override it by adding your own Content-Type header first."
+  - q: Is it safe to build a command with a password in it here?
+    a: Building it is safe — nothing you type leaves your browser. But the resulting curl command itself will contain that password in plain text, and running it puts the password in your shell history and any process list on your machine, which is true of curl generally and not specific to this tool. For anything beyond local testing, prefer a token or short-lived credential over a long-term password.
+  - q: Why does a GET request sometimes get an explicit -X GET in the output?
+    a: "Only when it has a body. curl automatically switches to POST the moment it sees a -d flag, with no -X at all — so a GET request that also has a body needs an explicit -X GET to actually stay a GET, or curl would silently send something other than what you picked. Any non-GET method always gets an explicit -X too, mostly for the reader's clarity since curl would infer some of those anyway."
+related:
+  - url-parser
+  - json-formatter
+  - jwt-decoder
+---
+
+## About the generated flags
+
+`-L` makes curl follow redirect responses instead of stopping at the first one — useful
+for an endpoint that redirects http → https or that's behind a URL shortener. `-k` skips
+TLS certificate verification entirely, which is fine against a local dev server with a
+self-signed certificate but should never be used against anything on the public internet.
+`-i` prints the response headers above the body, useful for checking status codes or
+caching headers. `-s` suppresses curl's progress meter, handy when piping output into
+another command.
+
+## What powers this tool
+
+Command assembly and shell escaping run entirely as plain string logic in your browser — no
+server or external curl binary is involved, and building or copying a command never makes a
+network request. Pressing "Send request" is the one exception: it fires the request with
+the browser's native `fetch`, straight from your own tab, and a JSON response renders
+through the same collapsible-tree component used by the [JSON Formatter](/json-formatter/).

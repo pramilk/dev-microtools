@@ -1,0 +1,69 @@
+---
+title: Image Cropper
+headline: Image Cropper & Resizer — Crop and Resize Images
+description: Crop and resize a JPEG, PNG, or WebP image entirely in your browser. Drag to select an area, pick an aspect ratio, set exact output dimensions. Free.
+summary: Crop an image to a selected area and resize it to exact pixel dimensions, right in your browser.
+category: Images
+order: 31
+updated: 2026-08-24
+whatIsIt: >-
+  This tool cuts a rectangular region out of an image and, optionally, scales that region
+  to exact output dimensions — the two operations most "I just need to trim/resize this
+  photo" tasks actually need, without opening a full desktop image editor for a ten-second
+  job. Drag directly on the image to draw a selection, or type exact X/Y/Width/Height values
+  for pixel-precise control; a set of common aspect ratio presets (1:1, 4:3, 16:9, 3:2) keeps
+  the selection locked to a ratio while you resize it. A separate, optional resize step then
+  scales the cropped area to a target width and/or height, with an aspect-ratio lock so
+  scaling one dimension updates the other automatically. Everything runs through the
+  browser's own Canvas API — the crop and resize never leave your device, and a draggable
+  before/after comparison lets you confirm the result before downloading it.
+useCases:
+  - Trimming a screenshot down to just the relevant window or region before sharing it.
+  - Cropping a photo to a square (or another fixed ratio) for a profile picture or social media post.
+  - Resizing an oversized image to exact pixel dimensions a form or CMS requires, after first cropping out the unwanted parts.
+  - Cutting one icon or sprite out of a larger sheet image using precise X/Y/Width/Height values.
+  - Quickly checking how a crop looks before committing to it, using the before/after comparison slider.
+howTo:
+  - Drop an image in, or choose one from your device.
+  - Drag directly on the image to select a crop area, or type exact values into the X/Y/Width/Height fields.
+  - Optionally pick an aspect ratio preset to lock the selection to a fixed ratio while resizing it.
+  - Turn on "Resize output" and set a target width and/or height if you want the cropped area scaled to exact dimensions.
+  - Compare the result against the original with the before/after slider, then download it.
+example:
+  label: A generated sample image, cropped to its center square and resized to 300×300.
+  input: 'A generated 800×600 sample image with four colored quadrants and a center circle.'
+  output: 'The centered 360×360 region resized down to exactly 300×300 pixels.'
+  note: Press "Load example" to generate a real sample image and see the crop and resize applied for yourself.
+faq:
+  - q: Does this upload my photo anywhere?
+    a: No. Decoding, cropping, and resizing all happen in your browser using the Canvas API — the same code path a browser already uses to display an image on screen. Nothing you choose is ever sent to a server, which is true of every tool on this site.
+  - q: What's the difference between cropping and resizing here?
+    a: Cropping selects a rectangular region of the original image and discards everything outside it, at the original resolution. Resizing (a separate, optional step below the crop area) then scales that selected region up or down to an exact target width and/or height. You can crop without resizing, resize without cropping (leave the selection as the full image), or do both together.
+  - q: Can I set the crop area with exact pixel values instead of dragging?
+    a: Yes — the X, Y, Width, and Height number fields next to the image are fully keyboard-operable and always in sync with whatever's dragged on the image, so you can type exact values directly for pixel-precise control, or fine-tune after a rough drag.
+  - q: What do the aspect ratio presets actually do?
+    a: Clicking a preset (1:1, 4:3, 16:9, or 3:2) immediately reshapes the current selection to match that ratio, anchored at its current top-left corner, and keeps any further drag-resizing locked to it. "Free" removes the constraint, letting width and height change independently again.
+  - q: Why is there a separate "Lock aspect ratio" checkbox for resizing?
+    a: It's independent from the crop's own aspect ratio preset on purpose — you might crop a free-form (non-fixed-ratio) region but still want to resize proportionally, or crop to a fixed 1:1 ratio but then stretch the resize output non-proportionally. Locking it means typing a width automatically fills in a matching height (and vice versa), based on the crop area's own proportions.
+  - q: What image formats are supported?
+    a: JPEG, PNG, and WebP for output, matching the Image Compressor tool. On upload, the output format defaults to match your original file's format when it's one of those three (so a PNG stays a PNG unless you change it), or falls back to JPEG for anything else the browser can still decode, like BMP.
+related:
+  - image-compressor
+  - svg-optimizer
+  - image-base64-converter
+---
+
+## Crop first, resize second
+
+The crop area is always defined in the original image's own pixel coordinates, so dragging
+or typing X/Y/Width/Height values works the same regardless of whether "Resize output" is
+on. Turning resize on starts the target width and height at the crop area's own size — leave
+them alone and the output is just the crop, at full resolution; change either one to scale
+the result up or down.
+
+## What powers this tool
+
+Cropping and resizing both run on the browser's own Canvas API — the same decoder and
+encoder used by the [Image Compressor](/image-compressor/), which also documents the extra
+lossless PNG optimization pass (via [Oxipng](https://github.com/jamsinclair/jSquash),
+compiled to WebAssembly) that PNG output gets here too.

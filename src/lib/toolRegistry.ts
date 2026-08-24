@@ -29,6 +29,8 @@ import BcryptTool from '../islands/BcryptTool';
 import XmlTool from '../islands/XmlTool';
 import ImageCompressor from '../islands/ImageCompressor';
 import SvgOptimizer from '../islands/SvgOptimizer';
+import CurlCommandBuilder from '../islands/CurlCommandBuilder';
+import ImageCropper from '../islands/ImageCropper';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -67,6 +69,8 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'xml-formatter': XmlTool,
   'image-compressor': ImageCompressor,
   'svg-optimizer': SvgOptimizer,
+  'curl-command-builder': CurlCommandBuilder,
+  'image-cropper': ImageCropper,
 };
 
 /**

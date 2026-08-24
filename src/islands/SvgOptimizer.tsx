@@ -247,7 +247,7 @@ export default function SvgOptimizer() {
                 <span class="control__hint">Rec: 4–6</span>
               </label>
             </div>
-            <CompareSlider beforeUrl={svgPreviewUrl(input)} afterUrl={svgPreviewUrl(output)} beforeLabel="Original" afterLabel="Optimized" />
+            <CompareSlider beforeUrl={svgPreviewUrl(input)} afterUrl={svgPreviewUrl(output)} beforeLabel="Original" afterLabel="Optimized" transparent />
           </div>
         </div>
       )}

@@ -598,7 +598,7 @@ export default function ImageCompressor() {
           {jobs.map((job) => (
             <li class={`job${job.id === selectedJobId ? ' job--selected' : ''}`} key={job.id}>
               <span class="job__thumb-group">
-                <img src={job.originalUrl} alt="" class="job__thumb" />
+                <img src={job.originalUrl} alt="" class={`job__thumb${job.file.type === 'image/png' ? ' job__thumb--checkerboard' : ''}`} />
                 {/* Only shown when it would actually change something: the global toggle is
                     off, this file is one of the three formats the tool can "keep", and its
                     own format differs from the one it would otherwise convert to. A control
@@ -793,6 +793,7 @@ export default function ImageCompressor() {
                   afterUrl={selectedJob.result.url}
                   width={selectedJob.result.width}
                   height={selectedJob.result.height}
+                  transparent={selectedJob.file.type === 'image/png' || selectedJob.result.format === 'image/png'}
                 />
               </div>
             </>
@@ -827,6 +828,16 @@ export default function ImageCompressor() {
            controls (a button inside a button) aren't valid HTML. */
         .job__thumb-group { position: relative; flex-shrink: 0; display: inline-flex; }
         .job__thumb { width: 2.5rem; height: 2.5rem; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); }
+        /* Smaller checker squares than the full-size preview's — the 16px pattern used
+           there would read as a couple of muddy blobs at this thumbnail's actual size. */
+        .job__thumb--checkerboard {
+          background-color: #fff;
+          background-image:
+            linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%),
+            linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
+          background-size: 8px 8px;
+          background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
+        }
         .job__lock {
           position: absolute; bottom: -0.35rem; right: -0.35rem; display: flex; align-items: center; justify-content: center;
           width: 1.15rem; height: 1.15rem; font-size: 0.65rem; line-height: 1;

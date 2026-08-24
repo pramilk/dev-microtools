@@ -40,6 +40,8 @@ export const TOOL_ICONS: Record<string, string> = {
   'xml-formatter': 'XML',
   'image-compressor': 'CMP',
   'svg-optimizer': 'SVG',
+  'curl-command-builder': 'CURL',
+  'image-cropper': 'CROP',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

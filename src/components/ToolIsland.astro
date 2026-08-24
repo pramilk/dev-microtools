@@ -28,6 +28,8 @@ import BcryptTool from '../islands/BcryptTool';
 import XmlTool from '../islands/XmlTool';
 import ImageCompressor from '../islands/ImageCompressor';
 import SvgOptimizer from '../islands/SvgOptimizer';
+import CurlCommandBuilder from '../islands/CurlCommandBuilder';
+import ImageCropper from '../islands/ImageCropper';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -81,3 +83,5 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'xml-formatter' && <XmlTool client:load />}
 {slug === 'image-compressor' && <ImageCompressor client:load />}
 {slug === 'svg-optimizer' && <SvgOptimizer client:load />}
+{slug === 'curl-command-builder' && <CurlCommandBuilder client:load />}
+{slug === 'image-cropper' && <ImageCropper client:load />}

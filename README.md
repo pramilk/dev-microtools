@@ -30,9 +30,11 @@ using any tool and you'll see no outbound request carrying your input.
 | [QR Code Generator](https://devmicrotools.com/qr-code-generator/) | Generate | Turn text or a URL into a scannable QR code — download as PNG or SVG. |
 | [Fake Data Generator](https://devmicrotools.com/fake-data-generator/) | Generate | Generate realistic fake names, emails, addresses and more as JSON or CSV. |
 | [Bcrypt Generator](https://devmicrotools.com/bcrypt-generator/) | Generate | Generate a bcrypt hash from a password, or verify a password against one. |
+| [cURL Command Builder](https://devmicrotools.com/curl-command-builder/) | Generate | Turn a method, URL, headers, body and auth into a correctly-escaped curl command. |
 | [Image ↔ Base64 Converter](https://devmicrotools.com/image-base64-converter/) | Images | Convert an image to base64 for inlining in CSS/HTML, or decode base64 back into an image. |
 | [Image Compressor](https://devmicrotools.com/image-compressor/) | Images | Compress JPEG, PNG, or WebP images in your browser — batch multiple files, compare before/after, download as a zip. |
 | [SVG Optimizer](https://devmicrotools.com/svg-optimizer/) | Images | Strip comments, metadata, and editor cruft from SVG markup — tune precision, compare before/after, download. |
+| [Image Cropper](https://devmicrotools.com/image-cropper/) | Images | Crop an image to a selected area and resize it to exact pixel dimensions, right in your browser. |
 | [Regex Tester](https://devmicrotools.com/regex-tester/) | Inspect | Test regular expressions with live highlighting, groups and replace preview. |
 | [JWT Debugger](https://devmicrotools.com/jwt-decoder/) | Inspect | Decode, verify and sign JSON Web Tokens without uploading them anywhere. |
 | [User-Agent Parser](https://devmicrotools.com/user-agent-parser/) | Inspect | Parse a User-Agent string into browser, OS, rendering engine and device type. |
