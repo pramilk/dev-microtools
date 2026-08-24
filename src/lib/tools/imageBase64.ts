@@ -1,5 +1,6 @@
 import { type ToolResult, ok, err, messageFrom } from './result';
 import { encodeFileToBase64, fromUrlSafe } from './base64';
+import { hasImageExtension } from './imageFile';
 
 /**
  * Bounds how much base64 text this tool will attempt to decode client-side. `atob` and
@@ -118,10 +119,18 @@ export function parseBase64Image(input: string): ToolResult<DecodedImage> {
 
 const toCleanBase64 = (payload: string): string => fromUrlSafe(payload.replace(/\s+/g, ''));
 
-/** Encodes an image file to base64, rejecting anything whose declared type isn't an image. */
+/**
+ * Encodes an image file to base64, rejecting anything whose declared type isn't an image. A
+ * blank type (some drag sources omit it) falls back to the file's own extension rather than
+ * being waved through unconditionally — drag-and-drop bypasses an `<input accept>` filter
+ * entirely, so that check alone doesn't stop a non-image file with no declared type.
+ */
 export async function encodeImageToBase64(file: File): Promise<ToolResult<{ base64: string; dataUrl: string; mimeType: string }>> {
-  if (file.type && !file.type.startsWith('image/')) {
+  if (file.type !== '' && !file.type.startsWith('image/')) {
     return err(`"${file.name}" is a ${file.type} file, not an image — choose an image file instead.`);
+  }
+  if (file.type === '' && !hasImageExtension(file.name)) {
+    return err(`"${file.name}" doesn't look like an image (no recognized type or file extension) — choose an image file instead.`);
   }
   if (file.size > MAX_IMAGE_FILE_SIZE) {
     return err(

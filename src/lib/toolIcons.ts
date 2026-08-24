@@ -38,6 +38,8 @@ export const TOOL_ICONS: Record<string, string> = {
   'url-parser': '?=',
   'bcrypt-generator': 'BCR',
   'xml-formatter': 'XML',
+  'image-compressor': 'CMP',
+  'svg-optimizer': 'SVG',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

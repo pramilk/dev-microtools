@@ -51,7 +51,16 @@ export default defineConfig({
         'sql-formatter',
         'bcryptjs',
         'qrcode-generator',
+        'svgo/browser',
+        'fflate',
       ],
+      /*
+       * `@jsquash/oxipng` ships a wasm-bindgen-generated WASM module. Vite's esbuild-based
+       * dependency optimizer doesn't handle that shape correctly (it's meant for plain JS
+       * packages) — the package's own docs call out excluding it instead, letting Vite's
+       * native asset pipeline resolve the `.wasm` file directly.
+       */
+      exclude: ['@jsquash/oxipng'],
     },
   },
 });

@@ -223,8 +223,13 @@
   white-space: pre-wrap;
   word-break: break-word;
   overflow-x: auto;
+  overflow-y: auto;
   margin: 0;
   min-height: 3rem;
+  /* Matches the input .textarea's own vertical resize handle — a result pane with a lot of
+     output (a long formatted document, minified code, etc.) should be just as expandable as
+     the input beside it, not fixed to its default height across every tool that uses it. */
+  resize: vertical;
 }
 
 .output--tall {

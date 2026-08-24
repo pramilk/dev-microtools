@@ -1,0 +1,88 @@
+---
+title: SVG Optimizer
+headline: SVG Optimizer — Minify & Clean Up SVG Markup
+description: Shrink SVG markup entirely in your browser. Adjust precision and multipass, compare before/after with a drag slider. Keeps the viewBox intact. Free.
+summary: Strip comments, metadata, and editor cruft from SVG markup — tune precision, compare before/after, download.
+category: Format
+order: 29
+updated: 2026-08-23
+whatIsIt: >-
+  Design tools like Illustrator and Figma export SVG files full of editor metadata,
+  comments, redundant groups, and excessive numeric precision that a browser never needs to
+  render the image — all of it adds bytes with no visual effect. This tool runs SVGO, the
+  standard SVG optimizer, entirely in your browser to strip that cruft and shrink the
+  markup, while deliberately keeping the `viewBox` attribute intact so the optimized SVG
+  still scales responsively wherever the original did. Advanced controls (numeric precision,
+  a separate transform-matrix precision, multipass, keeping `<desc>`, prefixing ids) are
+  tucked behind a collapsible section for when the defaults need tuning, and a draggable
+  before/after slider lets you confirm the optimized version still looks right before
+  trusting it.
+useCases:
+  - Cleaning up an SVG exported from Illustrator or Figma before committing it to a codebase.
+  - Shrinking an inline SVG icon or logo to cut page weight on a website.
+  - Stripping design-tool metadata and comments from an SVG before sharing it publicly.
+  - Checking how much smaller a hand-written SVG could be before deciding whether it's worth optimizing.
+  - Dragging the before/after slider to confirm a lower precision setting hasn't visibly distorted a shape.
+howTo:
+  - Paste SVG markup in, or drop a .svg file onto the input.
+  - The optimized markup and a before/after size comparison appear immediately.
+  - Drag the before/after slider to confirm the optimized version still looks correct.
+  - Open "Advanced optimization options" to tune precision, transform precision, multipass, or the id/desc settings if the defaults need adjusting.
+  - Copy or download the optimized SVG.
+example:
+  label: An Illustrator-exported "verified" badge icon with comments, metadata, and excess precision.
+  input: |-
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!-- Generator: Example Design Tool -->
+    <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" viewBox="0 0 100 100" xml:space="preserve">
+      <desc>Created with Example Design Tool</desc>
+      <g id="Layer_1">
+        <g id="badge">
+          <defs>
+            <linearGradient id="ribbonGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#3cbcd4" />
+              <stop offset="1" stop-color="#7c5cff" />
+            </linearGradient>
+            <circle id="spark" cx="0" cy="0" r="6.123456789" fill="#ffd166" />
+          </defs>
+          <circle cx="50.000000" cy="50.000000" r="46.123456789" fill="#3cbcd4" />
+          <circle cx="50.000000" cy="50.000000" r="38.987654321" fill="#ffffff" />
+          <rect x="20.123456" y="80.123456" width="59.876543" height="10.123456" rx="5.123456" fill="url(#ribbonGrad)" />
+          <path d="M32.123456,52.234567 L44.345678,64.456789 L69.567890,36.678901" fill="none" stroke="#3cbcd4" stroke-width="8.123456" stroke-linecap="round" stroke-linejoin="round" />
+          <use href="#spark" transform="translate(80.123456,20.234567) scale(2.449999999)" />
+          <use href="#spark" transform="translate(18.234567,22.123456) scale(2.449999999)" />
+          <use href="#spark" transform="translate(50.123456,7.234567) scale(2.449999999)" />
+        </g>
+      </g>
+    </svg>
+  output: 'The same badge with comments, metadata, boilerplate `<desc>`, and redundant precision stripped, typically 30-40% smaller.'
+  note: The viewBox is deliberately preserved — stripping it is a common cause of an SVG losing its ability to scale responsively later.
+faq:
+  - q: Will this change how the SVG looks?
+    a: No — it runs SVGO's default optimization preset, which only removes markup that has no visual effect (comments, editor metadata, redundant groups, unused namespace declarations) and rounds excess numeric precision no rendering engine actually uses. The visible output stays the same; only the bytes describing it shrink.
+  - q: Why does this tool keep the viewBox instead of stripping it too?
+    a: Removing the `viewBox` is a well-known cause of an SVG breaking later if something else in the pipeline (or a hand edit) removes the element's explicit width/height too — with no viewBox left, the browser has nothing to scale against. This tool's default optimization preset never touches it, so it always survives untouched, which is the generally recommended safe choice for SVGs used on the web.
+  - q: Does this upload my SVG anywhere?
+    a: No. SVGO runs entirely in your browser using its official browser-targeted build. Nothing you paste or drop is sent to a server.
+  - q: Can I trust the before/after slider not to run anything embedded in the SVG?
+    a: Yes. Both sides of the comparison render the SVG through an `<img>` tag rather than inserting it directly into the page — browsers treat SVG loaded this way as a plain image and never execute any script or event handler it might contain, unlike pasting it directly into the DOM.
+  - q: My SVG didn't get much smaller — why?
+    a: A hand-written or already-optimized SVG (one exported without extra tooling metadata) may already be close to minimal. The biggest gains come from files exported by design tools like Illustrator, Sketch, or Figma, which routinely add comments, editor-specific attributes, and far more decimal precision than any renderer uses.
+  - q: What's the difference between Precision and Transform precision?
+    a: Precision rounds ordinary numbers — coordinates, radii, path data — and is the one that matters for almost every SVG. Transform precision only affects elements that keep an explicit `transform="..."` attribute (like a `<use>` referencing a shared shape) rather than having it baked directly into path coordinates; decomposing a transform matrix back into rotate/scale/skew values needs a separate, usually higher precision to avoid visibly drifting from the original. Most SVGs never touch the second one — it only matters if your file relies on `<use>`, patterns, or gradients with their own transforms. The loaded example includes three such elements (the small sparkle accents, each placed with `<use>` and a `scale(...)` transform) specifically so dragging Transform precision down has a real, visible effect to check — at its lowest setting all three noticeably shrink together, since the scale factor itself gets rounded more aggressively.
+  - q: What do "Keep <desc>" and "Prefix IDs" do in the loaded example?
+    a: The example's `<desc>Created with Example Design Tool</desc>` is exactly the kind of editor boilerplate SVGO's default preset already strips on its own — checking "Keep <desc>" is what keeps it in the output instead, useful when a `<desc>` holds real, human-written content worth preserving for screen readers rather than tool-generated noise. "Prefix IDs" affects the example's gradient (used for the ribbon band) and the sparkle shape's shared `id` — turning it on prefixes both `id`s and rewrites the `url(#...)` reference and `<use href="#...">` to match, so pasting several optimized SVGs into one page never lets one file's `id` collide with another's.
+related:
+  - image-compressor
+  - color-converter
+  - css-gradient-generator
+  - html-css-js-minifier
+---
+
+## What gets removed
+
+SVGO's default preset strips XML comments, editor metadata (like an `<!-- Generator: -->`
+comment or unused `xmlns:xlink` declarations), collapses redundant groups, and rounds
+coordinate precision most renderers never use (`40.123456789` becomes `40.12`). It leaves
+anything that affects appearance untouched — colors, paths, and structure needed to render
+the image stay exactly as they were.

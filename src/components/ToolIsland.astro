@@ -26,6 +26,8 @@ import Base58Tool from '../islands/Base58Tool';
 import UrlParser from '../islands/UrlParser';
 import BcryptTool from '../islands/BcryptTool';
 import XmlTool from '../islands/XmlTool';
+import ImageCompressor from '../islands/ImageCompressor';
+import SvgOptimizer from '../islands/SvgOptimizer';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -77,3 +79,5 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'url-parser' && <UrlParser client:load />}
 {slug === 'bcrypt-generator' && <BcryptTool client:load />}
 {slug === 'xml-formatter' && <XmlTool client:load />}
+{slug === 'image-compressor' && <ImageCompressor client:load />}
+{slug === 'svg-optimizer' && <SvgOptimizer client:load />}

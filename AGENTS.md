@@ -177,10 +177,30 @@ src/
 public/                      # robots.txt, ads.txt, favicon
 ```
 
-**Adding a new tool** should only require: one `src/lib/tools/<name>.ts` (+ its test), one
+**Adding a new tool** touches: one `src/lib/tools/<name>.ts` (+ its test), one
 `src/islands/<Tool>.tsx` (+ its test), one `src/content/tools/<slug>.mdx` with full content,
-and one entry in the slug→component map. If it requires more than that, the abstraction
-needs fixing.
+and **three** separate slug registrations — easy to miss one, since only the first two fail
+loudly:
+
+- `src/lib/toolRegistry.ts` — the logical slug → island map. Missing an entry throws at
+  build time (`islandFor` explicitly guards this), so this one can't ship broken.
+- `src/components/ToolIsland.astro` — a *second*, deliberately separate static dispatch
+  (`{slug === 'x' && <X client:load />}` for every tool) that actually renders the island.
+  It has to be a duplicate of the registry above, not derived from it, because Astro's
+  compiler resolves hydration imports statically — a component pulled from an object at
+  runtime has no import for the client bundle to reference. `ToolIsland.astro` does throw
+  if a slug is in the registry but has no dispatch line, but that guard only catches a
+  *missing* line, not a copy-paste mistake — get the registry entry right and forget this
+  file, and the page builds clean while silently rendering an empty widget section. Always
+  add the import **and** the `{slug === ...}` line in the same change as the registry entry.
+- `src/lib/toolIcons.ts` — the sidebar/homepage-directory icon (`TOOL_ICONS[slug]`). This
+  one fails silently, not loudly: skip it and the tool still builds and works, it just shows
+  a generic placeholder glyph (`DEFAULT_TOOL_ICON`) instead of a real abbreviation forever,
+  until someone happens to notice. Give every new tool a short, distinct label here (2-4
+  characters, following the existing entries — `QR`, `B64`, `JWT`) in the same change.
+
+If adding a tool ever needs to touch anything beyond those three registrations plus the
+tool's own three files, the abstraction needs fixing.
 
 **No backend.** Every tool runs entirely in the browser. Nothing the user pastes is ever
 transmitted anywhere — this is both the privacy promise and a load-bearing marketing claim,

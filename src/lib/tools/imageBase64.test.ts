@@ -139,6 +139,23 @@ describe('encodeImageToBase64', () => {
     if (result.ok) return;
     expect(result.error).toMatch(/too large/i);
   });
+
+  it('allows a blank-type file through when its extension still looks like an image', async () => {
+    const file = new File([PNG_SIGNATURE], 'pixel.png', { type: '' });
+    const result = await encodeImageToBase64(file);
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects a blank-type file with no recognizable image extension, instead of waving it through', async () => {
+    // Drag-and-drop bypasses an <input accept> filter entirely, and some drag sources omit a
+    // file's type even for a genuine non-image file — this is the actual case that let one
+    // through before.
+    const file = new File(['not an image'], 'resume.docx', { type: '' });
+    const result = await encodeImageToBase64(file);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/doesn't look like an image/i);
+  });
 });
 
 describe('snippet builders', () => {

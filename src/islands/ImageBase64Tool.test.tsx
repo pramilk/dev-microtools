@@ -41,7 +41,9 @@ describe('<ImageBase64Tool />', () => {
 
     dropFile(file);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/not an image/i);
+    // Rejected by the shared FileDropzone itself now (accept="image/*"), before it ever
+    // reaches this tool's own file state — the file is never "selected" in the first place.
+    expect(await screen.findByRole('alert')).toHaveTextContent(/doesn't look like an image/i);
   });
 
   it('loads a working example when "Load example" is pressed in Base64 → Image', async () => {

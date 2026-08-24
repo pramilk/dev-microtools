@@ -132,6 +132,19 @@ describe('<QrCodeGenerator />', () => {
     expect(screen.getByLabelText(/error correction level/i)).toBeDisabled();
   });
 
+  it('rejects a non-image file chosen as a logo instead of accepting it', async () => {
+    render(<QrCodeGenerator />);
+    await waitFor(() => expect(document.querySelector('.qr-preview__image svg')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText(/customize appearance/i));
+    const file = new File(['%PDF-1.4'], 'doc.pdf', { type: 'application/pdf' });
+    fireEvent.change(screen.getByLabelText(/choose a logo image/i), { target: { files: [file] } });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/doesn't look like an image/i);
+    // Error correction stays untouched (not forced to High) since no logo was actually accepted.
+    expect(screen.getByLabelText(/error correction level/i)).not.toBeDisabled();
+  });
+
   it('shows a length counter for the email body that reflects the whole encoded payload, not just the field', async () => {
     render(<QrCodeGenerator />);
     fireEvent.click(screen.getByRole('button', { name: /^email$/i }));

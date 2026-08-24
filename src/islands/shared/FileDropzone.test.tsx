@@ -62,4 +62,56 @@ describe('<FileDropzone />', () => {
 
     expect(onFileSelected).toHaveBeenCalledWith(file);
   });
+
+  it('rejects a dropped non-image file when accept="image/*", instead of reporting it', () => {
+    // Drag-and-drop bypasses the native <input accept> filter entirely (that only constrains
+    // the file-picker dialog), so this has to be enforced in the drop handler itself.
+    const onFileSelected = vi.fn();
+    render(<FileDropzone file={null} onFileSelected={onFileSelected} chooseLabel="Choose an image" accept="image/*" />);
+
+    const file = new File(['%PDF-1.4'], 'doc.pdf', { type: 'application/pdf' });
+    fireEvent.drop(screen.getByText(/drag a file here/i).parentElement!, {
+      dataTransfer: { files: [file] },
+    });
+
+    expect(onFileSelected).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/doesn't look like an image/i);
+  });
+
+  it('accepts a dropped image file when accept="image/*"', () => {
+    const onFileSelected = vi.fn();
+    render(<FileDropzone file={null} onFileSelected={onFileSelected} chooseLabel="Choose an image" accept="image/*" />);
+
+    const file = new File(['x'], 'photo.png', { type: 'image/png' });
+    fireEvent.drop(screen.getByText(/drag a file here/i).parentElement!, {
+      dataTransfer: { files: [file] },
+    });
+
+    expect(onFileSelected).toHaveBeenCalledWith(file);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('rejects a non-image file chosen through the file-picker input when accept="image/*"', () => {
+    const onFileSelected = vi.fn();
+    render(<FileDropzone file={null} onFileSelected={onFileSelected} chooseLabel="Choose an image" accept="image/*" />);
+
+    const file = new File(['not an image'], 'resume.docx', { type: '' });
+    const input = screen.getByLabelText('Choose an image') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+
+    expect(onFileSelected).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/doesn't look like an image/i);
+  });
+
+  it('clears a rejection message once a valid image is dropped', () => {
+    const onFileSelected = vi.fn();
+    render(<FileDropzone file={null} onFileSelected={onFileSelected} chooseLabel="Choose an image" accept="image/*" />);
+    const dropTarget = screen.getByText(/drag a file here/i).parentElement!;
+
+    fireEvent.drop(dropTarget, { dataTransfer: { files: [new File(['x'], 'doc.pdf', { type: 'application/pdf' })] } });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    fireEvent.drop(dropTarget, { dataTransfer: { files: [new File(['x'], 'photo.png', { type: 'image/png' })] } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });

@@ -27,6 +27,8 @@ import Base58Tool from '../islands/Base58Tool';
 import UrlParser from '../islands/UrlParser';
 import BcryptTool from '../islands/BcryptTool';
 import XmlTool from '../islands/XmlTool';
+import ImageCompressor from '../islands/ImageCompressor';
+import SvgOptimizer from '../islands/SvgOptimizer';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -63,6 +65,8 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'url-parser': UrlParser,
   'bcrypt-generator': BcryptTool,
   'xml-formatter': XmlTool,
+  'image-compressor': ImageCompressor,
+  'svg-optimizer': SvgOptimizer,
 };
 
 /**

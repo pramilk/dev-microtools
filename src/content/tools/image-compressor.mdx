@@ -1,0 +1,62 @@
+---
+title: Image Compressor
+headline: Image Compressor — JPEG, PNG & WebP
+description: Shrink JPEG, PNG, or WebP images entirely in your browser. Batch multiple files, compare before/after, and download individually or as a zip. Free.
+summary: Compress JPEG, PNG, or WebP images in your browser — batch multiple files, compare before/after, download as a zip.
+category: Convert
+order: 28
+updated: 2026-08-23
+whatIsIt: >-
+  This tool shrinks one or many images' file size by re-encoding them through the
+  browser's own Canvas API — the same decoder and encoder a browser already uses to
+  display images, run entirely on your device. Drop in a whole batch at once, choose an
+  output format, drag a quality slider for JPEG or WebP, and optionally cap the longest
+  side in pixels to downscale a photo that's larger than it needs to be. PNG output gets an
+  extra pass from a real lossless PNG optimizer (Oxipng, running via WebAssembly) on top of
+  the canvas encoder, since a generic deflate pass alone leaves real savings on the table.
+  Each image gets a draggable before/after comparison and its own size stats, and finished
+  images download individually or all at once as a zip — the originals are never modified
+  or uploaded anywhere.
+useCases:
+  - Shrinking a phone photo before attaching it to an email or uploading it to a site with a size limit.
+  - Converting a batch of PNG screenshots to JPEG or WebP to cut file size for a blog post or documentation page.
+  - Resizing a set of oversized product photos down to the dimensions a website actually needs, all in one pass.
+  - Dragging the before/after slider to check quality holds up before committing to a lower setting.
+  - Reducing page weight for a personal site or portfolio without a build pipeline or image CDN.
+howTo:
+  - Drop one or many image files in, or choose them from your device.
+  - Pick an output format — JPEG or WebP for a quality-adjustable, usually much smaller file, or PNG to keep it lossless.
+  - Drag the quality slider (JPEG/WebP only) and watch each image's size update.
+  - Optionally set a maximum dimension to downscale every image in the batch.
+  - Drag the before/after slider on any image to check quality, then download it individually or grab the whole batch as a zip.
+example:
+  label: A generated sample image compressed from PNG to JPEG.
+  input: 'A 640×640 PNG gradient image.'
+  output: 'The same image re-encoded as JPEG at 80% quality, typically 80-95% smaller.'
+  note: Press "Load example" to generate a real sample image and see the actual size reduction for yourself.
+faq:
+  - q: Does this upload my photo anywhere?
+    a: No. Decoding, resizing, and re-encoding all happen in your browser using the Canvas API — the same code path a browser already uses to display an image on screen. Nothing you choose is ever sent to a server, which is true of every tool on this site.
+  - q: How much smaller does PNG output actually get?
+    a: PNG stays fully lossless — no pixel is ever changed — but the file does shrink. After the browser's own canvas encoder produces a baseline PNG, this tool runs it through Oxipng (a dedicated PNG optimizer, compiled to WebAssembly and running entirely in your browser) for a genuinely better compression pass, the same technique this site's own build pipeline uses on its images. Typical savings run 10-30% on top of the canvas encoder's output, depending on the image. If a smaller file matters more than staying lossless, JPEG or WebP at a lower quality will still produce a much bigger reduction; WebP also supports transparency, so it's a good lossy alternative to PNG when an image has an alpha channel.
+  - q: Should I pick JPEG or WebP?
+    a: WebP is supported by every modern browser and typically produces a smaller file than JPEG at the same visual quality, plus it supports transparency, which JPEG doesn't. JPEG remains the safer choice if the image needs to work in very old software or a context that doesn't recognize WebP at all — for a modern website, WebP is usually the better default.
+  - q: Why doesn't this tool accept GIF files?
+    a: A GIF can be animated, and this tool's canvas-based re-encoding only ever captures a single frame — accepting an animated GIF would silently flatten it into a still image with no warning, which is a worse outcome than simply not supporting the format. Compressing an animated GIF properly needs a different, frame-aware tool.
+  - q: What's the largest image this will handle?
+    a: Files up to 25 MB each. Decoding and re-encoding both happen synchronously in your browser tab, so a much larger file risks becoming unresponsive rather than failing gracefully — resize a very large image with a desktop tool first if you hit this limit.
+  - q: Can I compress a batch of images at once?
+    a: Yes — drop or choose as many images as you like (up to 30 in one batch) and every image compresses with the same format, quality, and resize settings. Each finishes independently with its own before/after comparison, and you can download one at a time or grab the whole finished batch as a single .zip file.
+related:
+  - image-base64-converter
+  - svg-optimizer
+  - qr-code-generator
+---
+
+## Choosing quality and dimensions
+
+A quality of 70-85% is usually visually indistinguishable from the original for JPEG and
+WebP while cutting file size dramatically — go lower only for thumbnails or previews where
+some visible compression is acceptable. Downscaling with the max-dimension option is often
+the single biggest lever: an image twice as wide and twice as tall as it needs to be has
+roughly four times the pixel data to encode, regardless of quality setting.
