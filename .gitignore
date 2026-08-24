@@ -23,6 +23,15 @@ pnpm-debug.log*
 # jetbrains setting folder
 .idea/
 
+# AI coding agent tooling — local/per-machine, not shared project config.
+# Claude Code local session/tool state (settings.local.json, etc.), and its own
+# project-instructions file — kept local rather than shared via git.
+.claude/
+CLAUDE.md
+# Engineering-conventions doc aimed at AI coding agents — kept local rather than shared via git.
+AGENTS.md
+# MCP server config (e.g. the Playwright MCP entry) — local tool setup, not shared config.
+.mcp.json
 # Playwright MCP screenshots/snapshots
 .playwright-mcp/
 # Ad-hoc verification screenshots saved with a bare filename (no directory prefix) land
