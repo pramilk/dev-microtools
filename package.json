@@ -2,6 +2,11 @@
   "name": "dev-microtools",
   "type": "module",
   "version": "0.0.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pramilk/dev-microtools.git"
+  },
   "engines": {
     "node": ">=22.12.0"
   },

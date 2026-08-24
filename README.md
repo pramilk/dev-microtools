@@ -1,43 +1,55 @@
-# Astro Starter Kit: Minimal
+# DevMicroTools
+
+[devmicrotools.com](https://devmicrotools.com) — free developer utilities (JSON formatter,
+regex tester, Base64, JWT decoder, hashing, diff checker, QR codes, and more) that run
+entirely in your browser.
+
+There is no backend. Every tool is client-side JavaScript — nothing you paste into a tool
+is ever transmitted anywhere. You can verify this yourself: open DevTools → Network while
+using any tool and you'll see no outbound request carrying your input.
+
+## Stack
+
+- [Astro](https://astro.build) — static output, zero JS shipped by default
+- [Preact](https://preactjs.com) islands for the interactive part of each tool page only
+- TypeScript in strict mode
+- [Vitest](https://vitest.dev) + `@testing-library/preact` for unit and component tests
+- Deployed as static assets on Cloudflare Workers
+
+## Architecture
+
+```
+src/
+  layouts/BaseLayout.astro   # head/meta/JSON-LD, header, footer, analytics
+  components/                # Header, Footer, ToolCard, RelatedTools, AdSlot, ToolIsland, ...
+  content/tools/<slug>.mdx   # per-tool metadata + written content (required by content.config.ts)
+  islands/<Tool>.tsx         # one Preact component per tool — the interactive widget
+  lib/tools/<name>.ts        # pure, framework-free, unit-tested logic
+  lib/toolRegistry.ts        # slug -> component registration
+  pages/
+    index.astro              # tool directory
+    [slug].astro              # dynamic route over the content collection (tools live at /<slug>/)
+public/                      # robots.txt, ads.txt, favicon
+```
+
+Each tool keeps three concerns separate: pure logic (`lib/tools/`), UI/state (`islands/`),
+and content (`content/tools/`). Adding a new tool is additive — one file in each of those
+three places, plus a registry entry — never a change to another tool's code.
+
+See [AGENTS.md](AGENTS.md) for the full set of engineering conventions this project follows
+(performance budget, testing requirements, SOLID layering, SEO requirements) — the same file
+guides both human contributors and AI coding agents working in this repo.
+
+## Development
 
 ```sh
-npm create astro@latest -- --template minimal
+npm install
+npm run dev          # dev server at localhost:4321
+npm run build        # production build to dist/
+npm run preview      # serve the built site locally
+npm run test         # unit + component tests
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## License
 
-## 🚀 Project Structure
-
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
-
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
-
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
-
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+[MIT](LICENSE)
