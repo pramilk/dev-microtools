@@ -1,0 +1,68 @@
+---
+import { SITE } from '../lib/site';
+---
+
+{/* Rendered once, in BaseLayout, so it shows up at the end of every page's content without
+    every page having to remember to add it. */}
+<div class="coffee-cta">
+  <p>
+    <span aria-hidden="true">☕</span> Find these tools useful? A coffee helps keep them free and ad-light.
+  </p>
+  <a href={SITE.buyMeACoffeeUrl} class="coffee-cta__btn" target="_blank" rel="noopener noreferrer">
+    Buy me a coffee
+  </a>
+</div>
+
+<style>
+  .coffee-cta {
+    max-width: var(--content-width-wide);
+    width: 100%;
+    margin-inline: auto;
+    padding: var(--space-4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+    text-align: center;
+    border-top: 1px solid var(--border);
+  }
+
+  .coffee-cta p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  /* This component renders on every page via BaseLayout, including ones that never load
+     tool.css (home, About, Privacy) — so unlike a tool island's buttons, it can't reuse
+     .btn/.btn--primary from there and needs its own copy of that same look. */
+  .coffee-cta__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem 0.85rem;
+    min-height: 2.25rem;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: var(--accent-contrast);
+    font-size: var(--text-sm);
+    font-weight: 550;
+    white-space: nowrap;
+    text-decoration: none;
+    transition:
+      background-color 0.12s ease,
+      border-color 0.12s ease;
+  }
+
+  .coffee-cta__btn:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
+
+  .coffee-cta__btn:active {
+    background: var(--accent-active);
+    border-color: var(--accent-active);
+  }
+</style>

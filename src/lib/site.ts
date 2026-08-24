@@ -11,6 +11,7 @@ export const SITE = {
     'Free developer utilities: JSON formatter, regex tester, Base64, JWT, hashing, diff checker and more — all running in your browser. Nothing is ever uploaded.',
   locale: 'en_US',
   repoUrl: 'https://github.com/pramilk/dev-microtools',
+  buyMeACoffeeUrl: 'https://buymeacoffee.com/xqzdksauy8',
   /** Filled in after AdSense approval. Ads stay disabled while this is null. */
   adsensePublisherId: null as string | null,
   /** Filled in from the Cloudflare dashboard. Analytics stays disabled while null. */

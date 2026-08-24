@@ -17,6 +17,11 @@ const year = new Date().getFullYear();
         <li><a href="/about/">About</a></li>
         <li><a href="/privacy-policy/">Privacy</a></li>
         <li><a href={SITE.repoUrl}>Source on GitHub</a></li>
+        <li>
+          <a href={SITE.buyMeACoffeeUrl} target="_blank" rel="noopener noreferrer">
+            <span aria-hidden="true">☕</span> Buy me a coffee
+          </a>
+        </li>
       </ul>
       <p class="footer-credit">
         Open source components: <code>diff</code> (BSD-3-Clause), <code>blueimp-md5</code>
@@ -47,7 +52,11 @@ const year = new Date().getFullYear();
 
   .footer-note {
     color: var(--text-muted);
-    max-width: 40ch;
+    /* No max-width: the old ch-based cap made sense back when this note shared a row with a
+       wide tools column next to it, but now that the footer is single-column, it just forced
+       an artificially narrow wrap regardless of how much real width was available. Letting it
+       size off the actual container means it's one line on most screens and wraps only when
+       the viewport genuinely is that narrow. */
   }
 
   .footer-links {
