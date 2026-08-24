@@ -165,4 +165,72 @@ describe('<QrCodeGenerator />', () => {
     // "SMSTO:+15550100:hi" — prefix + phone number add well over the 2-character message.
     expect(screen.getByText('18/1500')).toBeInTheDocument();
   });
+
+  it('switches to Payment mode and generates a PayPal.me code once a recipient is entered', async () => {
+    render(<QrCodeGenerator />);
+    fireEvent.click(screen.getByRole('button', { name: /^payment$/i }));
+
+    expect(document.querySelector('.qr-preview__image svg')).not.toBeInTheDocument();
+
+    fireEvent.input(screen.getByLabelText(/paypal\.me username/i), { target: { value: 'yourname' } });
+
+    await waitFor(() => expect(document.querySelector('.qr-preview__image svg')).toBeInTheDocument());
+  });
+
+  it('shows Venmo-specific fields and a note field when Venmo is selected', async () => {
+    render(<QrCodeGenerator />);
+    fireEvent.click(screen.getByRole('button', { name: /^payment$/i }));
+
+    fireEvent.change(screen.getByLabelText(/^provider$/i), { target: { value: 'venmo' } });
+
+    expect(screen.getByLabelText(/venmo username/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/note \(optional\)/i)).toBeInTheDocument();
+  });
+
+  it('hides the note field for PayPal, which has no note parameter', async () => {
+    render(<QrCodeGenerator />);
+    fireEvent.click(screen.getByRole('button', { name: /^payment$/i }));
+
+    expect(screen.queryByLabelText(/note \(optional\)/i)).not.toBeInTheDocument();
+  });
+
+  it('points Stripe/Square/Zelle link owners to Text/URL mode instead of offering them as providers', async () => {
+    render(<QrCodeGenerator />);
+    fireEvent.click(screen.getByRole('button', { name: /^payment$/i }));
+
+    expect(screen.getByText(/stripe or square checkout link/i)).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /zelle/i })).not.toBeInTheDocument();
+  });
+
+  it('fills in a sample PayPal payment when Load example is used in Payment mode', async () => {
+    render(<QrCodeGenerator />);
+    fireEvent.click(screen.getByRole('button', { name: /^payment$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^load example$/i }));
+
+    expect(screen.getByLabelText(/paypal\.me username/i)).toHaveValue('yourname');
+    await waitFor(() => expect(document.querySelector('.qr-preview__image svg')).toBeInTheDocument());
+  });
+
+  it('bakes an optional label into the downloaded image, growing the SVG height', async () => {
+    render(<QrCodeGenerator />);
+    await waitFor(() => expect(document.querySelector('.qr-preview__image svg')).toBeInTheDocument());
+    const before = document.querySelector('.qr-preview__image svg')!.getAttribute('viewBox');
+
+    fireEvent.click(screen.getByText(/customize appearance/i));
+    fireEvent.input(screen.getByLabelText(/label below code/i), { target: { value: 'Pay with PayPal' } });
+
+    await waitFor(() => {
+      const svg = document.querySelector('.qr-preview__image svg')!;
+      expect(svg.getAttribute('viewBox')).not.toBe(before);
+      expect(svg.innerHTML).toContain('Pay with PayPal');
+    });
+  });
+
+  it('suggests a provider-specific placeholder for the label in Payment mode', async () => {
+    render(<QrCodeGenerator />);
+    fireEvent.click(screen.getByRole('button', { name: /^payment$/i }));
+    fireEvent.click(screen.getByText(/customize appearance/i));
+
+    expect(screen.getByPlaceholderText('Pay with PayPal')).toBeInTheDocument();
+  });
 });

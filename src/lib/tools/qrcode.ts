@@ -62,6 +62,38 @@ export interface QrLogoOptions {
   sizeRatio?: number;
 }
 
+export interface QrCaptionOptions {
+  text: string;
+  color?: string;
+}
+
+function escapeXmlText(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function captionHeightFor(cellSize: number, captionText: string): number {
+  return captionText.trim() !== '' ? Math.round(cellSize * 3.4) : 0;
+}
+
+/**
+ * The pixel size `matrixToSvg` will render at for the same matrix/options — callers that
+ * rasterize the SVG onto a canvas (PNG export, clipboard copy) need this to size the canvas
+ * correctly, since a caption makes the image taller than the code itself.
+ */
+export function qrImageDimensions(
+  matrix: QrMatrix,
+  options: { cellSize?: number; caption?: QrCaptionOptions } = {}
+): { width: number; height: number } {
+  const { cellSize = 8, caption } = options;
+  const size = matrix.moduleCount * cellSize;
+  return { width: size, height: size + captionHeightFor(cellSize, caption?.text ?? '') };
+}
+
 /**
  * Renders a matrix as an inline SVG string — used for both preview and SVG download.
  *
@@ -70,12 +102,22 @@ export interface QrLogoOptions {
  * overlay just visually covers them. That only decodes reliably at error correction level
  * H, which has enough redundancy to reconstruct the obscured area — callers that accept a
  * logo are expected to force level H alongside it.
+ *
+ * A caption is drawn below the code, inside the same SVG, rather than as separate on-page
+ * markup — that's the only way it survives a PNG/SVG download or a print, which is the
+ * whole point of a caption like "Pay with PayPal" on a code meant to be printed.
  */
 export function matrixToSvg(
   matrix: QrMatrix,
-  options: { cellSize?: number; darkColor?: string; lightColor?: string; logo?: QrLogoOptions } = {}
+  options: {
+    cellSize?: number;
+    darkColor?: string;
+    lightColor?: string;
+    logo?: QrLogoOptions;
+    caption?: QrCaptionOptions;
+  } = {}
 ): string {
-  const { cellSize = 8, darkColor = '#000000', lightColor = '#ffffff', logo } = options;
+  const { cellSize = 8, darkColor = '#000000', lightColor = '#ffffff', logo, caption } = options;
   const size = matrix.moduleCount * cellSize;
 
   let path = '';
@@ -101,12 +143,26 @@ export function matrixToSvg(
       `href="${logo.dataUrl}" xlink:href="${logo.dataUrl}" preserveAspectRatio="xMidYMid slice"/>`;
   }
 
+  const captionText = caption?.text.trim() ?? '';
+  const captionHeight = captionHeightFor(cellSize, captionText);
+  const totalHeight = size + captionHeight;
+  let captionMarkup = '';
+  if (captionText !== '') {
+    const fontSize = Math.round(cellSize * 1.7);
+    captionMarkup =
+      `<rect x="0" y="${size}" width="${size}" height="${captionHeight}" fill="${lightColor}"/>` +
+      `<text x="${size / 2}" y="${size + captionHeight / 2}" text-anchor="middle" dominant-baseline="central" ` +
+      `font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="${fontSize}" font-weight="600" ` +
+      `fill="${caption?.color ?? darkColor}">${escapeXmlText(captionText)}</text>`;
+  }
+
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ` +
-    `viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" shape-rendering="crispEdges">` +
-    `<rect width="${size}" height="${size}" fill="${lightColor}"/>` +
+    `viewBox="0 0 ${size} ${totalHeight}" width="${size}" height="${totalHeight}" shape-rendering="crispEdges">` +
+    `<rect width="${size}" height="${totalHeight}" fill="${lightColor}"/>` +
     `<path d="${path}" fill="${darkColor}"/>` +
     overlay +
+    captionMarkup +
     `</svg>`
   );
 }
@@ -120,7 +176,7 @@ export function matrixToSvg(
 // fields that make the payload meaningful are filled in); these functions assume valid,
 // present input and just format it.
 
-export const QR_CONTENT_TYPES = ['text', 'wifi', 'vcard', 'sms', 'email', 'geo'] as const;
+export const QR_CONTENT_TYPES = ['text', 'wifi', 'vcard', 'sms', 'email', 'geo', 'payment'] as const;
 export type QrContentType = (typeof QR_CONTENT_TYPES)[number];
 
 export const WIFI_ENCRYPTION_TYPES = ['WPA', 'WEP', 'nopass'] as const;
@@ -157,6 +213,17 @@ export interface EmailFields {
 export interface GeoFields {
   latitude: string;
   longitude: string;
+}
+
+export const PAYMENT_PROVIDERS = ['paypal', 'venmo', 'cashapp'] as const;
+export type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number];
+
+export interface PaymentFields {
+  provider: PaymentProvider;
+  /** Username or $cashtag — which, depends on the provider. */
+  recipient: string;
+  amount: string;
+  note: string;
 }
 
 /** Escapes characters that are structurally significant in WIFI:/vCard field values. */
@@ -212,6 +279,33 @@ export function buildEmailText(fields: EmailFields): string {
 /** Builds a `geo:` payload — scanning it opens the coordinates in a maps app. */
 export function buildGeoText(fields: GeoFields): string {
   return `geo:${fields.latitude.trim()},${fields.longitude.trim()}`;
+}
+
+/**
+ * Builds a payment payload. Each of these providers has a real link format that opens
+ * straight into a pre-filled payment screen when scanned, built from just a username (or
+ * $cashtag) and an optional amount — unlike, say, Zelle (bound to bank enrollment, no
+ * public URL format) or Stripe/Square (opaque per-merchant links minted in their own
+ * dashboard, not derivable from a username), neither of which fits this "type a username,
+ * get a working link" shape.
+ */
+export function buildPaymentText(fields: PaymentFields): string {
+  const recipient = fields.recipient.trim().replace(/^[$@]/, '');
+  const amount = fields.amount.trim().replace(/^\$/, '');
+  const note = fields.note.trim();
+
+  switch (fields.provider) {
+    case 'paypal':
+      return `https://paypal.me/${recipient}${amount !== '' ? `/${amount}` : ''}`;
+    case 'venmo': {
+      const params = [`txn=pay`, `recipients=${encodeURIComponent(recipient)}`];
+      if (amount !== '') params.push(`amount=${encodeURIComponent(amount)}`);
+      if (note !== '') params.push(`note=${encodeURIComponent(note)}`);
+      return `venmo://paycharge?${params.join('&')}`;
+    }
+    case 'cashapp':
+      return `https://cash.app/$${recipient}${amount !== '' ? `/${amount}` : ''}`;
+  }
 }
 
 /** True when both coordinates are present, numeric, and within valid ranges. */

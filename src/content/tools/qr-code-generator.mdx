@@ -5,7 +5,7 @@ description: Turn any text or URL into a downloadable QR code, generated entirel
 summary: Turn text or a URL into a scannable QR code — download as PNG or SVG.
 category: Generate
 order: 12
-updated: 2026-08-22
+updated: 2026-08-23
 whatIsIt: >-
   A QR code is a two-dimensional barcode that encodes text — most often a URL — as a grid
   of black and white squares a camera can read instantly. This tool builds a real,
@@ -15,6 +15,7 @@ whatIsIt: >-
 useCases:
   - Linking a printed flyer, business card, or poster to a website without anyone typing a URL by hand.
   - Sharing Wi-Fi details, a contact card, or an app download link at an event or in a physical space.
+  - Putting a PayPal, Venmo, or Cash App QR code on an invoice, tip jar, or market stall so people can pay in a tap.
   - Embedding a QR code in a slide deck or document that points to a live page.
   - Testing how a QR code you're about to print actually scans, before committing to a print run.
 howTo:
@@ -38,6 +39,8 @@ faq:
     a: No. The QR code is built entirely in your browser from a small, open-source encoding library, and the image itself is produced on an in-page canvas. Nothing you type is uploaded, logged, or sent to a server — that's true even for the finished PNG or SVG, which are saved directly from your browser to your device.
   - q: My QR code isn't scanning — what's wrong?
     a: The most common cause is insufficient contrast or the code being printed too small for its density — a long URL at Low error correction produces a fine grid that struggles at business-card size. Try a shorter URL (a link shortener helps), a higher error correction level if you're adding a logo, or simply printing it larger.
+  - q: Which payment apps does the Payment mode support?
+    a: PayPal, Venmo, and Cash App — each has a real link format that opens straight into a pre-filled payment screen when scanned, built from just the recipient's username and an optional amount. Apple Pay, Google Pay, and Zelle don't offer any public link format a third party can construct (Zelle's QR codes are generated inside your banking app and tied to your bank enrollment), so they aren't included here. If you already have a Stripe or Square checkout link — a full URL your Stripe or Square dashboard generated for you — use Text/URL mode instead; it's already a plain link and needs no special handling.
 related:
   - color-converter
   - password-generator

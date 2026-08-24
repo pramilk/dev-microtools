@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import {
   generateQrMatrix,
   matrixToSvg,
+  qrImageDimensions,
   buildWifiText,
   buildVCardText,
   buildSmsText,
@@ -9,14 +10,17 @@ import {
   buildGeoText,
   isValidGeoCoordinate,
   parseGeoLocationInput,
+  buildPaymentText,
   QR_ERROR_CORRECTION_LEVELS,
   QR_CONTENT_TYPES,
   WIFI_ENCRYPTION_TYPES,
+  PAYMENT_PROVIDERS,
   MAX_QR_TEXT_LENGTH,
   type QrMatrix,
   type QrErrorCorrectionLevel,
   type QrContentType,
   type WifiEncryptionType,
+  type PaymentProvider,
 } from '../lib/tools/qrcode';
 import { encodeFileToBase64 } from '../lib/tools/base64';
 import { readShareStateFromLocation } from '../lib/shareLink';
@@ -39,6 +43,7 @@ const CONTENT_TYPE_LABELS: Record<QrContentType, string> = {
   sms: 'Text message',
   email: 'Email',
   geo: 'Location',
+  payment: 'Payment',
 };
 
 // Short enough to sit side-by-side in a single connected segmented control.
@@ -49,6 +54,7 @@ const TYPE_PICKER_LABELS: Record<QrContentType, string> = {
   sms: 'SMS',
   email: 'Email',
   geo: 'Location',
+  payment: 'Payment',
 };
 
 const EMPTY_MESSAGES: Record<QrContentType, string> = {
@@ -58,7 +64,30 @@ const EMPTY_MESSAGES: Record<QrContentType, string> = {
   sms: 'Enter a phone number to generate a text-message QR code.',
   email: 'Enter a recipient email address to generate an email QR code.',
   geo: 'Enter a valid latitude and longitude to generate a location QR code.',
+  payment: 'Enter a recipient to generate a payment QR code.',
 };
+
+const PAYMENT_PROVIDER_LABELS: Record<PaymentProvider, string> = {
+  paypal: 'PayPal',
+  venmo: 'Venmo',
+  cashapp: 'Cash App',
+};
+
+const PAYMENT_RECIPIENT_LABELS: Record<PaymentProvider, string> = {
+  paypal: 'PayPal.me username',
+  venmo: 'Venmo username',
+  cashapp: '$Cashtag',
+};
+
+const PAYMENT_RECIPIENT_PLACEHOLDERS: Record<PaymentProvider, string> = {
+  paypal: 'yourname',
+  venmo: 'your-venmo',
+  cashapp: 'yourcashtag',
+};
+
+// Only Venmo's deep link actually carries a note — PayPal.me and Cash App links have no
+// note parameter, so the field is hidden for those rather than shown and silently ignored.
+const PAYMENT_PROVIDERS_WITH_NOTE = new Set<PaymentProvider>(['venmo']);
 
 const DOWNLOAD_SIZES = [256, 512, 1024] as const;
 const MAX_LOGO_BYTES = 1_000_000;
@@ -81,6 +110,7 @@ const TYPE_ICON_PATHS: Record<QrContentType, string> = {
   sms: '<rect x="3" y="5" width="18" height="12" rx="3"/><path d="M8 17l-1.6 3v-3"/>',
   email: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
   geo: '<path d="M12 21s7-7.5 7-12a7 7 0 0 0-14 0c0 4.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.4"/>',
+  payment: '<rect x="2.5" y="6" width="19" height="12" rx="2.2"/><path d="M2.5 10.5h19"/><path d="M6 15h4"/>',
 };
 
 function TypeIcon({ type }: { type: QrContentType }) {
@@ -112,7 +142,7 @@ function typeIconDataUrl(type: QrContentType, color: string): string {
 }
 
 /** Rasterises the SVG markup to a PNG blob via an off-screen canvas. */
-async function rasterizeToPng(svgMarkup: string, size: number): Promise<Blob> {
+async function rasterizeToPng(svgMarkup: string, width: number, height: number = width): Promise<Blob> {
   const svgUrl = URL.createObjectURL(new Blob([svgMarkup], { type: 'image/svg+xml' }));
   try {
     const image = new Image();
@@ -123,11 +153,11 @@ async function rasterizeToPng(svgMarkup: string, size: number): Promise<Blob> {
     });
 
     const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
+    canvas.width = width;
+    canvas.height = height;
     const context = canvas.getContext('2d');
     if (!context) throw new Error('This browser does not support canvas image export.');
-    context.drawImage(image, 0, 0, size, size);
+    context.drawImage(image, 0, 0, width, height);
 
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
     if (!blob) throw new Error('Could not export a PNG from this QR code.');
@@ -160,6 +190,7 @@ interface ShareState {
   level: QrErrorCorrectionLevel;
   darkColor: string;
   lightColor: string;
+  caption: string;
   text: string;
   wifiSsid: string;
   wifiEncryption: WifiEncryptionType;
@@ -180,6 +211,10 @@ interface ShareState {
   emailBody: string;
   geoLat: string;
   geoLng: string;
+  paymentProvider: PaymentProvider;
+  paymentRecipient: string;
+  paymentAmount: string;
+  paymentNote: string;
   logoPresetType: QrContentType | null;
   // An *uploaded* logo image is deliberately excluded — a data URL is far too large for a
   // shareable link, and there's no sensible "restore" for someone else's uploaded image
@@ -218,9 +253,15 @@ export default function QrCodeGenerator() {
   const [geoLinkInput, setGeoLinkInput] = useState('');
   const [geoLinkError, setGeoLinkError] = useState<string | null>(null);
 
+  const [paymentProvider, setPaymentProvider] = useState<PaymentProvider>('paypal');
+  const [paymentRecipient, setPaymentRecipient] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentNote, setPaymentNote] = useState('');
+
   const [level, setLevel] = useState<QrErrorCorrectionLevel>('M');
   const [darkColor, setDarkColor] = useState(DEFAULT_DARK);
   const [lightColor, setLightColor] = useState(DEFAULT_LIGHT);
+  const [caption, setCaption] = useState('');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [uploadedLogoDataUrl, setUploadedLogoDataUrl] = useState<string | null>(null);
   const [logoPresetType, setLogoPresetType] = useState<QrContentType | null>(null);
@@ -245,6 +286,7 @@ export default function QrCodeGenerator() {
       setLevel(v.level ?? 'M');
       setDarkColor(v.darkColor ?? DEFAULT_DARK);
       setLightColor(v.lightColor ?? DEFAULT_LIGHT);
+      setCaption(v.caption ?? '');
       setText(v.text ?? '');
       setWifiSsid(v.wifiSsid ?? '');
       setWifiEncryption(v.wifiEncryption ?? 'WPA');
@@ -263,6 +305,10 @@ export default function QrCodeGenerator() {
       setEmailBody(v.emailBody ?? '');
       setGeoLat(v.geoLat ?? '');
       setGeoLng(v.geoLng ?? '');
+      setPaymentProvider(v.paymentProvider ?? 'paypal');
+      setPaymentRecipient(v.paymentRecipient ?? '');
+      setPaymentAmount(v.paymentAmount ?? '');
+      setPaymentNote(v.paymentNote ?? '');
       setLogoPresetType(v.logoPresetType ?? null);
       history.replaceState(null, '', window.location.pathname);
     });
@@ -299,6 +345,15 @@ export default function QrCodeGenerator() {
         return emailTo.trim() === '' ? '' : buildEmailText({ to: emailTo, subject: emailSubject, body: emailBody });
       case 'geo':
         return isValidGeoCoordinate(geoLat, geoLng) ? buildGeoText({ latitude: geoLat, longitude: geoLng }) : '';
+      case 'payment':
+        return paymentRecipient.trim() === ''
+          ? ''
+          : buildPaymentText({
+              provider: paymentProvider,
+              recipient: paymentRecipient,
+              amount: paymentAmount,
+              note: paymentNote,
+            });
     }
   }, [
     contentType,
@@ -321,6 +376,10 @@ export default function QrCodeGenerator() {
     emailBody,
     geoLat,
     geoLng,
+    paymentProvider,
+    paymentRecipient,
+    paymentAmount,
+    paymentNote,
   ]);
 
   // Previews the encoded length even before a phone number / recipient makes the payload
@@ -402,19 +461,22 @@ export default function QrCodeGenerator() {
     () => (logoDataUrl ? { dataUrl: logoDataUrl, sizeRatio: LOGO_SIZE_RATIO } : undefined),
     [logoDataUrl]
   );
+  const captionOption = useMemo(() => (caption.trim() !== '' ? { text: caption } : undefined), [caption]);
   const previewSvg = useMemo(
-    () => (matrix ? matrixToSvg(matrix, { cellSize: 8, darkColor, lightColor, logo: logoOption }) : ''),
-    [matrix, darkColor, lightColor, logoOption]
+    () => (matrix ? matrixToSvg(matrix, { cellSize: 8, darkColor, lightColor, logo: logoOption, caption: captionOption }) : ''),
+    [matrix, darkColor, lightColor, logoOption, captionOption]
   );
-  const customized = darkColor !== DEFAULT_DARK || lightColor !== DEFAULT_LIGHT || logoDataUrl !== null;
+  const customized =
+    darkColor !== DEFAULT_DARK || lightColor !== DEFAULT_LIGHT || logoDataUrl !== null || caption.trim() !== '';
 
   const handleDownloadPng = async () => {
     if (!matrix) return;
     setExportError(null);
     const cellSize = Math.max(1, Math.round(downloadSize / matrix.moduleCount));
-    const svg = matrixToSvg(matrix, { cellSize, darkColor, lightColor, logo: logoOption });
+    const svg = matrixToSvg(matrix, { cellSize, darkColor, lightColor, logo: logoOption, caption: captionOption });
+    const { width, height } = qrImageDimensions(matrix, { cellSize, caption: captionOption });
     try {
-      const blob = await rasterizeToPng(svg, cellSize * matrix.moduleCount);
+      const blob = await rasterizeToPng(svg, width, height);
       saveBlob(blob, 'qr-code.png');
     } catch (err) {
       setExportError(err instanceof Error ? err.message : 'Could not export a PNG from this QR code.');
@@ -424,7 +486,10 @@ export default function QrCodeGenerator() {
   const handleDownloadSvg = () => {
     if (!matrix) return;
     setExportError(null);
-    downloadSvg(matrixToSvg(matrix, { cellSize: 10, darkColor, lightColor, logo: logoOption }), 'qr-code.svg');
+    downloadSvg(
+      matrixToSvg(matrix, { cellSize: 10, darkColor, lightColor, logo: logoOption, caption: captionOption }),
+      'qr-code.svg'
+    );
   };
 
   const handleCopyImage = async () => {
@@ -433,8 +498,9 @@ export default function QrCodeGenerator() {
     if (copyResetTimer.current !== null) clearTimeout(copyResetTimer.current);
 
     try {
-      const svg = matrixToSvg(matrix, { cellSize: 10, darkColor, lightColor, logo: logoOption });
-      const blob = await rasterizeToPng(svg, 10 * matrix.moduleCount);
+      const svg = matrixToSvg(matrix, { cellSize: 10, darkColor, lightColor, logo: logoOption, caption: captionOption });
+      const { width, height } = qrImageDimensions(matrix, { cellSize: 10, caption: captionOption });
+      const blob = await rasterizeToPng(svg, width, height);
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
       setCopyState('copied');
     } catch {
@@ -504,6 +570,8 @@ export default function QrCodeGenerator() {
         return emailTo !== '' || emailSubject !== '' || emailBody !== '';
       case 'geo':
         return geoLat !== '' || geoLng !== '' || geoLinkInput !== '';
+      case 'payment':
+        return paymentRecipient !== '' || paymentAmount !== '' || paymentNote !== '';
     }
   };
 
@@ -543,6 +611,11 @@ export default function QrCodeGenerator() {
         setGeoLinkInput('');
         setGeoLinkError(null);
         break;
+      case 'payment':
+        setPaymentRecipient('');
+        setPaymentAmount('');
+        setPaymentNote('');
+        break;
     }
   };
 
@@ -581,6 +654,12 @@ export default function QrCodeGenerator() {
         // same parsing path a real pasted link goes through, so the sample looks filled in
         // rather than silently only updating fields the user can't see.
         handleGeoLinkInput('https://www.google.com/maps/place/@40.6892,-74.0445,17z');
+        break;
+      case 'payment':
+        setPaymentProvider('paypal');
+        setPaymentRecipient('yourname');
+        setPaymentAmount('25');
+        setPaymentNote('');
         break;
     }
   };
@@ -624,6 +703,7 @@ export default function QrCodeGenerator() {
             level,
             darkColor,
             lightColor,
+            caption,
             text,
             wifiSsid,
             wifiEncryption,
@@ -642,6 +722,10 @@ export default function QrCodeGenerator() {
             emailBody,
             geoLat,
             geoLng,
+            paymentProvider,
+            paymentRecipient,
+            paymentAmount,
+            paymentNote,
             logoPresetType,
           })}
           describe="this QR code"
@@ -1006,6 +1090,86 @@ export default function QrCodeGenerator() {
         </>
       )}
 
+      {contentType === 'payment' && (
+        <>
+          <div class="field-row">
+            <div class="field" style="flex:1 1 10rem">
+              <label class="field__label" for="qr-payment-provider">
+                <span>Provider</span>
+              </label>
+              <select
+                id="qr-payment-provider"
+                class="select"
+                value={paymentProvider}
+                title="Determines the link format encoded — each provider opens differently when scanned"
+                onChange={(event) => setPaymentProvider((event.target as HTMLSelectElement).value as PaymentProvider)}
+              >
+                {PAYMENT_PROVIDERS.map((value) => (
+                  <option key={value} value={value}>
+                    {PAYMENT_PROVIDER_LABELS[value]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div class="field" style="flex:2 1 14rem">
+              <label class="field__label" for="qr-payment-recipient">
+                <span>{PAYMENT_RECIPIENT_LABELS[paymentProvider]}</span>
+              </label>
+              <input
+                id="qr-payment-recipient"
+                class="input"
+                spellcheck={false}
+                autocomplete="off"
+                placeholder={PAYMENT_RECIPIENT_PLACEHOLDERS[paymentProvider]}
+                value={paymentRecipient}
+                aria-invalid={error !== null}
+                onInput={(event) => setPaymentRecipient((event.target as HTMLInputElement).value)}
+              />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field" style="flex:1 1 10rem">
+              <label class="field__label" for="qr-payment-amount">
+                <span>Amount (optional)</span>
+              </label>
+              <input
+                id="qr-payment-amount"
+                class="input"
+                inputmode="decimal"
+                autocomplete="off"
+                placeholder="25.00"
+                value={paymentAmount}
+                onInput={(event) => setPaymentAmount((event.target as HTMLInputElement).value)}
+              />
+            </div>
+            {PAYMENT_PROVIDERS_WITH_NOTE.has(paymentProvider) && (
+              <div class="field" style="flex:2 1 14rem">
+                <label class="field__label" for="qr-payment-note">
+                  <span>Note (optional)</span>
+                </label>
+                <input
+                  id="qr-payment-note"
+                  class="input"
+                  autocomplete="off"
+                  placeholder="Thanks!"
+                  value={paymentNote}
+                  onInput={(event) => setPaymentNote((event.target as HTMLInputElement).value)}
+                />
+              </div>
+            )}
+          </div>
+          <span class="field__hint">
+            Scanning opens straight into a pre-filled {PAYMENT_PROVIDER_LABELS[paymentProvider]} payment — the payer
+            can still change the amount before sending, so treat it as a suggestion, not a lock.
+          </span>
+          <span class="field__hint">
+            Already have a Stripe or Square checkout link? Those are already a plain URL generated in your Stripe or
+            Square dashboard — switch to <strong>Text/URL</strong> mode above and paste it in directly. (Zelle has no
+            such link at all — its QR codes are generated inside your banking app and can't be recreated here.)
+          </span>
+        </>
+      )}
+
       <div class="tool-bar">
         <label class="checkbox" title="How much of the code can be damaged or obscured and still scan">
           <span class="field__hint">Error correction</span>
@@ -1032,7 +1196,7 @@ export default function QrCodeGenerator() {
       </div>
 
       <details class="customize" open={customized}>
-        <summary>Customize appearance (colors &amp; logo)</summary>
+        <summary>Customize appearance (colors, logo &amp; label)</summary>
         <div class="customize__body">
           <div class="field-row">
             <label class="field__label swatch-field">
@@ -1074,6 +1238,25 @@ export default function QrCodeGenerator() {
                 Reset colours
               </button>
             )}
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="qr-caption">
+              <span>Label below code (optional)</span>
+            </label>
+            <input
+              id="qr-caption"
+              class="input"
+              autocomplete="off"
+              placeholder={contentType === 'payment' ? `Pay with ${PAYMENT_PROVIDER_LABELS[paymentProvider]}` : 'e.g. Scan me'}
+              value={caption}
+              onInput={(event) => setCaption((event.target as HTMLInputElement).value)}
+              title="Printed directly into the downloaded PNG/SVG — handy for telling several printed codes apart"
+            />
+            <span class="field__hint">
+              Baked into the downloaded image itself, not just shown on this page — useful when printing several
+              codes side by side (e.g. one QR code per payment app) so each one is labeled.
+            </span>
           </div>
 
           <div class="field">

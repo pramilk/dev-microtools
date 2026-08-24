@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   generateQrMatrix,
   matrixToSvg,
+  qrImageDimensions,
   buildWifiText,
   buildVCardText,
   buildSmsText,
@@ -9,6 +10,7 @@ import {
   buildGeoText,
   isValidGeoCoordinate,
   parseGeoLocationInput,
+  buildPaymentText,
   MAX_QR_TEXT_LENGTH,
 } from './qrcode';
 
@@ -114,6 +116,60 @@ describe('matrixToSvg', () => {
     // 3 modules * 100 cellSize = 300; clamped ratio range is [0.1, 0.3].
     expect(tooSmall).toContain('width="30"'); // 300 * 0.1
     expect(tooBig).toContain('width="90"'); // 300 * 0.3
+  });
+
+  it('omits a caption when none is given', () => {
+    const svg = matrixToSvg(flatMatrix, { cellSize: 10 });
+    expect(svg).not.toContain('<text');
+    expect(svg).toContain('height="30"');
+  });
+
+  it('draws a caption below the code and grows the SVG height to fit it', () => {
+    const svg = matrixToSvg(flatMatrix, { cellSize: 10, caption: { text: 'Pay with PayPal' } });
+    expect(svg).toContain('<text');
+    expect(svg).toContain('Pay with PayPal');
+    expect(svg).toContain('width="30"'); // width unchanged — only height grows
+    expect(svg).not.toContain('height="30"'); // height must have grown past the bare code size
+  });
+
+  it('omits a caption that is only whitespace', () => {
+    const svg = matrixToSvg(flatMatrix, { cellSize: 10, caption: { text: '   ' } });
+    expect(svg).not.toContain('<text');
+  });
+
+  it('escapes XML-significant characters in the caption', () => {
+    const svg = matrixToSvg(flatMatrix, { cellSize: 10, caption: { text: '<Pay> "Me" & Co' } });
+    expect(svg).toContain('&lt;Pay&gt; &quot;Me&quot; &amp; Co');
+    expect(svg).not.toContain('<Pay>');
+  });
+
+  it('uses a custom caption colour, falling back to the dark colour', () => {
+    const withColor = matrixToSvg(flatMatrix, { cellSize: 10, darkColor: '#111', caption: { text: 'Hi', color: '#f00' } });
+    expect(withColor).toContain('fill="#f00">Hi');
+    const withoutColor = matrixToSvg(flatMatrix, { cellSize: 10, darkColor: '#111', caption: { text: 'Hi' } });
+    expect(withoutColor).toContain('fill="#111">Hi');
+  });
+});
+
+describe('qrImageDimensions', () => {
+  it('returns the bare code size when there is no caption', () => {
+    const matrix = { moduleCount: 21, isDark: () => false };
+    expect(qrImageDimensions(matrix, { cellSize: 10 })).toEqual({ width: 210, height: 210 });
+  });
+
+  it('adds extra height for a caption without changing the width', () => {
+    const matrix = { moduleCount: 21, isDark: () => false };
+    const { width, height } = qrImageDimensions(matrix, { cellSize: 10, caption: { text: 'Pay with PayPal' } });
+    expect(width).toBe(210);
+    expect(height).toBeGreaterThan(210);
+  });
+
+  it('matches the height matrixToSvg actually renders at', () => {
+    const matrix = { moduleCount: 21, isDark: () => false };
+    const options = { cellSize: 10, caption: { text: 'Scan me' } };
+    const svg = matrixToSvg(matrix, options);
+    const { height } = qrImageDimensions(matrix, options);
+    expect(svg).toContain(`height="${height}"`);
   });
 });
 
@@ -253,6 +309,57 @@ describe('isValidGeoCoordinate', () => {
     expect(isValidGeoCoordinate('0', '181')).toBe(false);
     expect(isValidGeoCoordinate('-91', '0')).toBe(false);
     expect(isValidGeoCoordinate('0', '-181')).toBe(false);
+  });
+});
+
+describe('buildPaymentText', () => {
+  it('builds a bare PayPal.me link with no amount', () => {
+    expect(buildPaymentText({ provider: 'paypal', recipient: 'yourname', amount: '', note: '' })).toBe(
+      'https://paypal.me/yourname'
+    );
+  });
+
+  it('appends the amount to a PayPal.me link', () => {
+    expect(buildPaymentText({ provider: 'paypal', recipient: 'yourname', amount: '25', note: '' })).toBe(
+      'https://paypal.me/yourname/25'
+    );
+  });
+
+  it('builds a Venmo deep link with recipient, amount, and note', () => {
+    const text = buildPaymentText({ provider: 'venmo', recipient: 'jordan-lee', amount: '10', note: 'Lunch' });
+    expect(text).toBe('venmo://paycharge?txn=pay&recipients=jordan-lee&amount=10&note=Lunch');
+  });
+
+  it('omits Venmo amount and note params when blank', () => {
+    expect(buildPaymentText({ provider: 'venmo', recipient: 'jordan-lee', amount: '', note: '' })).toBe(
+      'venmo://paycharge?txn=pay&recipients=jordan-lee'
+    );
+  });
+
+  it('percent-encodes the Venmo note', () => {
+    const text = buildPaymentText({ provider: 'venmo', recipient: 'jordan-lee', amount: '', note: 'Thanks & bye' });
+    expect(text).toContain('note=Thanks%20%26%20bye');
+  });
+
+  it('strips a leading $ or @ from the recipient', () => {
+    expect(buildPaymentText({ provider: 'cashapp', recipient: '$yourtag', amount: '', note: '' })).toBe(
+      'https://cash.app/$yourtag'
+    );
+    expect(buildPaymentText({ provider: 'venmo', recipient: '@jordan-lee', amount: '', note: '' })).toBe(
+      'venmo://paycharge?txn=pay&recipients=jordan-lee'
+    );
+  });
+
+  it('appends the amount to a Cash App link', () => {
+    expect(buildPaymentText({ provider: 'cashapp', recipient: 'yourtag', amount: '25', note: '' })).toBe(
+      'https://cash.app/$yourtag/25'
+    );
+  });
+
+  it('strips a leading $ from the amount', () => {
+    expect(buildPaymentText({ provider: 'paypal', recipient: 'yourname', amount: '$25', note: '' })).toBe(
+      'https://paypal.me/yourname/25'
+    );
   });
 });
 
