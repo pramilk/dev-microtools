@@ -9,11 +9,13 @@ import {
   CASE_LABELS,
   type CaseType,
 } from '../lib/tools/wordCounter';
+import { applySentenceCase, type LowConfidenceRange } from '../lib/tools/sentenceCase';
 import { readShareStateFromLocation } from '../lib/shareLink';
 import { ShareLinkButton } from './shared/ShareLinkButton';
 import { CopyButton } from './shared/CopyButton';
 import { useTextFileDrop } from './shared/useTextFileDrop';
 import { useCopy } from './shared/useCopy';
+import { ErrorMessage } from './shared/ErrorMessage';
 
 const SAMPLE = `The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquid jugs!
 
@@ -26,6 +28,13 @@ interface ShareState {
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
   return `${Math.round(seconds / 60)} min`;
+}
+
+function lowConfidenceReasonText(word: string, reason: LowConfidenceRange['reason']): string {
+  if (reason === 'commonWord') {
+    return `Capitalized in your text, but "${word.toLowerCase()}" is also an ordinary English word — likely just capitalized by habit rather than an actual name, though it's kept capitalized since real names can be common words too.`;
+  }
+  return `Capitalized in your text, but not recognized as a known name, place, or organization, and not a common English word either — could be a real proper noun the tool just doesn't know.`;
 }
 
 export default function WordCounter() {
@@ -41,15 +50,23 @@ export default function WordCounter() {
   const [replaceQuery, setReplaceQuery] = useState('');
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [showFindReplace, setShowFindReplace] = useState(false);
+  const [sentenceCaseLoading, setSentenceCaseLoading] = useState(false);
+  const [sentenceCaseError, setSentenceCaseError] = useState<string | null>(null);
+  // Words the Sentence case button wasn't confident were proper nouns — cleared on any real
+  // edit (setText) so a stale highlight never survives past the text it was computed for.
+  const [lowConfidenceRanges, setLowConfidenceRanges] = useState<LowConfidenceRange[]>([]);
 
   const setText = (value: string) => {
     setInput(value);
     setBaseText(value);
+    setLowConfidenceRanges([]);
   };
 
   const { isDragActive, dropHandlers } = useTextFileDrop(setText);
   const { state: reportCopyState, copy: copyReport } = useCopy();
   const backdropRef = useRef<HTMLDivElement>(null);
+  const lowConfidenceBackdropRef = useRef<HTMLDivElement>(null);
+  const lowConfidenceHintsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     void readShareStateFromLocation<ShareState>().then((restored) => {
@@ -72,7 +89,52 @@ export default function WordCounter() {
   // with the real textarea at all times, not just while searching.
   const segments = useMemo(() => toHighlightSegments(input, matches), [input, matches]);
 
-  const applyCase = (type: CaseType) => setInput(convertCase(baseText, type));
+  // A second, independent highlight layer for Sentence case's low-confidence guesses —
+  // computed the same way as the find/replace overlay above, just stacked behind it in its
+  // own backdrop so the two never have to be merged into one segment list.
+  const lowConfidenceSegments = useMemo(
+    () => toHighlightSegments(input, lowConfidenceRanges),
+    [input, lowConfidenceRanges]
+  );
+
+  // A per-word hover target directly on the text, rather than a list below the box. Every
+  // *other* layer in .wc-editor is entirely non-interactive (pointer-events: none), so
+  // clicking/typing always falls through to the real textarea underneath — this topmost
+  // layer keeps that for its plain-text runs too, and turns on pointer-events only for the
+  // exact <mark> spans covering a flagged word, each carrying its own `title`. Since it's
+  // pixel-aligned with the textarea via the same overlay technique (shared .textarea class,
+  // identical text content), those marks sit exactly on top of the real glyphs they explain
+  // — the trade-off is that clicking precisely inside a flagged word now hits this mark
+  // instead of placing the cursor there, same as it would for any other overlay-highlighted
+  // click target.
+  const lowConfidenceReasons = useMemo(() => {
+    let rangeIndex = 0;
+    return lowConfidenceSegments.map((segment) => {
+      if (!segment.isMatch) return null;
+      const reason = lowConfidenceRanges[rangeIndex]?.reason ?? 'unrecognized';
+      rangeIndex += 1;
+      return lowConfidenceReasonText(segment.text, reason);
+    });
+  }, [lowConfidenceSegments, lowConfidenceRanges]);
+
+  const applyCase = (type: CaseType) => {
+    setInput(convertCase(baseText, type));
+    setLowConfidenceRanges([]);
+  };
+
+  const runSentenceCase = async () => {
+    setSentenceCaseLoading(true);
+    setSentenceCaseError(null);
+    try {
+      const result = await applySentenceCase(baseText);
+      setInput(result.text);
+      setLowConfidenceRanges(result.lowConfidenceRanges);
+    } catch {
+      setSentenceCaseError('Sentence case failed to load. Check your connection and try again.');
+    } finally {
+      setSentenceCaseLoading(false);
+    }
+  };
 
   const handleReplaceAll = () => {
     setText(replaceAll(input, findQuery, replaceQuery, caseSensitive));
@@ -126,6 +188,23 @@ export default function WordCounter() {
             grid cell so they stay pixel-aligned, including when the user drags the resize
             handle, and scroll position is kept in sync on every scroll event. */}
         <div class="wc-editor">
+          {lowConfidenceRanges.length > 0 && (
+            <div
+              class="wc-editor__backdrop textarea textarea--tall"
+              aria-hidden="true"
+              ref={lowConfidenceBackdropRef}
+            >
+              {lowConfidenceSegments.map((segment, index) =>
+                segment.isMatch ? (
+                  <mark key={index} class="highlight__lowconf">
+                    {segment.text}
+                  </mark>
+                ) : (
+                  <span key={index}>{segment.text}</span>
+                )
+              )}
+            </div>
+          )}
           <div class="wc-editor__backdrop textarea textarea--tall" aria-hidden="true" ref={backdropRef}>
             {segments.map((segment, index) =>
               segment.isMatch ? (
@@ -145,15 +224,48 @@ export default function WordCounter() {
             value={input}
             onInput={(event) => setText((event.target as HTMLTextAreaElement).value)}
             onScroll={(event) => {
-              const backdrop = backdropRef.current;
-              if (!backdrop) return;
               const el = event.target as HTMLTextAreaElement;
-              backdrop.scrollTop = el.scrollTop;
-              backdrop.scrollLeft = el.scrollLeft;
+              if (backdropRef.current) {
+                backdropRef.current.scrollTop = el.scrollTop;
+                backdropRef.current.scrollLeft = el.scrollLeft;
+              }
+              if (lowConfidenceBackdropRef.current) {
+                lowConfidenceBackdropRef.current.scrollTop = el.scrollTop;
+                lowConfidenceBackdropRef.current.scrollLeft = el.scrollLeft;
+              }
+              if (lowConfidenceHintsRef.current) {
+                lowConfidenceHintsRef.current.scrollTop = el.scrollTop;
+                lowConfidenceHintsRef.current.scrollLeft = el.scrollLeft;
+              }
             }}
             {...dropHandlers}
           />
+          {lowConfidenceRanges.length > 0 && (
+            <div
+              class="wc-editor__backdrop wc-editor__hints textarea textarea--tall"
+              aria-hidden="true"
+              ref={lowConfidenceHintsRef}
+            >
+              {lowConfidenceSegments.map((segment, index) =>
+                segment.isMatch ? (
+                  <mark key={index} class="wc-lowconf-hint" title={lowConfidenceReasons[index] ?? undefined}>
+                    {segment.text}
+                  </mark>
+                ) : (
+                  <span key={index}>{segment.text}</span>
+                )
+              )}
+            </div>
+          )}
         </div>
+        {lowConfidenceRanges.length > 0 && (
+          <p class="field__hint wc-sentence-case-warning">
+            {lowConfidenceRanges.length} word{lowConfidenceRanges.length === 1 ? '' : 's'} above{' '}
+            {lowConfidenceRanges.length === 1 ? 'is' : 'are'} underlined because Sentence case
+            wasn't confident {lowConfidenceRanges.length === 1 ? "it's a proper noun" : "they're proper nouns"}{' '}
+            — hover a word above for why, and review before trusting the result.
+          </p>
+        )}
       </div>
 
       <div class="field">
@@ -223,7 +335,22 @@ export default function WordCounter() {
               {CASE_LABELS[type]}
             </button>
           ))}
+          <button
+            type="button"
+            class="btn"
+            onClick={() => void runSentenceCase()}
+            disabled={baseText === '' || sentenceCaseLoading}
+            title="Best-effort: capitalizes sentence starts and guesses proper nouns using NLP. May be wrong — review highlighted words."
+          >
+            {sentenceCaseLoading ? 'Sentence case…' : 'Sentence case (beta)'}
+          </button>
         </div>
+        <p class="field__hint">
+          Sentence case (beta) guesses proper nouns automatically using NLP and can be wrong
+          — especially for uncommon names, brands, or acronyms. Any word it wasn't confident
+          about gets underlined in the text box above for you to review.
+        </p>
+        <ErrorMessage message={sentenceCaseError} />
       </div>
 
       <label class="checkbox" title="Find and replace exact text, with matches highlighted below">
@@ -349,13 +476,44 @@ export default function WordCounter() {
         .wc-top-words__word { font-family: var(--font-mono); color: var(--text); }
         .wc-top-words__count { color: var(--text-subtle); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 
-        /* Both children share one grid cell so they stay pixel-aligned at any size,
-           including while the user drags the textarea's native resize handle. */
+        /* The topmost editor layer: entirely invisible and, like the backdrops beneath it,
+           pointer-events: none by default so clicking/typing anywhere still falls through
+           to the real textarea underneath. Only .wc-lowconf-hint marks re-enable pointer
+           events, turning just those exact words into real hover targets carrying a title
+           attribute — the trade-off is that clicking precisely inside one of those words
+           now hits the mark instead of placing the cursor there.
+           Needs its own position: relative to actually land on top: CSS paints positioned
+           elements above static ones regardless of DOM order, and .wc-editor__textarea is
+           already position: relative (for the find/replace overlay below), so without this
+           the hints layer — despite coming later in the DOM — would still render underneath
+           the textarea and never receive hover at all. */
+        .wc-editor__hints {
+          position: relative;
+          pointer-events: none;
+        }
+        .wc-lowconf-hint {
+          background: transparent;
+          color: transparent;
+          pointer-events: auto;
+          cursor: help;
+        }
+
+        /* All children share one grid cell so they stay pixel-aligned at any size,
+           including while the user drags the textarea's native resize handle. There can be
+           up to three stacked layers now (low-confidence backdrop, match backdrop,
+           textarea) — only .wc-editor itself paints the visible surface color, and every
+           child is forced transparent, so whichever layers are present never hide the ones
+           beneath them. Without this, two backdrops both carrying the shared .textarea
+           class's opaque background would stack solid, and the bottom one's highlights
+           would never be visible at all. */
         .wc-editor {
           display: grid;
+          background: var(--surface);
+          border-radius: var(--radius);
         }
         .wc-editor > * {
           grid-area: 1 / 1 / 2 / 2;
+          background: transparent;
         }
         .wc-editor__backdrop {
           margin: 0;
@@ -367,7 +525,6 @@ export default function WordCounter() {
           resize: none;
         }
         .wc-editor__textarea {
-          background: transparent;
           position: relative;
         }
         .wc-editor__textarea.textarea--drag-active {
@@ -379,6 +536,16 @@ export default function WordCounter() {
         .highlight__match {
           background: var(--accent-subtle); color: transparent;
           border-bottom: 2px solid var(--accent); border-radius: 2px;
+        }
+        /* Sentence case's "not sure this is a proper noun" flag — a distinct warning color
+           and a dotted (not solid) underline so it reads as "check this" rather than "found
+           this", the same visual language .highlight__match uses for find/replace. */
+        .highlight__lowconf {
+          background: var(--warning-subtle); color: transparent;
+          border-bottom: 2px dotted var(--warning); border-radius: 2px;
+        }
+        .wc-sentence-case-warning {
+          color: var(--warning);
         }
       `}</style>
     </div>

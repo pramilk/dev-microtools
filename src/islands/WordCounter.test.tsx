@@ -63,9 +63,69 @@ describe('<WordCounter />', () => {
     expect(input.value).toBe('hello_world');
   });
 
-  it('never renders a Sentence case button', () => {
+  it('applies sentence case via NLP, disabled until there is text', async () => {
     render(<WordCounter />);
-    expect(screen.queryByRole('button', { name: /sentence case/i })).not.toBeInTheDocument();
+    const button = screen.getByRole('button', { name: /sentence case/i });
+    expect(button).toBeDisabled();
+
+    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+    fireEvent.input(input, { target: { value: 'john smith went to paris.' } });
+    expect(button).not.toBeDisabled();
+
+    fireEvent.click(button);
+
+    await waitFor(() => expect(input.value).toBe('John Smith went to Paris.'));
+  });
+
+  it('underlines and warns about words sentence case was not confident were proper nouns', async () => {
+    render(<WordCounter />);
+    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+    fireEvent.input(input, { target: { value: 'I saw a Fox in the yard.' } });
+    fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
+
+    await waitFor(() => expect(document.querySelectorAll('.highlight__lowconf')).toHaveLength(1));
+    expect(screen.getByText(/wasn't confident.*proper noun/i)).toBeInTheDocument();
+
+    // The hover reason lives directly on the word itself — a real, hoverable mark stacked
+    // on top of the textarea at exactly that word's position, not a list below the box.
+    // "Fox" is also an ordinary dictionary word, so it gets the more specific "commonWord"
+    // reason rather than the generic one.
+    const hint = document.querySelector('.wc-lowconf-hint');
+    expect(hint).toHaveTextContent('Fox');
+    expect(hint).toHaveAttribute('title', expect.stringContaining('also an ordinary English word'));
+  });
+
+  it('gives a different hover reason for a flagged word that is not a common dictionary word', async () => {
+    render(<WordCounter />);
+    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+    fireEvent.input(input, { target: { value: 'I met Pramil yesterday.' } });
+    fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
+
+    await waitFor(() => expect(document.querySelectorAll('.highlight__lowconf')).toHaveLength(1));
+    const hint = document.querySelector('.wc-lowconf-hint');
+    expect(hint).toHaveTextContent('Pramil');
+    expect(hint).toHaveAttribute('title', expect.stringContaining('not a common English word'));
+  });
+
+  it('does not show the low-confidence warning when sentence case has no doubts', async () => {
+    render(<WordCounter />);
+    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+    fireEvent.input(input, { target: { value: 'the weather is nice today.' } });
+    fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
+
+    await waitFor(() => expect(input.value).toBe('The weather is nice today.'));
+    expect(screen.queryByText(/wasn't confident.*proper noun/i)).not.toBeInTheDocument();
+  });
+
+  it('clears the low-confidence highlight once the user edits the text directly', async () => {
+    render(<WordCounter />);
+    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+    fireEvent.input(input, { target: { value: 'I saw a Fox in the yard.' } });
+    fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
+    await waitFor(() => expect(document.querySelectorAll('.highlight__lowconf')).toHaveLength(1));
+
+    fireEvent.input(input, { target: { value: 'I saw a Fox in the yard. Edited.' } });
+    expect(document.querySelectorAll('.highlight__lowconf')).toHaveLength(0);
   });
 
   it('always converts from the original text, not the currently displayed cased text', () => {

@@ -85,7 +85,11 @@ export function computeStats(text: string): TextStats {
 }
 
 /**
- * Deliberately excludes a "Sentence case" option — the user asked for it to be left out.
+ * Deliberately excludes 'sentence' — every type here is a synchronous, deterministic string
+ * transform, which a dictionary-free sentence case can't be (it needs proper-noun judgment).
+ * See applySentenceCase in ./sentenceCase.ts for that: a separate, async, NLP-backed feature
+ * with its own UI treatment (loading state, low-confidence highlighting, limitations
+ * warning) rather than shoehorned into this array's plain-button interface.
  */
 export const CASE_TYPES = ['upper', 'lower', 'title', 'camel', 'pascal', 'snake', 'constant', 'kebab', 'dot'] as const;
 export type CaseType = (typeof CASE_TYPES)[number];
