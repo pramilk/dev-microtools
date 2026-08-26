@@ -1,0 +1,100 @@
+---
+title: Duplicate Line Remover
+headline: Duplicate Line, Sentence & Paragraph Remover
+description: Find duplicate lines, sentences, or paragraphs with live highlighting, then remove one, some, or all of them. Nothing you paste is ever uploaded.
+summary: Find duplicate lines, sentences, or paragraphs and remove one, some, or all of them — all in your browser.
+category: Text
+order: 34
+updated: 2026-08-26
+whatIsIt: >-
+  A duplicate finder scans a block of text — split into lines, sentences, or paragraphs —
+  and flags every repeated item so you can review and remove it, either one occurrence at a
+  time or in bulk. This is the everyday cleanup task behind deduping a mailing list, catching
+  a repeated log line, spotting a copy-pasted paragraph in a document, or tidying an exported
+  CSV before importing it somewhere else. Duplicates are highlighted directly in the text
+  you're editing, and hovering one shows its line number and every other line it repeats at,
+  without cluttering the box by default. You choose how to clean up: click a specific
+  occurrence's chip to mark it, then remove just the ones you marked; click "Remove current
+  line" to drop whatever your cursor is on, duplicate or not; or use one of two one-click bulk
+  actions — keep only the first copy of each repeated item, or strip out every item that has
+  any duplicate at all. Once you've made a change, "View diff" opens a side-by-side comparison
+  in Diff Checker so you can see exactly what was removed. Everything runs entirely in your
+  browser; nothing you paste is ever uploaded.
+useCases:
+  - Deduping a mailing list or exported CSV of rows before importing it into another tool.
+  - Catching a duplicated log line or config entry that slipped in from a copy-paste.
+  - Cleaning up a document where the same paragraph or sentence was accidentally pasted twice.
+  - Tidying a list of usernames, tags, or allow-listed values so each entry appears exactly once.
+howTo:
+  - Paste or type your text into the box, or drag a .txt file onto it.
+  - Choose whether to split by lines, sentences, or paragraphs, and adjust the case-sensitive, trim-whitespace, and ignore-blank-lines options to match your data.
+  - Duplicate occurrences highlight live in the text box; each one also appears as a chip below with a text preview. Hover a highlighted item or its chip to see its line number and every other line it repeats at.
+  - Click a chip to mark that specific occurrence, then click "Remove marked" — or click "Remove current line" to drop whatever line your cursor is on — or skip straight to "Keep first occurrence only" or "Remove all duplicates" for a one-click bulk cleanup.
+  - Click "Copy text" to copy the cleaned result, "View diff" to see exactly what changed in Diff Checker, or "Copy link" to share the current text and options as a URL.
+example:
+  label: Deduping a short mailing list, split by line.
+  input: |-
+    alice@example.com
+    bob@example.com
+    carol@example.com
+    alice@example.com
+    dave@example.com
+    bob@example.com
+  output: |-
+    6 lines · 4 unique · 2 duplicates found (line 4 repeats line 1, line 6 repeats line 2)
+    "Keep first occurrence only" produces:
+    alice@example.com
+    bob@example.com
+    carol@example.com
+    dave@example.com
+  note: '"Remove all duplicates" instead would leave only carol@example.com and dave@example.com — the two addresses that were never repeated at all.'
+faq:
+  - q: Is my text uploaded anywhere when I use this tool?
+    a: No. Every comparison and removal runs in your browser's own JavaScript engine — nothing you type, paste, or drop as a file is ever sent to a server. You can confirm this yourself by watching your browser's DevTools Network tab while using the tool.
+  - q: What's the difference between "Keep first occurrence only" and "Remove all duplicates"?
+    a: '"Keep first occurrence only" is the standard dedupe: it removes every repeat but leaves one copy of each item, so nothing you typed disappears entirely. "Remove all duplicates" is more aggressive — it strips out every occurrence of any item that appears more than once, including the first, leaving only the items that were already unique. Use the first to clean a list; use the second to find what''s genuinely one-of-a-kind.'
+  - q: How are sentences and paragraphs detected?
+    a: Sentences are split on a run of periods, exclamation marks, or question marks followed by whitespace — the same detection Word Counter uses for its sentence count — and a trailing fragment with no terminal punctuation still counts as one sentence. Paragraphs are split on one or more blank lines by default; if the text has no blank-line breaks at all (common in chat exports or plain-text copies of web content, which often separate paragraphs with a single line break instead), each non-blank line is treated as its own paragraph instead, so that style of text still gets compared rather than read as one undividable block. Neither is a full grammar parser, so an abbreviation like "Dr." mid-sentence can occasionally be read as a sentence break — review the highlighted results before trusting an automatic removal on prose-heavy text.
+  - q: Why does removing sentences or paragraphs sometimes change the spacing around them?
+    a: Line removal preserves your exact line structure, since that precision matters for lists, CSV rows, and log lines. Sentence and paragraph removal rejoin the remaining text with a single space or a blank line rather than reproducing each removed item's exact original surrounding whitespace — a deliberate simplification, since prose cleanup doesn't depend on byte-exact spacing the way line-based data does.
+  - q: How do I see which line something is a duplicate of?
+    a: Hover a highlighted item in the text box, or its chip below, and a small popup names its line number, whether it's the original or a later copy, and every other line the same content appears at. This is deliberately hover-only rather than shown at all times, so the box and chip list stay readable instead of every item carrying a permanent line-number label.
+  - q: Can I remove a line that isn't a duplicate?
+    a: Yes — click into the text box wherever that line, sentence, or paragraph is, then click "Remove current line" (the label follows whichever granularity you have selected). Whatever your cursor is currently on is highlighted live in the box as you move around, so you can see exactly what would be removed before clicking — and hovering a chip previews that specific occurrence the same way. It removes whatever's under the cursor regardless of duplicate status, separate from the duplicate-specific chips and bulk actions.
+  - q: Can I undo a removal?
+    a: Yes — "Undo" and "Redo" next to "Remove current line" step backward and forward through every change, several steps deep, not just the last one; Ctrl+Z and Ctrl+Y (Cmd+Z / Cmd+Shift+Z on a Mac) work too, from anywhere on the page, not just while the text box itself is focused. This is a dedicated history the tool keeps itself, not your browser's native undo — every removal here replaces the box's content programmatically, which a browser's built-in undo doesn't reliably track the way it tracks ordinary typing.
+  - q: How does "View diff" work, and how much text can it handle?
+    a: It opens Diff Checker in a new tab with your original text on one side and your current, edited text on the other, so you can see exactly what a removal changed. The text is handed off entirely within your browser (no upload, no server) and isn't limited by a shareable link's usual size cap — it comfortably handles tens of thousands of characters. "View diff" only turns on once a removal action has actually changed the text; typing a fresh edit into the box resets what it compares against, since at that point there's nothing left to diff against the "before" you started with.
+related:
+  - word-counter
+  - diff-checker
+  - regex-tester
+---
+
+## Line dedup vs. sentence/paragraph dedup
+
+The three granularities behave differently under the hood, and it's worth knowing which one
+fits your data. Line mode is the exact, structure-preserving option — it's the right choice
+for CSV rows, log lines, email lists, or any data where the line itself is the unit that
+matters, and removing lines never disturbs the ones around them. Sentence and paragraph mode
+are aimed at prose instead: they detect boundaries with the same heuristics [Word
+Counter](/word-counter/) uses for its own sentence and paragraph counts, and — because exact
+spacing between sentences or paragraphs in prose is rarely load-bearing the way a CSV row
+is — removing one rejoins what's left with a single space or a blank line rather than
+reproducing the original whitespace byte-for-byte.
+
+## Why two bulk actions
+
+"Keep first occurrence only" and "Remove all duplicates" solve different problems. Deduping a
+mailing list or a tag list almost always means the first, safer option: you want one copy of
+everything, not to lose an address entirely just because it was pasted in twice. "Remove all
+duplicates" is for the opposite question — not "give me a clean list" but "show me only what's
+genuinely unique," which is useful when you're specifically hunting for one-off values buried
+in a much larger set of repeats.
+
+## Why a browser-only tool
+
+Lists worth deduping are often not meant for anyone else yet — a work-in-progress mailing
+list, an internal log excerpt, a draft document. Running entirely client-side means there's
+no version of this tool that could log or retain that text, by accident or otherwise, because
+it never leaves your machine.

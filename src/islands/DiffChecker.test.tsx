@@ -152,6 +152,62 @@ describe('<DiffChecker /> share link and download', () => {
     window.location.hash = '';
   });
 
+  it('restores both panes from a cross-tool handoff on load (e.g. Duplicate Line Remover\'s "View diff")', async () => {
+    const { writeHandoff } = await import('../lib/crossToolHandoff');
+    writeHandoff('diff-checker', {
+      left: 'handoff left',
+      right: 'handoff right',
+      kind: 'text',
+      mode: 'line',
+      view: 'inline',
+      ignoreCase: false,
+      ignoreWhitespace: false,
+    });
+
+    render(<DiffChecker />);
+
+    const left = screen.getByLabelText(/original/i) as HTMLTextAreaElement;
+    const right = screen.getByLabelText(/compare with/i) as HTMLTextAreaElement;
+    await waitFor(() => {
+      expect(left.value).toBe('handoff left');
+      expect(right.value).toBe('handoff right');
+    });
+
+    // One-shot: consumed and cleared, so a later refresh doesn't replay stale text.
+    expect(sessionStorage.getItem('dmt:handoff:diff-checker')).toBeNull();
+  });
+
+  it('prefers a cross-tool handoff over a shared link present at the same time', async () => {
+    const { writeHandoff } = await import('../lib/crossToolHandoff');
+    const { encodeShareState } = await import('../lib/shareLink');
+    writeHandoff('diff-checker', {
+      left: 'handoff left',
+      right: 'handoff right',
+      kind: 'text',
+      mode: 'line',
+      view: 'inline',
+      ignoreCase: false,
+      ignoreWhitespace: false,
+    });
+    const encoded = await encodeShareState({
+      left: 'link left',
+      right: 'link right',
+      kind: 'text',
+      mode: 'line',
+      ignoreCase: false,
+      ignoreWhitespace: false,
+    });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) return;
+    window.location.hash = `#s=${encoded.value}`;
+
+    render(<DiffChecker />);
+
+    const left = screen.getByLabelText(/original/i) as HTMLTextAreaElement;
+    await waitFor(() => expect(left.value).toBe('handoff left'));
+    window.location.hash = '';
+  });
+
   it('restores the side-by-side layout from a shared link', async () => {
     const { encodeShareState } = await import('../lib/shareLink');
     const encoded = await encodeShareState({

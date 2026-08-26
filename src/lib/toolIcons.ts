@@ -44,6 +44,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'image-cropper': 'CROP',
   'image-format-converter': 'FMT',
   'word-counter': 'WC',
+  'duplicate-line-remover': 'DUP',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

@@ -8,6 +8,7 @@ import {
   type DiffSummary,
 } from '../lib/tools/diff';
 import { readShareStateFromLocation } from '../lib/shareLink';
+import { consumeHandoff } from '../lib/crossToolHandoff';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { CopyButton } from './shared/CopyButton';
 import { DownloadButton } from './shared/DownloadButton';
@@ -77,18 +78,31 @@ export default function DiffChecker() {
 
   const diffText = useMemo(() => (summary ? toAnnotatedText(summary.parts) : ''), [summary]);
 
-  // Restore state from a shared link, if the page was opened with one.
+  const applyRestoredState = (state: ShareState) => {
+    setLeft(state.left);
+    setRight(state.right);
+    setKind(state.kind);
+    setMode(state.mode);
+    // Fall back for links made before `view` was shared, rather than restoring `undefined`.
+    setView(state.view ?? 'inline');
+    setIgnoreCase(state.ignoreCase);
+    setIgnoreWhitespace(state.ignoreWhitespace);
+  };
+
+  // Restore state from another tool's "open this here" handoff (e.g. Duplicate Line
+  // Remover's "View diff"), or from a shared link, if the page was opened with either.
+  // The handoff takes priority — it's a one-shot, same-session action with no size cap,
+  // so if one is present it's always the freshest, most specific thing to show.
   useEffect(() => {
+    const handoff = consumeHandoff<ShareState>('diff-checker');
+    if (handoff) {
+      applyRestoredState(handoff);
+      return;
+    }
+
     void readShareStateFromLocation<ShareState>().then((restored) => {
       if (!restored?.ok) return;
-      setLeft(restored.value.left);
-      setRight(restored.value.right);
-      setKind(restored.value.kind);
-      setMode(restored.value.mode);
-      // Fall back for links made before `view` was shared, rather than restoring `undefined`.
-      setView(restored.value.view ?? 'inline');
-      setIgnoreCase(restored.value.ignoreCase);
-      setIgnoreWhitespace(restored.value.ignoreWhitespace);
+      applyRestoredState(restored.value);
       history.replaceState(null, '', window.location.pathname);
     });
   }, []);

@@ -544,6 +544,16 @@ export default function WordCounter() {
           background: var(--warning-subtle); color: transparent;
           border-bottom: 2px dotted var(--warning); border-radius: 2px;
         }
+        /* A <mark> spanning a long match can wrap across several visual lines. By default
+           (box-decoration-break: slice) a wrapped inline box's border renders at the full
+           available line width on every fragment but the last, not clipped to the actual
+           text — visible as the underline running on past where the match ends. clone
+           makes each wrapped fragment size and border itself independently instead. */
+        .highlight__match,
+        .highlight__lowconf {
+          box-decoration-break: clone;
+          -webkit-box-decoration-break: clone;
+        }
         .wc-sentence-case-warning {
           color: var(--warning);
         }

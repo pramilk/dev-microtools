@@ -13,6 +13,7 @@ export const CATEGORIES = [
   'Images',
   'Inspect',
   'Style',
+  'Text',
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number];

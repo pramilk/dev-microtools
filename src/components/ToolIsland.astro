@@ -32,6 +32,7 @@ import CurlCommandBuilder from '../islands/CurlCommandBuilder';
 import ImageCropper from '../islands/ImageCropper';
 import ImageFormatConverter from '../islands/ImageFormatConverter';
 import WordCounter from '../islands/WordCounter';
+import DuplicateLineRemover from '../islands/DuplicateLineRemover';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -89,3 +90,4 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'image-cropper' && <ImageCropper client:load />}
 {slug === 'image-format-converter' && <ImageFormatConverter client:load />}
 {slug === 'word-counter' && <WordCounter client:load />}
+{slug === 'duplicate-line-remover' && <DuplicateLineRemover client:load />}

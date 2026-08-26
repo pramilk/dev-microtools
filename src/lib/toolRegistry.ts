@@ -33,6 +33,7 @@ import CurlCommandBuilder from '../islands/CurlCommandBuilder';
 import ImageCropper from '../islands/ImageCropper';
 import ImageFormatConverter from '../islands/ImageFormatConverter';
 import WordCounter from '../islands/WordCounter';
+import DuplicateLineRemover from '../islands/DuplicateLineRemover';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -75,6 +76,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'image-cropper': ImageCropper,
   'image-format-converter': ImageFormatConverter,
   'word-counter': WordCounter,
+  'duplicate-line-remover': DuplicateLineRemover,
 };
 
 /**
