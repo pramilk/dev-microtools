@@ -15,12 +15,16 @@ import {
   type PatternSegmentNode,
 } from '../lib/tools/regex';
 import { readShareStateFromLocation } from '../lib/shareLink';
+import { CopyButton } from './shared/CopyButton';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { OutputPane } from './shared/OutputPane';
 import { ShareLinkButton } from './shared/ShareLinkButton';
 import { useTextFileDrop } from './shared/useTextFileDrop';
 
 const SAMPLE = COMMON_PATTERNS[0]!;
+
+/** The flag set a fresh page starts with, so Clear can restore it rather than guessing. */
+const DEFAULT_FLAGS = 'g';
 
 const tintClass = (index: number): string => `group-tint-${(index - 1) % GROUP_TINT_COUNT}`;
 
@@ -50,7 +54,7 @@ interface ShareState {
 
 export default function RegexTester() {
   const [pattern, setPattern] = useState('');
-  const [flags, setFlags] = useState('g');
+  const [flags, setFlags] = useState(DEFAULT_FLAGS);
   const [subject, setSubject] = useState('');
   const [replacement, setReplacement] = useState('');
   const [showReplace, setShowReplace] = useState(false);
@@ -114,6 +118,33 @@ export default function RegexTester() {
     setFlags((current) =>
       current.includes(flag) ? current.replace(flag, '') : current + flag
     );
+  };
+
+  /**
+   * The matched text, one match per line — the extraction people actually want off this
+   * tool ("give me every email in that log"), rather than a transcript of the detail
+   * cards. Deliberately covers *every* match, including any beyond the 100 the list
+   * renders, since the cap is a display concern and a truncated copy would be a trap.
+   */
+  const matchListText = matches.map((match) => match.text).join('\n');
+
+  // Nothing typed and no flag touched: Clear would be a no-op, so it stays disabled.
+  const isEmpty =
+    pattern === '' &&
+    subject === '' &&
+    replacement === '' &&
+    testList === '' &&
+    flags === DEFAULT_FLAGS;
+
+  const clearAll = () => {
+    setPattern('');
+    setFlags(DEFAULT_FLAGS);
+    setSubject('');
+    setReplacement('');
+    setTestList('');
+    // The three panel toggles are left as they are on purpose. They are a choice about
+    // which parts of the tool are on screen, not content — collapsing a panel the user
+    // opened, while they are clearing input to try something else in it, is a surprise.
   };
 
   return (
@@ -247,6 +278,15 @@ export default function RegexTester() {
         >
           Load example
         </button>
+        <button
+          type="button"
+          class="btn"
+          onClick={clearAll}
+          disabled={isEmpty}
+          title="Clear the pattern, flags and text, and start over"
+        >
+          Clear
+        </button>
       </div>
 
       <ErrorMessage message={error} />
@@ -303,10 +343,13 @@ export default function RegexTester() {
 
       {matches.length > 0 && (
         <div class="field">
-          <span class="field__label">
+          <div class="field__label">
             <span>Match details</span>
-            <span class="field__hint">Position and captured groups</span>
-          </span>
+            <span class="tool-bar__group">
+              <span class="field__hint">Position and captured groups</span>
+              <CopyButton value={matchListText} label="Copy matches" describe="the match list" />
+            </span>
+          </div>
           <div class="match-list">
             {matches.slice(0, 100).map((match, index) => (
               <div key={index} class="match">

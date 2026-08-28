@@ -5,6 +5,7 @@ import Footer from '../components/Footer.astro';
 import ToolsSidebar from '../components/ToolsSidebar.astro';
 import BuyMeACoffee from '../components/BuyMeACoffee.astro';
 import { SITE } from '../lib/site';
+import { toSafeJsonLd } from '../lib/jsonLd';
 
 interface Props {
   title: string;
@@ -24,14 +25,6 @@ const { title, description, canonicalPath, schema = [], noindex = false, ogImage
 const canonical = new URL(canonicalPath ?? Astro.url.pathname, Astro.site ?? SITE.url).href;
 const fullTitle = title === SITE.name ? title : `${title} | ${SITE.name}`;
 const ogImage = new URL(ogImagePath ?? '/og-image.png', Astro.site ?? SITE.url).href;
-
-/**
- * `JSON.stringify` alone doesn't escape "</script" — FAQ copy that happens to mention a
- * literal `</script>` tag (as the HTML/CSS/JS minifier's does) would otherwise terminate
- * this script element early and spill the rest of the JSON as visible page text. `<` has
- * no special meaning in JSON, so escaping every occurrence is always safe here.
- */
-const toSafeJsonLd = (value: unknown): string => JSON.stringify(value).replace(/</g, '\\u003c');
 ---
 
 <!doctype html>

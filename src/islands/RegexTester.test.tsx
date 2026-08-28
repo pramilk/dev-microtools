@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 import RegexTester from './RegexTester';
 
@@ -131,6 +131,86 @@ describe('<RegexTester />', () => {
     expect(await screen.findByText('1 of 2 match')).toBeInTheDocument();
     expect(screen.getByText('123')).toBeInTheDocument();
     expect(screen.getByText('abc')).toBeInTheDocument();
+  });
+});
+
+describe('<RegexTester /> copy and clear', () => {
+  it('copies every match as one per line', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    render(<RegexTester />);
+    typeInto(screen.getByLabelText(/regular expression/i), '\\d+');
+    typeInto(screen.getByLabelText(/test string/i), 'a1 b22 c333');
+    await screen.findByText('3 matches');
+
+    fireEvent.click(screen.getByRole('button', { name: /copy matches/i }));
+    expect(writeText).toHaveBeenCalledWith('1\n22\n333');
+  });
+
+  it('copies matches beyond the 100 the list renders', async () => {
+    // The list caps at 100 cards; the copy must not inherit that display-only limit.
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    render(<RegexTester />);
+    typeInto(screen.getByLabelText(/regular expression/i), 'x');
+    typeInto(screen.getByLabelText(/test string/i), 'x'.repeat(150));
+    await screen.findByText('150 matches');
+
+    fireEvent.click(screen.getByRole('button', { name: /copy matches/i }));
+    expect(writeText).toHaveBeenCalledWith(Array(150).fill('x').join('\n'));
+  });
+
+  it('offers no match copy control until there is something to copy', () => {
+    render(<RegexTester />);
+    expect(screen.queryByRole('button', { name: /copy matches/i })).not.toBeInTheDocument();
+  });
+
+  it('clears the pattern, flags and every text field', async () => {
+    render(<RegexTester />);
+    typeInto(screen.getByLabelText(/regular expression/i), 'abc');
+    typeInto(screen.getByLabelText(/test string/i), 'ABC abc');
+    fireEvent.click(screen.getByRole('button', { name: /ignore case/i }));
+    fireEvent.click(screen.getByLabelText(/test a list of lines/i));
+    typeInto(await screen.findByLabelText(/one item per line/i), 'abc');
+    await screen.findByText('2 matches');
+
+    fireEvent.click(screen.getByRole('button', { name: /^clear$/i }));
+
+    await waitFor(() => {
+      expect((screen.getByLabelText(/regular expression/i) as HTMLInputElement).value).toBe('');
+    });
+    expect((screen.getByLabelText(/test string/i) as HTMLTextAreaElement).value).toBe('');
+    expect((screen.getByLabelText(/one item per line/i) as HTMLTextAreaElement).value).toBe('');
+    // Flags go back to the default the page starts with, not whatever was last toggled.
+    expect(screen.getByRole('button', { name: /ignore case/i })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: /global/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByText(/matches?$/)).not.toBeInTheDocument();
+  });
+
+  it('keeps open panels open when clearing, since those are a layout choice', async () => {
+    render(<RegexTester />);
+    fireEvent.click(screen.getByLabelText(/show replace/i));
+    typeInto(screen.getByLabelText(/regular expression/i), 'abc');
+    typeInto(await screen.findByLabelText(/replacement/i), 'X');
+
+    fireEvent.click(screen.getByRole('button', { name: /^clear$/i }));
+
+    await waitFor(() => {
+      expect((screen.getByLabelText(/replacement/i) as HTMLInputElement).value).toBe('');
+    });
+    expect(screen.getByLabelText(/replacement/i)).toBeInTheDocument();
+  });
+
+  it('disables Clear while there is nothing to clear', async () => {
+    render(<RegexTester />);
+    expect(screen.getByRole('button', { name: /^clear$/i })).toBeDisabled();
+
+    typeInto(screen.getByLabelText(/regular expression/i), 'a');
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^clear$/i })).toBeEnabled();
+    });
   });
 });
 

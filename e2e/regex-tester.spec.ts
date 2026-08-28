@@ -33,12 +33,6 @@ test.describe('Regex Tester', () => {
     await expect(patternField(tool)).not.toHaveValue('');
     await expect(tool.getByText(/\d+ matches?/)).toBeVisible();
 
-    /*
-     * Regex Tester's only copy control lives inside the replace panel, and it has no
-     * Clear/reset control at all — unlike every other tool here. Both are real gaps in
-     * the copy/clear consistency rule (see GAP-ANALYSIS.md); this test covers what the
-     * tool actually offers today and will need broadening once they are closed.
-     */
     await tool.getByLabel(/show replace/i).check();
     await patternField(tool).fill('(\\w+)@(\\w+)');
     await subjectField(tool).fill('user@host');
@@ -46,5 +40,24 @@ test.describe('Regex Tester', () => {
 
     await expect(tool.getByText('host:user')).toBeVisible();
     await expectCopies(page, tool.getByRole('button', { name: 'Copy', exact: true }), 'host:user');
+  });
+
+  test('copies the match list and clears everything', async ({ page }) => {
+    await gotoTool(page, 'regex-tester');
+    const tool = widget(page);
+
+    await patternField(tool).fill('\\d+');
+    await subjectField(tool).fill('a1 b22 c333');
+    await expect(tool.getByText('3 matches')).toBeVisible();
+
+    // `\r?\n` rather than a plain substring: the system clipboard normalises line endings
+    // on Windows, so the copied text comes back CRLF-separated there and LF elsewhere.
+    await expectCopies(page, tool.getByRole('button', { name: /copy matches/i }), /^1\r?\n22\r?\n333$/);
+
+    const clear = tool.getByRole('button', { name: 'Clear', exact: true });
+    await clear.click();
+    await expect(patternField(tool)).toHaveValue('');
+    await expect(subjectField(tool)).toHaveValue('');
+    await expect(clear).toBeDisabled();
   });
 });

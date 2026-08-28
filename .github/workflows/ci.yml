@@ -20,8 +20,10 @@ permissions:
   contents: read
 
 jobs:
+  # No `name:` on purpose. GitHub reports the status check under the job's display name
+  # when it has one, and this check gets named in a branch ruleset by exact string — so
+  # the id stays the whole identity, short and stable. Renaming it breaks the rule.
   verify:
-    name: Type check, unit tests, end-to-end
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
