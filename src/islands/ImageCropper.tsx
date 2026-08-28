@@ -26,6 +26,11 @@ import { ErrorMessage } from './shared/ErrorMessage';
 import { formatBytes } from './shared/formatBytes';
 import { SavingsBadge } from './shared/SavingsBadge';
 
+// Deliberately no ShareLinkButton — the input is a binary image from the visitor's disk,
+// which can't (and shouldn't) be encoded into a URL. Crop rectangle and resize dimensions
+// are meaningless without the image they apply to. Same reasoning across all three image
+// tools.
+
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 0.5;

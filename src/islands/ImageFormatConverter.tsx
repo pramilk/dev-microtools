@@ -21,6 +21,10 @@ import { SavingsBadge } from './shared/SavingsBadge';
 import { MultiFileDropzone } from './shared/MultiFileDropzone';
 import { ErrorMessage } from './shared/ErrorMessage';
 
+// Deliberately no ShareLinkButton — the input is a binary image from the visitor's disk,
+// which can't (and shouldn't) be encoded into a URL. The target format alone is not worth
+// sharing without the image it applies to. Same reasoning across all three image tools.
+
 interface ConvertedResult {
   blob: Blob;
   url: string;

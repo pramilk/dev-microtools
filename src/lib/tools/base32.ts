@@ -48,6 +48,18 @@ function base32ToBytes(input: string): Uint8Array {
   return Uint8Array.from(bytes);
 }
 
+/**
+ * Encodes raw bytes, for callers that already have binary data — file uploads, where
+ * decoding the bytes as UTF-8 text first would corrupt anything that isn't text.
+ */
+export function encodeBytesToBase32(bytes: Uint8Array, options?: { padding?: boolean }): ToolResult<string> {
+  try {
+    return ok(bytesToBase32(bytes, options?.padding ?? true));
+  } catch (error) {
+    return err(messageFrom(error, 'Could not encode that file.'));
+  }
+}
+
 export function encodeBase32(input: string, options?: { padding?: boolean }): ToolResult<string> {
   if (input === '') return err('Nothing to encode — enter some text first.');
 

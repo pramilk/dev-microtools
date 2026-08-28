@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/preact';
+import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 import CurlCommandBuilder from './CurlCommandBuilder';
 
 const typeInto = (element: HTMLElement, value: string) => {
@@ -257,3 +257,44 @@ describe('<CurlCommandBuilder />', () => {
     });
   });
 });
+
+describe('<CurlCommandBuilder /> copy as code', () => {
+  it('is disabled until the request is valid', async () => {
+    render(<CurlCommandBuilder />);
+    expect(screen.getByRole('button', { name: /javascript \(fetch\)/i })).toBeDisabled();
+
+    typeInto(screen.getByLabelText(/^url$/i), 'https://example.com/api');
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /javascript \(fetch\)/i })).not.toBeDisabled()
+    );
+  });
+
+  it('shows a fetch snippet describing the same request', async () => {
+    render(<CurlCommandBuilder />);
+    typeInto(screen.getByLabelText(/^url$/i), 'https://example.com/api');
+    fireEvent.click(await screen.findByRole('button', { name: /javascript \(fetch\)/i }));
+
+    expect(await screen.findByText(/await fetch/)).toBeInTheDocument();
+  });
+
+  it('shows a python snippet using the requests library', async () => {
+    render(<CurlCommandBuilder />);
+    typeInto(screen.getByLabelText(/^url$/i), 'https://example.com/api');
+    fireEvent.click(await screen.findByRole('button', { name: /python \(requests\)/i }));
+
+    expect(await screen.findByText(/import requests/)).toBeInTheDocument();
+  });
+
+  it('toggles the snippet pane closed when the same language is pressed again', async () => {
+    render(<CurlCommandBuilder />);
+    typeInto(screen.getByLabelText(/^url$/i), 'https://example.com/api');
+    const button = await screen.findByRole('button', { name: /javascript \(fetch\)/i });
+
+    fireEvent.click(button);
+    expect(await screen.findByText(/await fetch/)).toBeInTheDocument();
+
+    fireEvent.click(button);
+    expect(screen.queryByText(/await fetch/)).not.toBeInTheDocument();
+  });
+});
+

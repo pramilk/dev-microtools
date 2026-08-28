@@ -2,11 +2,15 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
   buildCurlCommand,
   buildFetchInit,
+  buildSnippet,
   DEFAULT_CURL_OPTIONS,
   HTTP_METHODS,
+  SNIPPET_LANGUAGES,
+  SNIPPET_LANGUAGE_LABELS,
   type BodyType,
   type CurlHeader,
   type HttpMethod,
+  type SnippetLanguage,
 } from '../lib/tools/curlCommand';
 import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
@@ -85,6 +89,8 @@ export default function CurlCommandBuilder() {
   const [includeResponseHeaders, setIncludeResponseHeaders] = useState(DEFAULT_CURL_OPTIONS.includeResponseHeaders);
   const [silent, setSilent] = useState(DEFAULT_CURL_OPTIONS.silent);
   const [multiline, setMultiline] = useState(DEFAULT_CURL_OPTIONS.multiline);
+  /** `null` = the "Copy as" panel is closed; a language = show that snippet. */
+  const [snippetLanguage, setSnippetLanguage] = useState<SnippetLanguage | null>(null);
 
   const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
   const [sendResponse, setSendResponse] = useState<SendResponse | null>(null);
@@ -130,6 +136,47 @@ export default function CurlCommandBuilder() {
 
   const error = url.trim() !== '' && !result.ok ? result.error : null;
   const command = result.ok ? result.value : '';
+
+  // "Copy as" reuses the same structured options as the curl command, so a snippet can
+  // never describe a different request than the command shown above it.
+  const snippetResult = useMemo(
+    () =>
+      snippetLanguage === null
+        ? null
+        : buildSnippet(
+            {
+              method,
+              url,
+              headers,
+              bodyType,
+              body,
+              authUser,
+              authPass,
+              insecure,
+              followRedirects,
+              includeResponseHeaders,
+              silent,
+              multiline,
+            },
+            snippetLanguage
+          ),
+    [
+      snippetLanguage,
+      method,
+      url,
+      headers,
+      bodyType,
+      body,
+      authUser,
+      authPass,
+      insecure,
+      followRedirects,
+      includeResponseHeaders,
+      silent,
+      multiline,
+    ]
+  );
+  const snippet = snippetResult?.ok ? snippetResult.value : '';
 
   const updateHeader = (index: number, field: 'key' | 'value', value: string) => {
     setHeaders((rows) => rows.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
@@ -480,6 +527,33 @@ export default function CurlCommandBuilder() {
       </div>
 
       <OutputPane label="curl command" value={command} placeholder="Enter a URL above to build a command." tall describe="curl command" />
+
+      <div class="tool-bar" role="group" aria-label="Copy the same request as code">
+        <span class="field__label">Copy as</span>
+        {SNIPPET_LANGUAGES.map((language) => (
+          <button
+            key={language}
+            type="button"
+            class="btn"
+            aria-pressed={snippetLanguage === language}
+            disabled={!result.ok}
+            onClick={() => setSnippetLanguage((current) => (current === language ? null : language))}
+            title={`Show the same request as ${SNIPPET_LANGUAGE_LABELS[language]} code`}
+          >
+            {SNIPPET_LANGUAGE_LABELS[language]}
+          </button>
+        ))}
+      </div>
+
+      {snippetLanguage !== null && (
+        <OutputPane
+          label={SNIPPET_LANGUAGE_LABELS[snippetLanguage]}
+          value={snippet}
+          placeholder="Enter a URL above to build a snippet."
+          tall
+          describe={`${SNIPPET_LANGUAGE_LABELS[snippetLanguage]} snippet`}
+        />
+      )}
 
       {sendStatus !== 'idle' && (
         <div class="curl-response">

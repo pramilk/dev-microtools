@@ -74,7 +74,7 @@ describe('<RegexTester />', () => {
 
   it('loads a working sample', async () => {
     render(<RegexTester />);
-    fireEvent.click(screen.getByRole('button', { name: /load sample/i }));
+    fireEvent.click(screen.getByRole('button', { name: /load example/i }));
 
     expect(await screen.findByText('2 matches')).toBeInTheDocument();
   });

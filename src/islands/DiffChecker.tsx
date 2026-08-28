@@ -208,7 +208,7 @@ export default function DiffChecker() {
               : 'Load two example paragraphs — a changed line, an unchanged line and an added line — to see how the tool reports changes'
           }
         >
-          Load sample
+          Load example
         </button>
         <button
           type="button"

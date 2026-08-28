@@ -14,6 +14,12 @@ import { OutputPane } from './shared/OutputPane';
 import { CopyButton } from './shared/CopyButton';
 import { DownloadButton } from './shared/DownloadButton';
 
+// Deliberately no ShareLinkButton — the output is a password. Sharing the generated value
+// defeats the tool, and even sharing only the settings would produce a URL that looks like
+// it carries the password, which is a trap worth not setting. No "Load example" either:
+// the whole point is fresh randomness, so there is no meaningful sample input (same
+// exemption AGENTS.md grants the UUID Generator).
+
 type CharsetKey = 'uppercase' | 'lowercase' | 'numbers' | 'symbols';
 
 const CHARSET_TOGGLES: { key: CharsetKey; label: string; hint: string }[] = [

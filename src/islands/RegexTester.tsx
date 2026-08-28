@@ -245,7 +245,7 @@ export default function RegexTester() {
           }}
           title="Load an example pattern and text to try the tool"
         >
-          Load sample
+          Load example
         </button>
       </div>
 

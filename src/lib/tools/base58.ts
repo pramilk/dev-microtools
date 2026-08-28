@@ -58,6 +58,18 @@ function base58ToBytes(input: string): Uint8Array {
   return bytes;
 }
 
+/**
+ * Encodes raw bytes, for callers that already have binary data — file uploads, where
+ * decoding the bytes as UTF-8 text first would corrupt anything that isn't text.
+ */
+export function encodeBytesToBase58(bytes: Uint8Array): ToolResult<string> {
+  try {
+    return ok(bytesToBase58(bytes));
+  } catch (error) {
+    return err(messageFrom(error, 'Could not encode that file.'));
+  }
+}
+
 export function encodeBase58(input: string): ToolResult<string> {
   try {
     const bytes = new TextEncoder().encode(input);

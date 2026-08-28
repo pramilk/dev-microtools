@@ -392,7 +392,7 @@ export default function JsonFormatter() {
           onClick={() => setInput(SAMPLE)}
           title="Load a small example document to try the tool"
         >
-          Load sample
+          Load example
         </button>
         <button
           type="button"

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { encodeBase58, decodeBase58, BASE58_ALPHABET } from './base58';
+import { encodeBase58, decodeBase58, encodeBytesToBase58, BASE58_ALPHABET } from './base58';
 
 describe('encodeBase58', () => {
   // Official test vector from Bitcoin's base58_encode_decode.json test suite.
@@ -124,5 +124,28 @@ describe('round-trip', () => {
     const encoded = encodeBase58(repeated);
     expect(encoded.ok).toBe(true);
     if (encoded.ok) expect(decodeBase58(encoded.value)).toEqual({ ok: true, value: repeated });
+  });
+});
+
+describe('encodeBytesToBase58', () => {
+  it('matches the string encoder for ASCII input', () => {
+    for (const sample of ['hello world', 'a', '{"json":true}']) {
+      const bytes = new TextEncoder().encode(sample);
+      expect(encodeBytesToBase58(bytes)).toEqual(encodeBase58(sample));
+    }
+  });
+
+  it('encodes binary that is not valid UTF-8, which the string path cannot accept', () => {
+    const result = encodeBytesToBase58(Uint8Array.from([0xff, 0xfe]));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toMatch(/^[1-9A-HJ-NP-Za-km-z]+$/);
+  });
+
+  it('preserves leading zero bytes as leading 1s', () => {
+    expect(encodeBytesToBase58(Uint8Array.from([0x00, 0x00, 0x01]))).toEqual({ ok: true, value: '112' });
+  });
+
+  it('encodes empty input as an empty string', () => {
+    expect(encodeBytesToBase58(new Uint8Array(0))).toEqual({ ok: true, value: '' });
   });
 });

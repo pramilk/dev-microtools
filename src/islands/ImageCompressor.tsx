@@ -18,6 +18,11 @@ import { ErrorMessage } from './shared/ErrorMessage';
 import { canvasHasTransparency } from './shared/canvasTransparency';
 import { MultiFileDropzone } from './shared/MultiFileDropzone';
 
+// Deliberately no ShareLinkButton — the input is a binary image the visitor picked from
+// their own disk. There is nothing shareable to encode: the file itself can't go in a URL
+// (and shouldn't — it never leaves the browser), and per-image quality/dimension settings
+// are meaningless without it. Same reasoning across all three image tools.
+
 /** Floor for the Max dimension slider — a UI bound only (the underlying field accepts any positive number by typing it), just low enough that dragging never produces a degenerate near-zero image. */
 const MIN_DIMENSION_SLIDER = 16;
 

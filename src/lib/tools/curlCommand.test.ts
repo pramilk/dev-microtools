@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { buildCurlCommand, buildFetchInit, shellEscape, DEFAULT_CURL_OPTIONS, type CurlCommandOptions } from './curlCommand';
+import {
+  buildCurlCommand,
+  buildFetchInit,
+  buildFetchSnippet,
+  buildPythonSnippet,
+  buildSnippet,
+  shellEscape,
+  DEFAULT_CURL_OPTIONS,
+  type CurlCommandOptions,
+} from './curlCommand';
 
 const options = (overrides: Partial<CurlCommandOptions> = {}): CurlCommandOptions => ({
   ...DEFAULT_CURL_OPTIONS,
@@ -190,5 +199,102 @@ describe('buildFetchInit', () => {
   it('adds no Authorization header when no username is set', () => {
     const init = buildFetchInit(options());
     expect(init.headers['Authorization']).toBeUndefined();
+  });
+});
+
+describe('buildFetchSnippet', () => {
+  it('rejects the same invalid input buildCurlCommand rejects', () => {
+    expect(buildFetchSnippet(options({ url: '' })).ok).toBe(false);
+    expect(buildFetchSnippet(options({ url: 'not a url' })).ok).toBe(false);
+    expect(buildFetchSnippet(options({ url: 'ftp://example.com' })).ok).toBe(false);
+    expect(
+      buildFetchSnippet(options({ url: 'https://example.com', bodyType: 'json', body: '{oops' })).ok
+    ).toBe(false);
+  });
+
+  it('emits the method and URL', () => {
+    const result = buildFetchSnippet(options({ url: 'https://example.com/api', method: 'POST' }));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toContain("await fetch('https://example.com/api'");
+      expect(result.value).toContain("method: 'POST'");
+    }
+  });
+
+  it('includes headers and body', () => {
+    const result = buildFetchSnippet(
+      options({
+        url: 'https://example.com',
+        method: 'POST',
+        headers: [{ key: 'X-Token', value: 'abc' }],
+        bodyType: 'json',
+        body: '{"a":1}',
+      })
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toContain("'X-Token': 'abc'");
+      expect(result.value).toContain("'Content-Type': 'application/json'");
+      expect(result.value).toContain('body:');
+    }
+  });
+
+  it('only sets redirect: manual when curl would not follow redirects', () => {
+    const notFollowing = buildFetchSnippet(options({ url: 'https://example.com', followRedirects: false }));
+    const following = buildFetchSnippet(options({ url: 'https://example.com', followRedirects: true }));
+    expect(notFollowing.ok && notFollowing.value).toContain("redirect: 'manual'");
+    expect(following.ok && following.value).not.toContain('redirect:');
+  });
+
+  it('escapes quotes in values rather than breaking the literal', () => {
+    const result = buildFetchSnippet(
+      options({ url: 'https://example.com', headers: [{ key: 'X-Note', value: "it's here" }] })
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toContain("\'");
+  });
+});
+
+describe('buildPythonSnippet', () => {
+  it('uses the requests method matching the verb', () => {
+    const result = buildPythonSnippet(options({ url: 'https://example.com', method: 'DELETE' }));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toContain('requests.delete(');
+  });
+
+  it('maps basic auth to the auth tuple, not an Authorization header', () => {
+    const result = buildPythonSnippet(
+      options({ url: 'https://example.com', authUser: 'user', authPass: 'pass' })
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toContain("auth=('user', 'pass')");
+      expect(result.value).not.toContain('Authorization');
+    }
+  });
+
+  it('expresses -k as verify=False and no -L as allow_redirects=False', () => {
+    const result = buildPythonSnippet(
+      options({ url: 'https://example.com', insecure: true, followRedirects: false })
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toContain('verify=False');
+      expect(result.value).toContain('allow_redirects=False');
+    }
+  });
+
+  it('omits the headers dict entirely when there are none', () => {
+    const result = buildPythonSnippet(options({ url: 'https://example.com' }));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).not.toContain('headers');
+  });
+});
+
+describe('buildSnippet', () => {
+  it('dispatches to the requested language', () => {
+    const opts = options({ url: 'https://example.com' });
+    expect(buildSnippet(opts, 'fetch')).toEqual(buildFetchSnippet(opts));
+    expect(buildSnippet(opts, 'python')).toEqual(buildPythonSnippet(opts));
   });
 });

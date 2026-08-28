@@ -84,3 +84,19 @@ describe('<UuidGenerator />', () => {
     expect(await screen.findByRole('button', { name: /download/i })).not.toBeDisabled();
   });
 });
+
+describe('<UuidGenerator /> share link', () => {
+  it('offers a share link, which AGENTS.md requires for every non-secret tool', async () => {
+    render(<UuidGenerator />);
+    expect(await screen.findByRole('button', { name: /copy link/i })).toBeInTheDocument();
+  });
+
+  it('describes the shared state as settings, not the generated UUIDs', async () => {
+    render(<UuidGenerator />);
+    const button = await screen.findByRole('button', { name: /copy link/i });
+    // The generated values are deliberately not shared — the point of the tool is fresh
+    // randomness, so a link pins the configuration and regenerates on arrival.
+    expect(button.getAttribute('title')).toMatch(/settings/i);
+  });
+});
+

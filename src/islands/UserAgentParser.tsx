@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { parseUserAgent, currentUserAgent, explainUaTokens } from '../lib/tools/userAgent';
+import { extractShareFragment, readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { CopyButton } from './shared/CopyButton';
+import { ShareLinkButton } from './shared/ShareLinkButton';
+
+interface ShareState {
+  input: string;
+}
 
 const DEVICE_LABELS: Record<string, string> = {
   desktop: 'Desktop',
@@ -15,9 +21,25 @@ export default function UserAgentParser() {
 
   const useMine = () => setInput(currentUserAgent() ?? '');
 
-  // Show something useful the moment the page loads, with zero typing required.
+  // Show something useful the moment the page loads, with zero typing required — unless
+  // the page was opened from a share link, in which case the shared UA is what the visitor
+  // came to see. The fragment is checked synchronously so the shared value never flashes
+  // past the visitor's own UA first (decoding it is async).
   useEffect(() => {
-    useMine();
+    if (extractShareFragment(window.location.hash) === null) {
+      useMine();
+      return;
+    }
+    void readShareStateFromLocation<ShareState>().then((restored) => {
+      // A corrupt or truncated fragment falls back to the browser's own UA rather than
+      // leaving the tool empty with no explanation.
+      if (!restored?.ok) {
+        useMine();
+        return;
+      }
+      setInput(restored.value.input);
+      history.replaceState(null, '', window.location.pathname);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- first render only
   }, []);
 
@@ -65,6 +87,7 @@ export default function UserAgentParser() {
           Clear
         </button>
         <span class="tool-bar__spacer" />
+        <ShareLinkButton getState={() => ({ input })} describe="this User-Agent string" />
         <CopyButton value={input} describe="User-Agent string" />
       </div>
 

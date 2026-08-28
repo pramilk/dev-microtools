@@ -151,3 +151,134 @@ export function buildFetchInit(options: CurlCommandOptions): FetchRequestInit {
   if (options.bodyType !== 'none' && options.body !== '') init.body = options.body;
   return init;
 }
+
+/** Target languages offered by the "Copy as" control. */
+export type SnippetLanguage = 'fetch' | 'python';
+
+export const SNIPPET_LANGUAGES: SnippetLanguage[] = ['fetch', 'python'];
+
+export const SNIPPET_LANGUAGE_LABELS: Record<SnippetLanguage, string> = {
+  fetch: 'JavaScript (fetch)',
+  python: 'Python (requests)',
+};
+
+/**
+ * Validates the request the same way `buildCurlCommand` does, so every "Copy as" target
+ * rejects exactly what curl generation rejects rather than emitting a snippet for a URL
+ * the tool already refused. Returns the trimmed, parsed URL on success.
+ */
+function validateRequest(options: CurlCommandOptions): ToolResult<string> {
+  const url = options.url.trim();
+  if (url === '') return err('Enter a URL to build a code snippet.');
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    return err(`"${url}" doesn't look like a valid, absolute URL — include the scheme, e.g. https://example.com/path.`);
+  }
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    return err(`This needs an http:// or https:// URL — "${parsedUrl.protocol}" isn't supported here.`);
+  }
+
+  if (options.bodyType === 'json' && options.body.trim() !== '') {
+    try {
+      JSON.parse(options.body);
+    } catch (error) {
+      return err(`Body isn't valid JSON: ${error instanceof Error ? error.message : 'parse error'}.`);
+    }
+  }
+
+  return ok(url);
+}
+
+/** Quotes a value as a JavaScript single-quoted string literal. */
+function jsString(value: string): string {
+  return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
+}
+
+/** Quotes a value as a Python single-quoted string literal. */
+function pyString(value: string): string {
+  return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
+}
+
+/**
+ * Builds a `fetch()` snippet equivalent to the generated curl command. Reuses
+ * `buildFetchInit` so the headers and body can never drift from what "Send request"
+ * actually fires. curl's `-k`/`-i`/`-s` have no `fetch` equivalent and are dropped;
+ * `-L` is the browser default, so only its *absence* needs expressing.
+ */
+export function buildFetchSnippet(options: CurlCommandOptions): ToolResult<string> {
+  const validated = validateRequest(options);
+  if (!validated.ok) return validated;
+
+  const init = buildFetchInit(options);
+  const lines: string[] = [];
+
+  const headerEntries = Object.entries(init.headers);
+  const parts: string[] = [`  method: ${jsString(options.method)},`];
+  if (headerEntries.length > 0) {
+    parts.push('  headers: {');
+    for (const [key, value] of headerEntries) {
+      parts.push(`    ${jsString(key)}: ${jsString(value)},`);
+    }
+    parts.push('  },');
+  }
+  if (init.body !== undefined) parts.push(`  body: ${jsString(init.body)},`);
+  // `fetch` follows redirects by default, so this only needs saying when curl wouldn't.
+  if (!options.followRedirects) parts.push(`  redirect: 'manual',`);
+
+  lines.push(`const response = await fetch(${jsString(validated.value)}, {`);
+  lines.push(...parts);
+  lines.push('});');
+  lines.push('');
+  lines.push('const data = await response.json();');
+  lines.push('console.log(data);');
+
+  return ok(lines.join('\n'));
+}
+
+/**
+ * Builds a Python `requests` snippet equivalent to the generated curl command. Basic auth
+ * maps to the `auth=` tuple rather than a pre-encoded Authorization header, since that is
+ * the idiomatic form — so the header `buildFetchInit` synthesises is filtered back out.
+ */
+export function buildPythonSnippet(options: CurlCommandOptions): ToolResult<string> {
+  const validated = validateRequest(options);
+  if (!validated.ok) return validated;
+
+  const init = buildFetchInit(options);
+  const lines: string[] = ['import requests', ''];
+
+  // requests takes auth as a tuple; drop the header form buildFetchInit synthesised.
+  const headerEntries = Object.entries(init.headers).filter(
+    ([key]) => !(options.authUser !== '' && key.toLowerCase() === 'authorization')
+  );
+
+  if (headerEntries.length > 0) {
+    lines.push('headers = {');
+    for (const [key, value] of headerEntries) {
+      lines.push(`    ${pyString(key)}: ${pyString(value)},`);
+    }
+    lines.push('}');
+    lines.push('');
+  }
+
+  const args = [pyString(validated.value)];
+  if (headerEntries.length > 0) args.push('headers=headers');
+  if (init.body !== undefined) args.push(`data=${pyString(init.body)}`);
+  if (options.authUser !== '') args.push(`auth=(${pyString(options.authUser)}, ${pyString(options.authPass)})`);
+  if (!options.followRedirects) args.push('allow_redirects=False');
+  if (options.insecure) args.push('verify=False');
+
+  lines.push(`response = requests.${options.method.toLowerCase()}(${args.join(', ')})`);
+  lines.push('response.raise_for_status()');
+  lines.push('print(response.json())');
+
+  return ok(lines.join('\n'));
+}
+
+/** Dispatches to the right snippet builder for the chosen language. */
+export function buildSnippet(options: CurlCommandOptions, language: SnippetLanguage): ToolResult<string> {
+  return language === 'fetch' ? buildFetchSnippet(options) : buildPythonSnippet(options);
+}

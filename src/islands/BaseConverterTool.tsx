@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { type ToolResult } from '../lib/tools/result';
 import { encodeBase64, decodeBase64, encodeFileToBase64, isImageDataUrl } from '../lib/tools/base64';
-import { encodeBase32, decodeBase32 } from '../lib/tools/base32';
-import { encodeBase58, decodeBase58 } from '../lib/tools/base58';
+import { encodeBase32, decodeBase32, encodeBytesToBase32 } from '../lib/tools/base32';
+import { encodeBase58, decodeBase58, encodeBytesToBase58 } from '../lib/tools/base58';
 import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { OutputPane } from './shared/OutputPane';
@@ -66,7 +66,6 @@ export default function BaseConverterTool() {
 
   const changeFormat = (next: Format) => {
     setFormat(next);
-    if (next !== 'base64') setSource('text');
   };
 
   // Restores state from either a share link (#s=...) or a ?format= deep link, which is
@@ -98,28 +97,56 @@ export default function BaseConverterTool() {
   const [fileError, setFileError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (format !== 'base64' || source !== 'file' || direction !== 'encode' || !file) {
+    if (source !== 'file' || direction !== 'encode' || !file) {
       setFileOutput(null);
       setFileError(null);
       return;
     }
 
     let cancelled = false;
-    void encodeFileToBase64(file).then((result) => {
-      if (cancelled) return;
-      if (result.ok) {
-        setFileOutput(result.value);
-        setFileError(null);
-      } else {
-        setFileOutput(null);
-        setFileError(result.error);
-      }
-    });
+
+    // Base64 keeps its dedicated path because only it can produce a `data:` URL — the
+    // data-URL syntax has no base32/base58 form — and that drives the image preview.
+    if (format === 'base64') {
+      void encodeFileToBase64(file).then((result) => {
+        if (cancelled) return;
+        if (result.ok) {
+          setFileOutput(result.value);
+          setFileError(null);
+        } else {
+          setFileOutput(null);
+          setFileError(result.error);
+        }
+      });
+    } else {
+      // Base32/Base58 encode the raw bytes directly. Reading the file as text first would
+      // corrupt any non-UTF-8 content, which is most of what gets dropped here.
+      void file
+        .arrayBuffer()
+        .then((buffer) => {
+          if (cancelled) return;
+          const bytes = new Uint8Array(buffer);
+          const result =
+            format === 'base32' ? encodeBytesToBase32(bytes, { padding }) : encodeBytesToBase58(bytes);
+          if (result.ok) {
+            setFileOutput({ base64: result.value, dataUrl: '', mimeType: file.type });
+            setFileError(null);
+          } else {
+            setFileOutput(null);
+            setFileError(result.error);
+          }
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setFileOutput(null);
+          setFileError('Could not read that file. It may have been moved or is unreadable.');
+        });
+    }
 
     return () => {
       cancelled = true;
     };
-  }, [format, source, direction, file]);
+  }, [format, source, direction, file, padding]);
 
   const textResult = useMemo((): ToolResult<string> | null => {
     if (source === 'file' || input === '') return null;
@@ -143,9 +170,10 @@ export default function BaseConverterTool() {
     }
   }, [source, input, direction, format, urlSafe, padding]);
 
-  const isFileMode = format === 'base64' && source === 'file';
+  const isFileMode = source === 'file';
+  // The data: URL wrapper only exists for base64, so the checkbox only applies there.
   const output = isFileMode
-    ? (fileOutput && (includeDataUrl ? fileOutput.dataUrl : fileOutput.base64)) ?? ''
+    ? (fileOutput && (includeDataUrl && format === 'base64' ? fileOutput.dataUrl : fileOutput.base64)) ?? ''
     : textResult?.ok
       ? textResult.value
       : '';
@@ -207,7 +235,7 @@ export default function BaseConverterTool() {
           </button>
         </div>
 
-        {format === 'base64' && direction === 'encode' && (
+        {direction === 'encode' && (
           <div class="seg" role="group" aria-label="Source">
             <button
               type="button"
@@ -223,7 +251,11 @@ export default function BaseConverterTool() {
               class="seg__btn"
               aria-pressed={source === 'file'}
               onClick={() => setSource('file')}
-              title="Encode an entire file — useful for inlining a small image as a data: URL"
+              title={
+                format === 'base64'
+                  ? 'Encode an entire file — useful for inlining a small image as a data: URL'
+                  : `Encode an entire file's raw bytes as ${FORMAT_LABEL[format]}`
+              }
             >
               File
             </button>
@@ -241,6 +273,7 @@ export default function BaseConverterTool() {
           </label>
         )}
 
+        {/* Padding applies to both text and file encoding, so this stays visible in both. */}
         {format === 'base32' && direction === 'encode' && (
           <label
             class="checkbox"
@@ -342,13 +375,11 @@ export default function BaseConverterTool() {
               placeholder={direction === 'encode' ? 'Encoded output appears here.' : 'Decoded text appears here.'}
               describe={direction === 'encode' ? FORMAT_LABEL[format].toLowerCase() : 'decoded text'}
               actions={
-                format === 'base64' ? (
-                  <DownloadButton
-                    value={output}
-                    filename={direction === 'encode' ? 'encoded.txt' : 'decoded.txt'}
-                    describe={direction === 'encode' ? 'base64' : 'decoded text'}
-                  />
-                ) : undefined
+                <DownloadButton
+                  value={output}
+                  filename={direction === 'encode' ? 'encoded.txt' : 'decoded.txt'}
+                  describe={direction === 'encode' ? FORMAT_LABEL[format].toLowerCase() : 'decoded text'}
+                />
               }
             />
           )}
@@ -362,7 +393,8 @@ export default function BaseConverterTool() {
             describeFile={(f) => `${formatBytes(f.size)} · ${f.type || 'unknown type'}`}
           />
 
-          {fileOutput?.mimeType.startsWith('image/') ? (
+          {/* Only base64 produces a data: URL, so only base64 can preview the image. */}
+          {format === 'base64' && fileOutput?.mimeType.startsWith('image/') ? (
             <div class="field">
               <span class="field__label">Image preview</span>
               <div class="image-preview">
@@ -371,12 +403,18 @@ export default function BaseConverterTool() {
             </div>
           ) : (
             <OutputPane
-              label="Base64"
+              label={FORMAT_LABEL[format]}
               value={output}
               placeholder="Encoded output appears here."
-              describe="base64"
+              describe={FORMAT_LABEL[format].toLowerCase()}
               tall
-              actions={<DownloadButton value={output} filename="encoded.txt" describe="base64" />}
+              actions={
+                <DownloadButton
+                  value={output}
+                  filename="encoded.txt"
+                  describe={FORMAT_LABEL[format].toLowerCase()}
+                />
+              }
             />
           )}
         </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { encodeBase32, decodeBase32 } from './base32';
+import { encodeBase32, decodeBase32, encodeBytesToBase32 } from './base32';
 
 describe('encodeBase32', () => {
   // Known-answer vectors from RFC 4648 section 10.
@@ -86,5 +86,29 @@ describe('decodeBase32', () => {
       expect(encoded.ok).toBe(true);
       if (encoded.ok) expect(decodeBase32(encoded.value)).toEqual({ ok: true, value: sample });
     }
+  });
+});
+
+describe('encodeBytesToBase32', () => {
+  // Same RFC 4648 vectors as the string encoder, proving the byte path agrees with it.
+  it('matches the string encoder for ASCII input', () => {
+    for (const sample of ['f', 'fo', 'foo', 'foob', 'fooba', 'foobar']) {
+      const bytes = new TextEncoder().encode(sample);
+      expect(encodeBytesToBase32(bytes)).toEqual(encodeBase32(sample));
+    }
+  });
+
+  it('encodes binary that is not valid UTF-8, which the string path cannot accept', () => {
+    const result = encodeBytesToBase32(Uint8Array.from([0xff, 0xfe]));
+    expect(result).toEqual({ ok: true, value: '777A====' });
+  });
+
+  it('honours the padding option', () => {
+    const bytes = Uint8Array.from([0xff, 0xfe]);
+    expect(encodeBytesToBase32(bytes, { padding: false })).toEqual({ ok: true, value: '777A' });
+  });
+
+  it('encodes empty input as an empty string', () => {
+    expect(encodeBytesToBase32(new Uint8Array(0))).toEqual({ ok: true, value: '' });
   });
 });

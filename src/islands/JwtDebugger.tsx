@@ -15,6 +15,11 @@ const SAMPLE =
   '.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ' +
   '.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
 
+// Deliberately no ShareLinkButton — a JWT is a bearer credential: anyone holding the token
+// can use it, and the Sign tab's secret is a signing key. Neither belongs in a URL that
+// gets pasted into Slack or a bug report (same reasoning as Bcrypt and Hash Generator's
+// HMAC key field). "Load example" covers the first-visit case with a throwaway token.
+
 type Tab = 'decode' | 'encode';
 type Verification = { checked: false } | { checked: true; valid: boolean } | { checked: true; error: string };
 
@@ -165,7 +170,7 @@ export default function JwtDebugger() {
               onClick={() => setToken(SAMPLE)}
               title="Load a sample HS256 token to try the tool"
             >
-              Load sample
+              Load example
             </button>
             <button
               type="button"

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/preact';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/preact';
 import UserAgentParser from './UserAgentParser';
 
 const CHROME_UA =
@@ -108,3 +108,17 @@ describe('<UserAgentParser />', () => {
     expect(document.querySelector('.token-glossary')).not.toBeInTheDocument();
   });
 });
+
+describe('<UserAgentParser /> share link', () => {
+  it('offers a share link, which AGENTS.md requires for every non-secret tool', async () => {
+    render(<UserAgentParser />);
+    expect(await screen.findByRole('button', { name: /copy link/i })).toBeInTheDocument();
+  });
+
+  it('still auto-fills the browser UA when there is no share fragment', async () => {
+    render(<UserAgentParser />);
+    const input = screen.getByLabelText(/user-agent string/i) as HTMLTextAreaElement;
+    await waitFor(() => expect(input.value).not.toBe(''));
+  });
+});
+

@@ -7,10 +7,24 @@ import {
   type UuidVersion,
   type UuidBulkFormat,
 } from '../lib/tools/uuid';
+import { extractShareFragment, readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { OutputPane } from './shared/OutputPane';
 import { CopyButton } from './shared/CopyButton';
 import { DownloadButton } from './shared/DownloadButton';
+import { ShareLinkButton } from './shared/ShareLinkButton';
+
+/**
+ * Only the *settings* are shared, never the generated UUIDs. The whole point of this tool
+ * is fresh randomness on every use, so a link that pinned someone else's values would be
+ * actively misleading — a shared link means "open the generator configured like this" and
+ * produces a new batch on arrival.
+ */
+interface ShareState {
+  version: UuidVersion;
+  count: number;
+  format: UuidBulkFormat;
+}
 
 const FORMAT_LABELS: Record<UuidBulkFormat, { label: string; hint: string }> = {
   lines: { label: 'One per line', hint: 'Plain list — one UUID per line' },
@@ -46,9 +60,37 @@ export default function UuidGenerator() {
     }
   }, [count, version]);
 
-  // Generate an initial batch so the tool is useful the moment it loads.
+  // Generate an initial batch so the tool is useful the moment it loads. When the page was
+  // opened from a share link, the restored settings are applied first and the batch is
+  // generated from those — checked synchronously so the default batch never flashes past
+  // before the shared settings land (decoding the fragment is async).
   useEffect(() => {
-    generate();
+    if (extractShareFragment(window.location.hash) === null) {
+      generate();
+      return;
+    }
+    void readShareStateFromLocation<ShareState>().then((restored) => {
+      // A corrupt fragment falls back to a default batch rather than an empty tool.
+      if (!restored?.ok) {
+        generate();
+        return;
+      }
+      const { version: sharedVersion, count: sharedCount, format: sharedFormat } = restored.value;
+      setVersion(sharedVersion);
+      setCount(sharedCount);
+      setFormat(sharedFormat);
+      // Generated directly rather than via `generate`, whose closure still holds the
+      // pre-restore settings on this render.
+      const result = generateUuids(sharedCount, sharedVersion);
+      if (result.ok) {
+        setUuids(result.value);
+        setError(null);
+      } else {
+        setUuids([]);
+        setError(result.error);
+      }
+      history.replaceState(null, '', window.location.pathname);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- first render only
   }, []);
 
@@ -120,6 +162,7 @@ export default function UuidGenerator() {
         </label>
 
         <span class="tool-bar__spacer" />
+        <ShareLinkButton getState={() => ({ version, count, format })} describe="these generator settings" />
         <CopyButton value={output} label="Copy all" describe="UUIDs" />
         <DownloadButton
           value={output}

@@ -68,7 +68,7 @@ describe('<JsonFormatter />', () => {
 
   it('loads a sample document on request', async () => {
     render(<JsonFormatter />);
-    fireEvent.click(screen.getByRole('button', { name: /load sample/i }));
+    fireEvent.click(screen.getByRole('button', { name: /load example/i }));
 
     const input = screen.getByLabelText(/json input/i) as HTMLTextAreaElement;
     expect(input.value.length).toBeGreaterThan(0);

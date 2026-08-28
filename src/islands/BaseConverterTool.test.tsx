@@ -140,12 +140,16 @@ describe('<BaseConverterTool /> base32', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/alphabet/i);
   });
 
-  it('does not offer a File source or download button', async () => {
+  // Base32 and Base58 used to lack both of these while Base64 had them — an inconsistency
+  // inside a single merged tool. They now match.
+  it('offers a File source and a download button, matching base64', async () => {
     render(<BaseConverterTool />);
     selectFormat(/^base32$/i);
 
-    expect(screen.queryByRole('button', { name: /^file$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /download/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^file$/i })).toBeInTheDocument();
+
+    typeInto(screen.getByLabelText(/plain text/i), 'hello');
+    expect(await screen.findByRole('button', { name: /download/i })).toBeInTheDocument();
   });
 });
 
@@ -191,14 +195,16 @@ describe('<BaseConverterTool /> format switching', () => {
     expect(await screen.findByText('t1Zv2yaZ')).toBeInTheDocument();
   });
 
-  it('falls back to text source and clears file controls when leaving base64', async () => {
+  // File mode is no longer base64-only, so switching format keeps the chosen source
+  // instead of silently dropping the visitor back to text.
+  it('keeps the File source when switching format', async () => {
     render(<BaseConverterTool />);
     selectFormat(/^file$/i);
     expect(screen.getByText(/drag a file here/i)).toBeInTheDocument();
 
     selectFormat(/^base32$/i);
-    expect(screen.queryByRole('button', { name: /^file$/i })).not.toBeInTheDocument();
-    expect(screen.getByLabelText(/plain text/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^file$/i })).toBeInTheDocument();
+    expect(screen.getByText(/drag a file here/i)).toBeInTheDocument();
   });
 });
 

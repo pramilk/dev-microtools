@@ -75,7 +75,7 @@ describe('<DiffChecker />', () => {
 
   it('loads a plain-text worked example when in Text mode', async () => {
     render(<DiffChecker />);
-    fireEvent.click(screen.getByRole('button', { name: /load sample/i }));
+    fireEvent.click(screen.getByRole('button', { name: /load example/i }));
 
     const left = screen.getByLabelText(/original/i) as HTMLTextAreaElement;
     const right = screen.getByLabelText(/compare with/i) as HTMLTextAreaElement;
@@ -88,7 +88,7 @@ describe('<DiffChecker />', () => {
   it('loads a JSON worked example when in JSON mode', async () => {
     render(<DiffChecker />);
     fireEvent.click(screen.getByRole('button', { name: /^json$/i }));
-    fireEvent.click(screen.getByRole('button', { name: /load sample/i }));
+    fireEvent.click(screen.getByRole('button', { name: /load example/i }));
 
     const left = screen.getByLabelText(/original/i) as HTMLTextAreaElement;
     const right = screen.getByLabelText(/compare with/i) as HTMLTextAreaElement;
