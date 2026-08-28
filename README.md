@@ -16,10 +16,8 @@ using any tool and you'll see no outbound request carrying your input.
 | [Timestamp Converter](https://devmicrotools.com/timestamp-converter/) | Convert | Convert Unix epoch timestamps to dates and back, with a live current time. |
 | [Color Converter](https://devmicrotools.com/color-converter/) | Convert | Convert between HEX, RGB, HSL and OKLCH, with WCAG contrast checking. |
 | [JSON, YAML & CSV Converter](https://devmicrotools.com/data-format-converter/) | Convert | Convert data between JSON, YAML and CSV in either direction. |
-| [Base64 Encoder](https://devmicrotools.com/base64-encode-decode/) | Encode | Encode and decode Base64, including URL-safe variants and full Unicode. |
+| [Base Converter](https://devmicrotools.com/base-encode-decode/) | Encode | Encode and decode Base64, Base32 and Base58 in one tool — text or file, with format-specific options for each. |
 | [URL Encoder & Decoder](https://devmicrotools.com/url-encode-decode/) | Encode | Percent-encode or decode URLs, and break one down into its parts. |
-| [Base32 Encoder](https://devmicrotools.com/base32-encode-decode/) | Encode | Encode and decode standard Base32, with optional padding for TOTP secrets and other tokens. |
-| [Base58 Encoder](https://devmicrotools.com/base58-encode-decode/) | Encode | Encode and decode Base58 — the alphabet behind Bitcoin addresses and IPFS CIDs. |
 | [JSON Formatter](https://devmicrotools.com/json-formatter/) | Format | Beautify, minify, validate and repair broken JSON entirely in your browser. |
 | [SQL Formatter](https://devmicrotools.com/sql-formatter/) | Format | Beautify a SQL query with consistent indentation and keyword casing. |
 | [HTML / CSS / JS Minifier](https://devmicrotools.com/html-css-js-minifier/) | Format | Shrink HTML, CSS or JavaScript by stripping comments and unnecessary whitespace. |

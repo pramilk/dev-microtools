@@ -13,7 +13,7 @@
 export const TOOL_ICONS: Record<string, string> = {
   'json-formatter': '{}',
   'regex-tester': 'RX',
-  'base64-encode-decode': 'B64',
+  'base-encode-decode': 'B64',
   'uuid-generator': 'ID',
   'jwt-decoder': 'JWT',
   'hash-generator': '#',
@@ -33,8 +33,6 @@ export const TOOL_ICONS: Record<string, string> = {
   'html-css-js-minifier': 'MIN',
   'image-base64-converter': 'IMG',
   'fake-data-generator': 'RND',
-  'base32-encode-decode': 'B32',
-  'base58-encode-decode': 'B58',
   'url-parser': '?=',
   'bcrypt-generator': 'BCR',
   'xml-formatter': 'XML',

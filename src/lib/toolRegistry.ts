@@ -2,7 +2,7 @@ import type { FunctionComponent } from 'preact';
 
 import JsonFormatter from '../islands/JsonFormatter';
 import RegexTester from '../islands/RegexTester';
-import Base64Tool from '../islands/Base64Tool';
+import BaseConverterTool from '../islands/BaseConverterTool';
 import UuidGenerator from '../islands/UuidGenerator';
 import JwtDebugger from '../islands/JwtDebugger';
 import HashGenerator from '../islands/HashGenerator';
@@ -22,8 +22,6 @@ import SqlFormatter from '../islands/SqlFormatter';
 import Minifier from '../islands/Minifier';
 import ImageBase64Tool from '../islands/ImageBase64Tool';
 import FakeDataGenerator from '../islands/FakeDataGenerator';
-import Base32Tool from '../islands/Base32Tool';
-import Base58Tool from '../islands/Base58Tool';
 import UrlParser from '../islands/UrlParser';
 import BcryptTool from '../islands/BcryptTool';
 import XmlTool from '../islands/XmlTool';
@@ -45,7 +43,7 @@ import DuplicateLineRemover from '../islands/DuplicateLineRemover';
 const REGISTRY: Record<string, FunctionComponent> = {
   'json-formatter': JsonFormatter,
   'regex-tester': RegexTester,
-  'base64-encode-decode': Base64Tool,
+  'base-encode-decode': BaseConverterTool,
   'uuid-generator': UuidGenerator,
   'jwt-decoder': JwtDebugger,
   'hash-generator': HashGenerator,
@@ -65,8 +63,6 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'html-css-js-minifier': Minifier,
   'image-base64-converter': ImageBase64Tool,
   'fake-data-generator': FakeDataGenerator,
-  'base32-encode-decode': Base32Tool,
-  'base58-encode-decode': Base58Tool,
   'url-parser': UrlParser,
   'bcrypt-generator': BcryptTool,
   'xml-formatter': XmlTool,

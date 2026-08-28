@@ -41,7 +41,7 @@ faq:
   - q: Why does decoding a "data:" URL trust its declared type instead of sniffing it too?
     a: Because a well-formed `data:image/png;base64,...` URL already states its type explicitly as part of the format — re-deriving it from the bytes would be redundant, and if the two ever disagreed, silently preferring the sniffed guess over what was explicitly declared would be more surprising, not less. Sniffing is used only for a bare payload, which has nothing else to go on.
 related:
-  - base64-encode-decode
+  - base-encode-decode
   - image-format-converter
   - color-converter
   - image-compressor

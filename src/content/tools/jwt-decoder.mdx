@@ -44,7 +44,7 @@ faq:
   - q: Should JWTs contain sensitive data?
     a: No. The payload is base64-encoded, not encrypted, so every claim is readable by anyone holding the token — including the end user it was issued to. Never put passwords, personal data or internal identifiers you would not want disclosed in a JWT payload. If you need confidentiality as well as integrity, you want JWE rather than JWS.
 related:
-  - base64-encode-decode
+  - base-encode-decode
   - hash-generator
   - timestamp-converter
   - bcrypt-generator
