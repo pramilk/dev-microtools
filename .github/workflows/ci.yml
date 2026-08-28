@@ -1,0 +1,69 @@
+# Runs the same three gates as `npm run deploy`, but on GitHub rather than on one
+# developer's machine, so a push cannot be verified by nothing. See .assets/PLAN.md 9.2.
+#
+# This workflow only *tests*. It never deploys and needs no secrets — deployment is
+# Workers Builds (PLAN 9.3), which is gated on this being green.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A second push to the same branch makes the first run's answer irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Type check, unit tests, end-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          # package.json requires >=22.12.0; 22 resolves to the latest 22.x LTS.
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # Cheapest gates first: both run in seconds and catch most breakage, so an
+      # obviously-broken commit fails before the browser download and the build.
+      - name: Type check
+        run: npm run check
+
+      - name: Unit and component tests
+        run: npm test
+
+      # Chromium only — playwright.config.ts defines no other project, so pulling
+      # Firefox and WebKit would be a minute of download for nothing.
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      # `npm run test:e2e` would build a second time; build once here and point the
+      # suite at the dist/ it produced. This also proves the production build works,
+      # which `astro check` alone does not.
+      - name: Build
+        run: npm run build
+
+      - name: End-to-end tests
+        run: npm run test:e2e:fast
+
+      # The HTML reporter is only configured on CI, and a failed run is close to
+      # undebuggable without it — traces for retried tests are inside this report.
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
