@@ -1,0 +1,15 @@
+# Cloudflare Workers static-assets redirects (same syntax as Cloudflare Pages).
+#
+# Base64/Base32/Base58 were three separate tools, merged into one Base Converter
+# tool (src/content/tools/base-encode-decode.mdx) so a visitor can switch formats
+# without leaving the page. These are permanent (301) redirects, not a client-side
+# trick, so Google consolidates each old page's ranking signal into the new URL
+# instead of just hitting a 404. The ?format= query param deep-links straight into
+# the matching format on load — see the ?format= handling in
+# src/islands/BaseConverterTool.tsx.
+/base64-encode-decode   /base-encode-decode/?format=base64   301
+/base64-encode-decode/  /base-encode-decode/?format=base64   301
+/base32-encode-decode   /base-encode-decode/?format=base32   301
+/base32-encode-decode/  /base-encode-decode/?format=base32   301
+/base58-encode-decode   /base-encode-decode/?format=base58   301
+/base58-encode-decode/  /base-encode-decode/?format=base58   301

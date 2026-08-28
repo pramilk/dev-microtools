@@ -1,0 +1,68 @@
+---
+title: Base Converter
+headline: Base64, Base32 & Base58 Encoder/Decoder
+description: Encode and decode Base64, Base32 and Base58 in your browser — URL-safe variants, TOTP secrets, Bitcoin/IPFS identifiers. Nothing is uploaded. Free, no sign-up.
+summary: Encode and decode Base64, Base32 and Base58 in one tool — text or file, with format-specific options for each.
+category: Encode
+order: 3
+updated: 2026-08-27
+whatIsIt: >-
+  Base64, Base32 and Base58 all solve the same problem — representing arbitrary binary
+  data as printable text — with different tradeoffs between compactness and safety. Base64
+  packs the most into the fewest characters using a 64-symbol alphabet, but that alphabet
+  includes "+", "/" and "=", which behave badly inside URLs. Base32 trades some of that
+  density for a case-insensitive, punctuation-free alphabet, which is why TOTP/2FA
+  authenticator apps use it for secret keys. Base58 goes further still, dropping the
+  digit "0" and the letters "O", "I" and lowercase "l" — characters that are easy to
+  misread — which is why Bitcoin addresses and IPFS content identifiers use it. None of the
+  three is encryption: anyone can decode any of them, and they provide no confidentiality
+  whatsoever. This tool converts in both directions for all three formats, in one place,
+  and handles the case most naive implementations get wrong — non-ASCII text such as
+  accented characters, emoji and CJK scripts.
+useCases:
+  - Decoding the payload of an API response, webhook or configuration value that arrived Base64-encoded and needs to be read.
+  - Reading or constructing a TOTP/2FA secret key, which authenticator apps display and accept as unpadded Base32 text.
+  - Decoding a Bitcoin address or IPFS content identifier (CIDv0 strings start with "Qm") to inspect the raw bytes it encodes.
+  - Encoding credentials for HTTP Basic authentication, which requires a Base64 representation of "username:password".
+  - Building a data URL to embed a small image or font directly in CSS or HTML without a separate network request.
+howTo:
+  - Pick a format — Base64, Base32 or Base58 — then choose Encode to convert plain text (or, for Base64, a file) into that format, or Decode to convert it back.
+  - Paste your input on the left. The conversion runs as you type; there is no submit button.
+  - Use the format-specific option when it applies — "URL-safe" for Base64, "Omit padding" for Base32 — to match the convention the receiving system expects.
+  - Press "Use result as input" to feed the output back in and round-trip it, a quick way to confirm a value decodes to what you expect.
+example:
+  label: Encoding the same short text in Base64.
+  input: 'Hello, World!'
+  output: 'SGVsbG8sIFdvcmxkIQ=='
+  note: Switching the format selector to Base32 or Base58 re-encodes this exact input using that alphabet instead, without losing what you typed.
+faq:
+  - q: Is Base64, Base32 or Base58 a form of encryption?
+    a: No, and treating any of them as one is a genuine security mistake. All three are reversible encodings with no key involved — anyone who sees the encoded string can decode it in seconds. They exist to make binary data safe to transport through text-only channels, not to hide anything. If you need confidentiality, you need actual encryption.
+  - q: Which format should I use?
+    a: It depends entirely on what the receiving system expects, not on which is "better" — Base64 is the default for APIs, JSON fields and data URLs; Base32 is what TOTP/2FA apps and case-insensitive systems expect; Base58 is what Bitcoin, IPFS and similar identifiers use. You cannot choose freely — decode whichever format your input was actually encoded in, or your output will just be garbage bytes interpreted as the wrong alphabet.
+  - q: How is Base32 different from Base64, and Base58 different from both?
+    a: Base64 uses 64 characters including "+", "/" and "=" padding — most compact, but unsafe to put directly in a URL. Base32 uses 32 characters (A-Z, 2-7), which is case-insensitive and free of that punctuation, at the cost of roughly 60% size overhead versus Base64's 33%. Base58 uses 58 characters with no padding and no visually ambiguous symbols (no 0/O or 1/I/l), trading a little more size for output that's safe to read aloud or copy by hand.
+  - q: Why do some Base64 or Base32 strings end with equals signs?
+    a: That is padding. Both encodings work in fixed-size groups — three bytes at a time for Base64, five for Base32 — and pad the final, undersized group with "=" characters so the decoder knows how many bytes to discard. Base58 never pads this way, since it treats the whole input as one large number rather than grouping bytes. URL-safe Base64 and TOTP-style Base32 usually drop the padding, and this tool's decoders tolerate it being missing either way.
+  - q: Why did my decode produce an error about UTF-8?
+    a: The input decoded successfully in the selected format, but the resulting bytes are not valid UTF-8 text — which usually means the original data was binary, such as an image, a compressed file, or a raw cryptographic key, rather than text. This tool displays text, so it reports the problem rather than showing you replacement characters and pretending it worked.
+  - q: Is it safe to paste a private key, seed phrase or password into this tool?
+    a: This tool runs entirely in your browser and never transmits what you paste anywhere, but that is not a reason to paste a real secret into any browser-based tool, including this one. Treat secrets the way you would a physical key — copying them into text fields, clipboards or browser tabs is a bad habit to get into regardless of what any individual tool promises to do with the data.
+related:
+  - json-formatter
+  - url-encode-decode
+  - hash-generator
+  - image-base64-converter
+---
+
+## Base64, Base32, Base58 — and binary data
+
+This tool works with text. If you decode a string that represents a PNG, a ZIP archive or a
+raw cryptographic key, the bytes are perfectly valid but they are not readable text, and the
+tool will tell you so rather than displaying mojibake. Decoding binary payloads to a file is
+outside what a text tool can usefully do — for images specifically, see the dedicated
+[Image ↔ Base64 Converter](/image-base64-converter/).
+
+Base64 encoding is also available for whole files here, not just pasted text — switch to
+Base64, choose Encode, then File source, to turn a small image or font into a `data:` URL you
+can inline directly in CSS or HTML.
