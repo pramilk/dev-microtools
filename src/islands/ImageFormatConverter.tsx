@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import {
   validateImageFile,
   inputFormatWarning,
@@ -20,6 +20,11 @@ import { formatBytes } from './shared/formatBytes';
 import { SavingsBadge } from './shared/SavingsBadge';
 import { MultiFileDropzone } from './shared/MultiFileDropzone';
 import { ErrorMessage } from './shared/ErrorMessage';
+import { useImageJobBatch, type ImageJobBase } from './shared/useImageJobBatch';
+import { ImageJobList, type ImageJobRowProps } from './shared/ImageJobList';
+import { BatchSavingsBanner } from './shared/BatchSavingsBanner';
+import { downloadUrl } from './shared/downloadUrl';
+import { downloadZip, uniqueZipName } from './shared/downloadZip';
 
 // Deliberately no ShareLinkButton — the input is a binary image from the visitor's disk,
 // which can't (and shouldn't) be encoded into a URL. The target format alone is not worth
@@ -34,17 +39,7 @@ interface ConvertedResult {
   transparencyLost: boolean;
 }
 
-interface ImageJob {
-  id: string;
-  file: File;
-  originalUrl: string;
-  status: 'converting' | 'done' | 'error';
-  result: ConvertedResult | null;
-  error: string | null;
-}
-
-let jobSeq = 0;
-const nextJobId = (): string => `fmt-job-${(jobSeq += 1)}`;
+type ImageJob = ImageJobBase<ConvertedResult>;
 
 /**
  * Decodes and re-encodes an image through an off-screen canvas — inherently DOM-bound
@@ -136,126 +131,59 @@ const formatShortLabel = (mime: string): string => {
 };
 
 export default function ImageFormatConverter() {
-  const [jobs, setJobs] = useState<ImageJob[]>([]);
+  const batch = useImageJobBatch<ConvertedResult>({
+    maxFiles: MAX_BATCH_FILES,
+    idPrefix: 'fmt-job',
+    createJob: (base) => ({ ...base, status: 'processing', result: null, error: null }),
+  });
   const [format, setFormat] = useState<TargetFormat>('image/png');
   const [quality, setQuality] = useState(DEFAULT_QUALITY);
   // The slider tracks the pointer instantly; the actual (decode + canvas re-encode) work only
   // runs against this settled value, 200ms after dragging stops — matching Image Compressor.
   const [debouncedQuality, setDebouncedQuality] = useState(DEFAULT_QUALITY);
-  const [batchError, setBatchError] = useState<string | null>(null);
   const [zipping, setZipping] = useState(false);
-  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   /** Job whose transparency-loss warning has been dismissed — keyed by job id, since the
    *  warning is job-specific and a fresh conversion could re-introduce it for a different
    *  job while this one stays dismissed. */
   const [dismissedTransparencyJobId, setDismissedTransparencyJobId] = useState<string | null>(null);
-  const jobSeqRef = useRef<Map<string, number>>(new Map());
-  const jobsRef = useRef<ImageJob[]>([]);
-  jobsRef.current = jobs;
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuality(quality), 200);
     return () => window.clearTimeout(timer);
   }, [quality]);
 
-  useEffect(
-    () => () => {
-      jobsRef.current.forEach((job) => {
-        URL.revokeObjectURL(job.originalUrl);
-        if (job.result) URL.revokeObjectURL(job.result.url);
-      });
-    },
-    []
-  );
-
-  const jobIds = jobs.map((job) => job.id).join(',');
-
-  useEffect(() => {
-    // Keeps a valid selection without yanking focus away from what's already selected: fixes
-    // up only when the current selection is gone (job removed) or nothing is selected yet
-    // (first image just added) — adding more images never steals selection.
-    setSelectedJobId((prev) => (prev && jobs.some((job) => job.id === prev) ? prev : (jobs[0]?.id ?? null)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobIds]);
-
   const runJob = (job: ImageJob, fmt: TargetFormat, q: number) => {
-    const seq = (jobSeqRef.current.get(job.id) ?? 0) + 1;
-    jobSeqRef.current.set(job.id, seq);
-
-    setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: 'converting', error: null } : j)));
+    const seq = batch.startJob(job.id);
 
     const validation = validateImageFile(job.file);
     if (!validation.ok) {
-      setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: 'error', result: null, error: validation.error } : j)));
+      batch.failJob(job.id, validation.error);
       return;
     }
 
     void convertImage(job.file, fmt, q)
       .then(({ blob, width, height, transparencyLost }) => {
-        if (jobSeqRef.current.get(job.id) !== seq) return;
+        if (!batch.isCurrentSeq(job.id, seq)) return;
         const url = URL.createObjectURL(blob);
-        setJobs((prev) =>
-          prev.map((j) => {
-            if (j.id !== job.id) return j;
-            if (j.result) URL.revokeObjectURL(j.result.url);
-            return { ...j, status: 'done', result: { blob, url, width, height, format: fmt, transparencyLost }, error: null };
-          })
-        );
+        batch.finishJob(job.id, { blob, url, width, height, format: fmt, transparencyLost });
       })
       .catch((thrown: unknown) => {
-        if (jobSeqRef.current.get(job.id) !== seq) return;
-        setJobs((prev) =>
-          prev.map((j) =>
-            j.id === job.id ? { ...j, status: 'error', result: null, error: thrown instanceof Error ? thrown.message : 'Could not convert this image.' } : j
-          )
-        );
+        if (!batch.isCurrentSeq(job.id, seq)) return;
+        batch.failJob(job.id, thrown instanceof Error ? thrown.message : 'Could not convert this image.');
       });
   };
+
+  const jobIds = batch.jobs.map((job) => job.id).join(',');
 
   useEffect(() => {
     // Re-runs every image whenever the batch's membership changes (files added/removed) or
     // the batch-wide format/quality changes.
-    jobs.forEach((job) => runJob(job, format, debouncedQuality));
+    batch.jobs.forEach((job) => runJob(job, format, debouncedQuality));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobIds, format, debouncedQuality]);
 
-  const addFiles = (files: File[]) => {
-    const room = Math.max(0, MAX_BATCH_FILES - jobs.length);
-    setBatchError(
-      files.length > room ? `Only ${MAX_BATCH_FILES} images can be processed in one batch — ${files.length - room} extra file(s) were skipped.` : null
-    );
-    const accepted = files.slice(0, room).map(
-      (file): ImageJob => ({
-        id: nextJobId(),
-        file,
-        originalUrl: URL.createObjectURL(file),
-        status: 'converting',
-        result: null,
-        error: null,
-      })
-    );
-    if (accepted.length > 0) setJobs((prev) => [...prev, ...accepted]);
-  };
-
-  const removeJob = (jobId: string) => {
-    setJobs((prev) => {
-      const job = prev.find((j) => j.id === jobId);
-      if (job) {
-        URL.revokeObjectURL(job.originalUrl);
-        if (job.result) URL.revokeObjectURL(job.result.url);
-      }
-      return prev.filter((j) => j.id !== jobId);
-    });
-  };
-
   const clearAll = () => {
-    jobs.forEach((job) => {
-      URL.revokeObjectURL(job.originalUrl);
-      if (job.result) URL.revokeObjectURL(job.result.url);
-    });
-    setJobs([]);
-    setBatchError(null);
-    setSelectedJobId(null);
+    batch.clearAll();
     setDismissedTransparencyJobId(null);
     setFormat('image/png');
     setQuality(DEFAULT_QUALITY);
@@ -263,63 +191,59 @@ export default function ImageFormatConverter() {
   };
 
   const loadExample = () => {
-    void generateSampleImageFile().then((file) => addFiles([file]));
+    void generateSampleImageFile().then((file) => batch.addFiles([file]));
   };
 
   const downloadJob = (job: ImageJob) => {
     if (!job.result) return;
-    const link = document.createElement('a');
-    link.href = job.result.url;
-    link.download = outputFileName(job.file.name, job.result.format);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadUrl(job.result.url, outputFileName(job.file.name, job.result.format));
   };
 
   // Keyed on having a result at all, not on status === 'done' — a job re-converting in the
   // background (e.g. while dragging the quality slider) still has its *previous* result to
   // show, so it shouldn't drop out of the totals and make the savings banner (and the rest of
   // the page below it) jump in and out as the slider moves.
-  const completedJobs = jobs.filter((job): job is ImageJob & { result: ConvertedResult } => job.result !== null);
+  const completedJobs = batch.jobs.filter((job): job is ImageJob & { result: ConvertedResult } => job.result !== null);
   const totalOriginalBytes = completedJobs.reduce((sum, job) => sum + job.file.size, 0);
   const totalConvertedBytes = completedJobs.reduce((sum, job) => sum + job.result.blob.size, 0);
-  const selectedJob = jobs.find((job) => job.id === selectedJobId) ?? null;
+  const selectedJob = batch.selectedJob;
 
   const downloadAll = async () => {
     if (completedJobs.length === 0) return;
     setZipping(true);
     try {
-      const { zipSync } = await import('fflate');
-      const entries: Record<string, Uint8Array> = {};
       const usedNames = new Set<string>();
-
-      for (const job of completedJobs) {
-        const base = baseName(job.file.name);
-        const ext = TARGET_FORMAT_EXTENSIONS[job.result.format];
-        let name = `${base}.${ext}`;
-        let suffix = 1;
-        while (usedNames.has(name)) {
-          name = `${base}-${suffix}.${ext}`;
-          suffix += 1;
-        }
-        usedNames.add(name);
-        entries[name] = new Uint8Array(await job.result.blob.arrayBuffer());
-      }
-
-      const zipped = zipSync(entries);
-      const blob = new Blob([zipped as BlobPart], { type: 'application/zip' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'converted-images.zip';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const entries = completedJobs.map((job) => ({
+        name: uniqueZipName(baseName(job.file.name), TARGET_FORMAT_EXTENSIONS[job.result.format], usedNames),
+        blob: job.result.blob,
+      }));
+      await downloadZip(entries, 'converted-images.zip');
     } finally {
       setZipping(false);
     }
   };
+
+  const jobRows: ImageJobRowProps[] = batch.jobs.map((job) => ({
+    key: job.id,
+    selected: job.id === batch.selectedJobId,
+    onSelect: () => batch.setSelectedJobId(job.id),
+    thumbUrl: job.originalUrl,
+    checkerboard: job.file.type === 'image/png',
+    fileName: job.file.name,
+    displayName: outputFileName(job.file.name, job.result?.format ?? format),
+    hasResult: job.result !== null,
+    sizeBeforeBytes: job.file.size,
+    sizeAfterBytes: job.result?.blob.size,
+    busy: job.status === 'processing',
+    busyLabel: 'Converting…',
+    errorFlag: job.status === 'error',
+    warningTitle: job.result?.transparencyLost
+      ? 'Transparency was lost — JPEG has no alpha channel, so transparent areas were filled in.'
+      : undefined,
+    onDownload: job.result ? () => downloadJob(job) : undefined,
+    downloadTitle: `Save ${job.file.name} as a converted file`,
+    onRemove: () => batch.removeJob(job.id),
+  }));
 
   return (
     <div class="tool">
@@ -355,87 +279,37 @@ export default function ImageFormatConverter() {
         <button type="button" class="btn" onClick={loadExample} title="Generate a sample image to try the tool with">
           Load example
         </button>
-        <button type="button" class="btn" onClick={clearAll} disabled={jobs.length === 0} title="Remove every image and start over">
+        <button type="button" class="btn" onClick={clearAll} disabled={batch.jobs.length === 0} title="Remove every image and start over">
           Clear
         </button>
       </div>
 
-      {format === 'image/x-icon' && jobs.length > 0 && (
+      {format === 'image/x-icon' && batch.jobs.length > 0 && (
         <p class="field__hint">ICO is capped at {MAX_ICO_DIMENSION}×{MAX_ICO_DIMENSION}px — a larger image is downscaled to fit, preserving proportions.</p>
       )}
 
       <MultiFileDropzone
-        onFilesSelected={addFiles}
-        roomRemaining={Math.max(0, MAX_BATCH_FILES - jobs.length)}
+        onFilesSelected={batch.addFiles}
+        roomRemaining={Math.max(0, MAX_BATCH_FILES - batch.jobs.length)}
         maxFiles={MAX_BATCH_FILES}
         chooseLabel="Choose images to convert"
         accept="image/*"
       />
 
-      <ErrorMessage message={batchError} />
+      <ErrorMessage message={batch.batchError} />
 
       {completedJobs.length > 0 && (
-        <div class="savings-banner" data-testid="total-savings">
-          <SavingsBadge beforeBytes={totalOriginalBytes} afterBytes={totalConvertedBytes} large />
-          <span class="field__hint">
-            {formatBytes(totalOriginalBytes)} → {formatBytes(totalConvertedBytes)} across {completedJobs.length}{' '}
-            image{completedJobs.length === 1 ? '' : 's'}
-          </span>
-          <span class="tool-bar__spacer" />
-          <button
-            type="button"
-            class="btn btn--primary"
-            onClick={() => void downloadAll()}
-            disabled={zipping}
-            title={`Download all ${completedJobs.length} converted images as a .zip`}
-          >
-            <span aria-hidden="true">⭳</span> {zipping ? 'Zipping…' : `Download all (${completedJobs.length})`}
-          </button>
-        </div>
+        <BatchSavingsBanner
+          totalBeforeBytes={totalOriginalBytes}
+          totalAfterBytes={totalConvertedBytes}
+          count={completedJobs.length}
+          zipping={zipping}
+          onDownloadAll={() => void downloadAll()}
+          downloadAllTitle={`Download all ${completedJobs.length} converted images as a .zip`}
+        />
       )}
 
-      {jobs.length > 0 && (
-        <ul class="job-list">
-          {jobs.map((job) => (
-            <li class={`job${job.id === selectedJobId ? ' job--selected' : ''}`} key={job.id}>
-              <img src={job.originalUrl} alt="" class={`job__thumb${job.file.type === 'image/png' ? ' job__thumb--checkerboard' : ''}`} />
-              <button type="button" class="job__select" aria-pressed={job.id === selectedJobId} onClick={() => setSelectedJobId(job.id)} title={`View ${job.file.name}`}>
-                <span class="job__info">
-                  <span class="job__name">{outputFileName(job.file.name, job.result?.format ?? format)}</span>
-                  {job.result && (
-                    <span class="job__size field__hint">
-                      {formatBytes(job.file.size)} → {formatBytes(job.result.blob.size)}
-                    </span>
-                  )}
-                </span>
-                {/* Keeps showing the last result while a re-conversion runs in the background
-                    (status flips back to 'converting' every time format/quality changes) —
-                    hiding the badge every tick made the row, the totals banner above, and the
-                    rest of the page jump as items shifted in and out. */}
-                {job.status === 'converting' && <span class="job__spinner" aria-hidden="true" />}
-                {job.status === 'converting' && !job.result && <span class="field__hint">Converting…</span>}
-                {job.status === 'error' && <span class="job__error-flag">Error</span>}
-                {job.result?.transparencyLost && (
-                  <span class="job__warning-flag" aria-hidden="true" title="Transparency was lost — JPEG has no alpha channel, so transparent areas were filled in.">
-                    ⚠
-                  </span>
-                )}
-                {job.result && <SavingsBadge beforeBytes={job.file.size} afterBytes={job.result.blob.size} />}
-              </button>
-              <span class="job__actions">
-                {job.result && (
-                  <button type="button" class="btn" onClick={() => downloadJob(job)} title={`Save ${job.file.name} as a converted file`}>
-                    <span aria-hidden="true">⭳</span> Download
-                  </button>
-                )}
-                <button type="button" class="btn" onClick={() => removeJob(job.id)} title={`Remove ${job.file.name}`} aria-label={`Remove ${job.file.name}`}>
-                  ✕
-                </button>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      {batch.jobs.length > 0 && <ImageJobList items={jobRows} />}
 
       {selectedJob && (
         <div class="job-detail">
@@ -474,7 +348,7 @@ export default function ImageFormatConverter() {
           )}
 
           {selectedJob.status === 'error' && <ErrorMessage message={selectedJob.error} />}
-          {selectedJob.status === 'converting' && !selectedJob.result && (
+          {selectedJob.status === 'processing' && !selectedJob.result && (
             <p class="field__hint">
               <span class="job__spinner" aria-hidden="true" /> Converting…
             </p>
@@ -488,7 +362,7 @@ export default function ImageFormatConverter() {
                   <span class="field__hint">
                     {formatBytes(selectedJob.file.size)} → {formatBytes(selectedJob.result.blob.size)} · {selectedJob.result.width}×{selectedJob.result.height}px
                   </span>
-                  {selectedJob.status === 'converting' && (
+                  {selectedJob.status === 'processing' && (
                     <span class="field__hint">
                       <span class="job__spinner" aria-hidden="true" /> Updating…
                     </span>
@@ -532,33 +406,6 @@ export default function ImageFormatConverter() {
       )}
 
       <style>{`
-        /* Compact, clickable gallery — select a row to view its full comparison below,
-           rather than stacking a full preview under every single image. */
-        .job-list { list-style: none; margin: var(--space-4) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
-        .job {
-          display: flex; align-items: center; gap: var(--space-2);
-          border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
-          padding: var(--space-2);
-        }
-        .job--selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-        .job__select {
-          display: flex; align-items: center; gap: var(--space-3); flex: 1; min-width: 0;
-          background: none; border: none; padding: 0; margin: 0; text-align: left; cursor: pointer; color: inherit; font: inherit;
-        }
-        .job__thumb { flex-shrink: 0; width: 2.5rem; height: 2.5rem; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); }
-        .job__thumb--checkerboard {
-          background-color: #fff;
-          background-image:
-            linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%),
-            linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
-          background-size: 8px 8px;
-          background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
-        }
-        .job__info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-        .job__name { font-family: var(--font-mono); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .job__size { font-size: var(--text-xs); }
-        .job__actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
-
         .job-detail { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border); }
         .job-detail__name { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); margin: 0 0 var(--space-2); overflow-wrap: anywhere; }
         /* .msg itself carries no margin (it's used inline elsewhere too) — add the gap here
@@ -577,23 +424,15 @@ export default function ImageFormatConverter() {
           display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3);
           flex-wrap: wrap; margin: 0 0 var(--space-3);
         }
-        .job__error-flag { font-size: var(--text-sm); font-weight: 600; color: var(--danger); }
-        .job__warning-flag { color: var(--warning); font-size: var(--text-base); line-height: 1; cursor: help; }
         .job__spinner {
           display: inline-block; width: 0.9rem; height: 0.9rem; flex-shrink: 0;
           border: 2px solid var(--border-strong); border-top-color: var(--accent);
-          border-radius: 50%; animation: fmt-job-spin 0.6s linear infinite; vertical-align: -0.15em;
+          border-radius: 50%; animation: job-detail-fmt-spin 0.6s linear infinite; vertical-align: -0.15em;
         }
         @media (prefers-reduced-motion: reduce) {
           .job__spinner { animation-duration: 1.5s; }
         }
-        @keyframes fmt-job-spin { to { transform: rotate(360deg); } }
-
-        .savings-banner {
-          display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;
-          margin: var(--space-4) 0 0; padding: var(--space-3); border-radius: var(--radius-lg);
-          background: var(--surface); border: 1px solid var(--border);
-        }
+        @keyframes job-detail-fmt-spin { to { transform: rotate(360deg); } }
 
         .control { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-3); max-width: 20rem; }
         .control--inline { margin-top: 0; min-width: 12rem; flex: 1 1 12rem; max-width: 20rem; }

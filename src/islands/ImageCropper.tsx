@@ -25,6 +25,8 @@ import { CompareSlider } from './shared/CompareSlider';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { formatBytes } from './shared/formatBytes';
 import { SavingsBadge } from './shared/SavingsBadge';
+import { ResizeFields } from './shared/ResizeFields';
+import { downloadUrl } from './shared/downloadUrl';
 
 // Deliberately no ShareLinkButton — the input is a binary image from the visitor's disk,
 // which can't (and shouldn't) be encoded into a URL. Crop rectangle and resize dimensions
@@ -353,43 +355,6 @@ export default function ImageCropper() {
     setCropRect({ x: 0, y: 0, width: naturalSize.width, height: naturalSize.height });
   };
 
-  const toggleResizeEnabled = (checked: boolean) => {
-    setResizeEnabled(checked);
-    if (checked && cropRect && resizeWidth.trim() === '' && resizeHeight.trim() === '') {
-      setResizeWidth(String(cropRect.width));
-      setResizeHeight(String(cropRect.height));
-    }
-  };
-
-  const updateResizeWidth = (raw: string) => {
-    setResizeWidth(raw);
-    if (!lockAspectRatio || !cropRect) return;
-    const value = Number(raw);
-    if (raw.trim() === '') setResizeHeight('');
-    else if (Number.isFinite(value) && value > 0) {
-      setResizeHeight(String(Math.max(1, Math.round((value * cropRect.height) / cropRect.width))));
-    }
-  };
-
-  const updateResizeHeight = (raw: string) => {
-    setResizeHeight(raw);
-    if (!lockAspectRatio || !cropRect) return;
-    const value = Number(raw);
-    if (raw.trim() === '') setResizeWidth('');
-    else if (Number.isFinite(value) && value > 0) {
-      setResizeWidth(String(Math.max(1, Math.round((value * cropRect.width) / cropRect.height))));
-    }
-  };
-
-  const toggleLockAspectRatio = (checked: boolean) => {
-    setLockAspectRatio(checked);
-    if (!checked || !cropRect || resizeWidth.trim() === '') return;
-    const value = Number(resizeWidth);
-    if (Number.isFinite(value) && value > 0) {
-      setResizeHeight(String(Math.max(1, Math.round((value * cropRect.height) / cropRect.width))));
-    }
-  };
-
   const zoomIn = () => setZoom((z) => Math.min(MAX_ZOOM, +(z + ZOOM_STEP).toFixed(2)));
   const zoomOut = () => setZoom((z) => Math.max(MIN_ZOOM, +(z - ZOOM_STEP).toFixed(2)));
   const resetZoom = () => setZoom(1);
@@ -422,12 +387,7 @@ export default function ImageCropper() {
 
   const download = () => {
     if (!result || !file) return;
-    const link = document.createElement('a');
-    link.href = result.url;
-    link.download = `${baseName(file.name)}-cropped.${OUTPUT_FORMAT_EXTENSIONS[format]}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadUrl(result.url, `${baseName(file.name)}-cropped.${OUTPUT_FORMAT_EXTENSIONS[format]}`);
   };
 
   return (
@@ -553,30 +513,20 @@ export default function ImageCropper() {
                 </div>
               </div>
 
-              <div class="crop-section">
-                <label class="checkbox">
-                  <input type="checkbox" checked={resizeEnabled} onChange={(e) => toggleResizeEnabled((e.target as HTMLInputElement).checked)} />
-                  <span>Resize output</span>
-                </label>
-                {resizeEnabled && (
-                  <>
-                    <div class="crop-fields crop-fields--resize">
-                      <label class="control">
-                        <span class="field__hint">Width (px)</span>
-                        <input type="number" class="input" min="1" value={resizeWidth} placeholder={String(Math.round(cropRect.width))} onInput={(e) => updateResizeWidth((e.target as HTMLInputElement).value)} />
-                      </label>
-                      <label class="control">
-                        <span class="field__hint">Height (px)</span>
-                        <input type="number" class="input" min="1" value={resizeHeight} placeholder={String(Math.round(cropRect.height))} onInput={(e) => updateResizeHeight((e.target as HTMLInputElement).value)} />
-                      </label>
-                    </div>
-                    <label class="checkbox">
-                      <input type="checkbox" checked={lockAspectRatio} onChange={(e) => toggleLockAspectRatio((e.target as HTMLInputElement).checked)} />
-                      <span>Lock aspect ratio</span>
-                    </label>
-                  </>
-                )}
-              </div>
+              <ResizeFields
+                enabled={resizeEnabled}
+                onToggleEnabled={setResizeEnabled}
+                width={resizeWidth}
+                height={resizeHeight}
+                lockAspectRatio={lockAspectRatio}
+                sourceWidth={cropRect.width}
+                sourceHeight={cropRect.height}
+                onChange={(next) => {
+                  setResizeWidth(next.width);
+                  setResizeHeight(next.height);
+                  setLockAspectRatio(next.lockAspectRatio);
+                }}
+              />
 
               {LOSSY_FORMATS.has(format) && (
                 <div class="crop-section">
@@ -672,7 +622,6 @@ export default function ImageCropper() {
           color: var(--text-subtle); font-family: var(--font-mono); font-weight: 600; margin: 0;
         }
         .crop-fields { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
-        .crop-fields--resize { grid-template-columns: 1fr 1fr; }
         .control { display: flex; flex-direction: column; gap: var(--space-1); }
         .control__hint { font-size: var(--text-xs); color: var(--text-subtle); }
         .crop-preset-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }

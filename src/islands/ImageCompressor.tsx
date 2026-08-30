@@ -17,6 +17,11 @@ import { CompareSlider } from './shared/CompareSlider';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { canvasHasTransparency } from './shared/canvasTransparency';
 import { MultiFileDropzone } from './shared/MultiFileDropzone';
+import { useImageJobBatch, type ImageJobBase } from './shared/useImageJobBatch';
+import { ImageJobList, type ImageJobRowProps } from './shared/ImageJobList';
+import { BatchSavingsBanner } from './shared/BatchSavingsBanner';
+import { downloadUrl } from './shared/downloadUrl';
+import { downloadZip, uniqueZipName } from './shared/downloadZip';
 
 // Deliberately no ShareLinkButton — the input is a binary image the visitor picked from
 // their own disk. There is nothing shareable to encode: the file itself can't go in a URL
@@ -37,23 +42,14 @@ interface CompressedResult {
   transparencyLost: boolean;
 }
 
-interface ImageJob {
-  id: string;
-  file: File;
-  originalUrl: string;
+interface ImageJob extends ImageJobBase<CompressedResult> {
   /** Raw text of this image's own Max dimension field — per-image, since a batch can mix a 4K photo with a small icon that needs no downscaling at all. */
   maxDimension: string;
   originalWidth: number | null;
   originalHeight: number | null;
   /** Per-image override of "Keep original format" — lets one image opt out of the batch-wide output format without turning the global toggle on for every other image too. Only meaningful (and only shown) when this image's own format differs from what it would otherwise convert to. */
   keepOriginal: boolean;
-  status: 'compressing' | 'done' | 'error';
-  result: CompressedResult | null;
-  error: string | null;
 }
-
-let jobSeq = 0;
-const nextJobId = (): string => `job-${(jobSeq += 1)}`;
 
 /**
  * Decodes and re-encodes an image through an off-screen canvas — inherently DOM-bound
@@ -168,7 +164,11 @@ const effectiveFormat = (file: File, fallback: OutputFormat, keepOriginal: boole
 type PendingAction = { kind: 'format'; value: OutputFormat } | { kind: 'keepOriginal'; value: boolean };
 
 export default function ImageCompressor() {
-  const [jobs, setJobs] = useState<ImageJob[]>([]);
+  const batch = useImageJobBatch<CompressedResult, ImageJob>({
+    maxFiles: MAX_BATCH_FILES,
+    idPrefix: 'compress-job',
+    createJob: (base) => ({ ...base, status: 'processing', result: null, error: null, maxDimension: '', originalWidth: null, originalHeight: null, keepOriginal: false }),
+  });
   const [format, setFormat] = useState<OutputFormat>('image/jpeg');
   /** When on, an uploaded file that's already JPEG, WebP, or PNG keeps its own format instead of converting to `format` above — anything else still falls back to `format`. */
   const [keepOriginalFormat, setKeepOriginalFormat] = useState(false);
@@ -179,19 +179,11 @@ export default function ImageCompressor() {
   // runs against this settled value, 200ms after dragging stops — running it on every tick
   // was heavy enough to make the slider itself feel laggy while dragging.
   const [debouncedQuality, setDebouncedQuality] = useState(DEFAULT_QUALITY);
-  const [batchError, setBatchError] = useState<string | null>(null);
   const [zipping, setZipping] = useState(false);
-  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  // Tracks the latest compression request per image (not one shared counter), so editing one
-  // image's own Max dimension field can't get its result thrown away by a batch-wide re-run
-  // (or vice versa) racing it — only a *newer* request for that same image invalidates it.
-  const jobSeqRef = useRef<Map<string, number>>(new Map());
   // Per-image debounce for the Max dimension slider/input, same reasoning as quality above.
   // Typed `number` (the browser's setTimeout return type) rather than `ReturnType<typeof
   // setTimeout>`, which resolves to Node's `Timeout` here because @types/node is in scope.
   const maxDimensionTimersRef = useRef<Map<string, number>>(new Map());
-  const jobsRef = useRef<ImageJob[]>([]);
-  jobsRef.current = jobs;
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuality(quality), 200);
@@ -205,36 +197,13 @@ export default function ImageCompressor() {
     []
   );
 
-  useEffect(
-    () => () => {
-      jobsRef.current.forEach((job) => {
-        URL.revokeObjectURL(job.originalUrl);
-        if (job.result) URL.revokeObjectURL(job.result.url);
-      });
-    },
-    []
-  );
-
-  const jobIds = jobs.map((job) => job.id).join(',');
-
-  useEffect(() => {
-    // Keeps a valid selection without yanking focus away from what's already selected:
-    // fixes up only when the current selection is gone (job removed) or nothing is
-    // selected yet (first image just added) — adding more images never steals selection.
-    setSelectedJobId((prev) => (prev && jobs.some((job) => job.id === prev) ? prev : (jobs[0]?.id ?? null)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobIds]);
-
   /** (Re)compresses one image with the given batch-wide settings and that image's own maxDimension. Safe to call directly from an event handler (e.g. editing one image's Max dimension) without waiting on an effect. */
   const runJob = (job: ImageJob, fmt: OutputFormat, q: number) => {
-    const seq = (jobSeqRef.current.get(job.id) ?? 0) + 1;
-    jobSeqRef.current.set(job.id, seq);
-
-    setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: 'compressing', error: null } : j)));
+    const seq = batch.startJob(job.id);
 
     const validation = validateImageFile(job.file);
     if (!validation.ok) {
-      setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: 'error', result: null, error: validation.error } : j)));
+      batch.failJob(job.id, validation.error);
       return;
     }
 
@@ -243,46 +212,29 @@ export default function ImageCompressor() {
 
     void compressImage(job.file, jobFormat, q, maxDimension)
       .then(({ blob, width, height, originalWidth, originalHeight, format: resultFormat, transparencyLost }) => {
-        if (jobSeqRef.current.get(job.id) !== seq) return;
+        if (!batch.isCurrentSeq(job.id, seq)) return;
         const url = URL.createObjectURL(blob);
-        setJobs((prev) =>
-          prev.map((j) => {
-            if (j.id !== job.id) return j;
-            if (j.result) URL.revokeObjectURL(j.result.url);
-            return {
-              ...j,
-              status: 'done',
-              result: { blob, url, width, height, format: resultFormat, transparencyLost },
-              originalWidth,
-              originalHeight,
-              error: null,
-            };
-          })
-        );
+        batch.finishJob(job.id, { blob, url, width, height, format: resultFormat, transparencyLost }, { originalWidth, originalHeight });
       })
       .catch((thrown: unknown) => {
-        if (jobSeqRef.current.get(job.id) !== seq) return;
-        setJobs((prev) =>
-          prev.map((j) =>
-            j.id === job.id
-              ? { ...j, status: 'error', result: null, error: thrown instanceof Error ? thrown.message : 'Could not compress this image.' }
-              : j
-          )
-        );
+        if (!batch.isCurrentSeq(job.id, seq)) return;
+        batch.failJob(job.id, thrown instanceof Error ? thrown.message : 'Could not compress this image.');
       });
   };
+
+  const jobIds = batch.jobs.map((job) => job.id).join(',');
 
   useEffect(() => {
     // Re-runs every image whenever the batch's membership changes (files added/removed) or a
     // batch-wide setting (format/quality/keep-original) changes. A single image's own Max
     // dimension field instead triggers `runJob` directly from its own input handler, below.
-    jobs.forEach((job) => runJob(job, format, debouncedQuality));
+    batch.jobs.forEach((job) => runJob(job, format, debouncedQuality));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobIds, format, debouncedQuality, keepOriginalFormat]);
 
   const updateJobMaxDimension = (job: ImageJob, value: string) => {
     const updated: ImageJob = { ...job, maxDimension: value };
-    setJobs((prev) => prev.map((j) => (j.id === job.id ? updated : j)));
+    batch.setJobs((prev) => prev.map((j) => (j.id === job.id ? updated : j)));
 
     const pending = maxDimensionTimersRef.current.get(job.id);
     if (pending) window.clearTimeout(pending);
@@ -298,51 +250,12 @@ export default function ImageCompressor() {
   /** Scoped to one image, so — unlike the batch-wide format toggle and format buttons — this applies immediately with no confirmation banner; the blast radius is a single row, not the whole batch. */
   const toggleJobKeepOriginal = (job: ImageJob, next: boolean) => {
     const updated: ImageJob = { ...job, keepOriginal: next };
-    setJobs((prev) => prev.map((j) => (j.id === job.id ? updated : j)));
+    batch.setJobs((prev) => prev.map((j) => (j.id === job.id ? updated : j)));
     runJob(updated, format, debouncedQuality);
   };
 
-  const addFiles = (files: File[]) => {
-    const room = Math.max(0, MAX_BATCH_FILES - jobs.length);
-    setBatchError(
-      files.length > room ? `Only ${MAX_BATCH_FILES} images can be processed in one batch — ${files.length - room} extra file(s) were skipped.` : null
-    );
-    const accepted = files.slice(0, room).map(
-      (file): ImageJob => ({
-        id: nextJobId(),
-        file,
-        originalUrl: URL.createObjectURL(file),
-        maxDimension: '',
-        originalWidth: null,
-        originalHeight: null,
-        keepOriginal: false,
-        status: 'compressing',
-        result: null,
-        error: null,
-      })
-    );
-    if (accepted.length > 0) setJobs((prev) => [...prev, ...accepted]);
-  };
-
-  const removeJob = (jobId: string) => {
-    setJobs((prev) => {
-      const job = prev.find((j) => j.id === jobId);
-      if (job) {
-        URL.revokeObjectURL(job.originalUrl);
-        if (job.result) URL.revokeObjectURL(job.result.url);
-      }
-      return prev.filter((j) => j.id !== jobId);
-    });
-  };
-
   const clearAll = () => {
-    jobs.forEach((job) => {
-      URL.revokeObjectURL(job.originalUrl);
-      if (job.result) URL.revokeObjectURL(job.result.url);
-    });
-    setJobs([]);
-    setBatchError(null);
-    setSelectedJobId(null);
+    batch.clearAll();
     setFormat('image/jpeg');
     setKeepOriginalFormat(false);
     setPendingAction(null);
@@ -353,13 +266,13 @@ export default function ImageCompressor() {
   };
 
   const loadExample = () => {
-    void generateSampleImageFile(format).then((file) => addFiles([file]));
+    void generateSampleImageFile(format).then((file) => batch.addFiles([file]));
   };
 
   /** Switching output format, or toggling "Keep original format", re-compresses (and can rename) every image already in the batch — worth confirming once there's something to lose, rather than silently converting files a user only meant to preview. Held as pending rather than applied via `window.confirm`, so the prompt is an in-page banner matching the rest of the UI instead of a jarring native browser dialog. */
   const requestFormatChange = (next: OutputFormat) => {
     if (next === format) return;
-    if (jobs.length === 0) {
+    if (batch.jobs.length === 0) {
       setFormat(next);
       return;
     }
@@ -367,7 +280,7 @@ export default function ImageCompressor() {
   };
 
   const requestKeepOriginalFormatChange = (next: boolean) => {
-    if (jobs.length === 0) {
+    if (batch.jobs.length === 0) {
       setKeepOriginalFormat(next);
       return;
     }
@@ -383,58 +296,80 @@ export default function ImageCompressor() {
 
   const downloadJob = (job: ImageJob) => {
     if (!job.result) return;
-    const link = document.createElement('a');
-    link.href = job.result.url;
-    link.download = outputFileName(job.file, job.result.format);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadUrl(job.result.url, outputFileName(job.file, job.result.format));
   };
 
   // Keyed on having a result at all, not on status === 'done' — a job re-compressing in the
   // background (e.g. while dragging the quality slider) still has its *previous* result to
   // show, so it shouldn't drop out of the totals and make the savings banner (and the whole
   // page below it) jump in and out as the slider moves.
-  const completedJobs = jobs.filter((job): job is ImageJob & { result: CompressedResult } => job.result !== null);
+  const completedJobs = batch.jobs.filter((job): job is ImageJob & { result: CompressedResult } => job.result !== null);
   const totalOriginalBytes = completedJobs.reduce((sum, job) => sum + job.file.size, 0);
   const totalCompressedBytes = completedJobs.reduce((sum, job) => sum + job.result.blob.size, 0);
-  const selectedJob = jobs.find((job) => job.id === selectedJobId) ?? null;
+  const selectedJob = batch.selectedJob;
 
   const downloadAll = async () => {
     if (completedJobs.length === 0) return;
     setZipping(true);
     try {
-      const { zipSync } = await import('fflate');
-      const entries: Record<string, Uint8Array> = {};
       const usedNames = new Set<string>();
-
-      for (const job of completedJobs) {
-        const base = baseName(job.file.name);
-        const ext = OUTPUT_FORMAT_EXTENSIONS[job.result.format];
-        let name = `${base}.${ext}`;
-        let suffix = 1;
-        while (usedNames.has(name)) {
-          name = `${base}-${suffix}.${ext}`;
-          suffix += 1;
-        }
-        usedNames.add(name);
-        entries[name] = new Uint8Array(await job.result.blob.arrayBuffer());
-      }
-
-      const zipped = zipSync(entries);
-      const blob = new Blob([zipped as BlobPart], { type: 'application/zip' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'compressed-images.zip';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const entries = completedJobs.map((job) => ({
+        name: uniqueZipName(baseName(job.file.name), OUTPUT_FORMAT_EXTENSIONS[job.result.format], usedNames),
+        blob: job.result.blob,
+      }));
+      await downloadZip(entries, 'compressed-images.zip');
     } finally {
       setZipping(false);
     }
   };
+
+  const jobRows: ImageJobRowProps[] = batch.jobs.map((job) => ({
+    key: job.id,
+    selected: job.id === batch.selectedJobId,
+    onSelect: () => batch.setSelectedJobId(job.id),
+    thumbUrl: job.originalUrl,
+    checkerboard: job.file.type === 'image/png',
+    // Only shown when it would actually change something: the global toggle is off, this
+    // file is one of the three formats the tool can "keep", and its own format differs from
+    // the one it would otherwise convert to. A control that's always visible but usually a
+    // no-op would just be noise. Locked = stays in its own format; unlocked = follows the
+    // batch format like the rest.
+    thumbOverlay:
+      !keepOriginalFormat && SUPPORTED_KEEP_FORMATS.has(job.file.type) && job.file.type !== format ? (
+        <button
+          type="button"
+          class="job__lock"
+          aria-pressed={job.keepOriginal}
+          onClick={() => toggleJobKeepOriginal(job, !job.keepOriginal)}
+          title={
+            job.keepOriginal
+              ? `Locked to ${formatShortLabel(job.file.type)} — click to let it convert to ${OUTPUT_FORMAT_LABELS[format]} like the rest of the batch.`
+              : `Lock this image to its own format (${formatShortLabel(job.file.type)}) instead of converting it to ${OUTPUT_FORMAT_LABELS[format]}.`
+          }
+          aria-label={
+            job.keepOriginal
+              ? `${job.file.name} is locked to ${formatShortLabel(job.file.type)}, unlock to convert it`
+              : `Lock ${job.file.name} to ${formatShortLabel(job.file.type)}`
+          }
+        >
+          <span aria-hidden="true">{job.keepOriginal ? '🔒' : '🔓'}</span>
+        </button>
+      ) : undefined,
+    fileName: job.file.name,
+    displayName: outputFileName(job.file, job.result?.format ?? effectiveFormat(job.file, format, keepOriginalFormat || job.keepOriginal)),
+    hasResult: job.result !== null,
+    sizeBeforeBytes: job.file.size,
+    sizeAfterBytes: job.result?.blob.size,
+    busy: job.status === 'processing',
+    busyLabel: 'Compressing…',
+    errorFlag: job.status === 'error',
+    warningTitle: job.result?.transparencyLost
+      ? 'Transparency was lost — JPEG has no alpha channel, so transparent areas were filled in.'
+      : undefined,
+    onDownload: job.result ? () => downloadJob(job) : undefined,
+    downloadTitle: `Save ${job.file.name} as a compressed file`,
+    onRemove: () => batch.removeJob(job.id),
+  }));
 
   return (
     <div class="tool">
@@ -475,7 +410,7 @@ export default function ImageCompressor() {
         <button type="button" class="btn" onClick={loadExample} title="Generate a sample image to try the tool with">
           Load example
         </button>
-        <button type="button" class="btn" onClick={clearAll} disabled={jobs.length === 0} title="Remove every image and start over">
+        <button type="button" class="btn" onClick={clearAll} disabled={batch.jobs.length === 0} title="Remove every image and start over">
           Clear
         </button>
       </div>
@@ -488,19 +423,19 @@ export default function ImageCompressor() {
           <span class="msg__body">
             {pendingAction.kind === 'format' ? (
               <>
-                Switch output format to {OUTPUT_FORMAT_LABELS[pendingAction.value]}? This will re-compress the {jobs.length} image
-                {jobs.length === 1 ? '' : 's'} you've already added and download {jobs.length === 1 ? 'it' : 'them'} as{' '}
+                Switch output format to {OUTPUT_FORMAT_LABELS[pendingAction.value]}? This will re-compress the {batch.jobs.length} image
+                {batch.jobs.length === 1 ? '' : 's'} you've already added and download {batch.jobs.length === 1 ? 'it' : 'them'} as{' '}
                 {OUTPUT_FORMAT_EXTENSIONS[pendingAction.value]} files instead.
               </>
             ) : pendingAction.value ? (
               <>
-                Keep each image's own format from now on? Any of the {jobs.length} image{jobs.length === 1 ? '' : 's'} already added that's
-                already JPEG, WebP, or PNG will re-compress in its own format instead of converting to {OUTPUT_FORMAT_LABELS[format]}.
+                Keep each image's own format from now on? Any of the {batch.jobs.length} image{batch.jobs.length === 1 ? '' : 's'} already added
+                that's already JPEG, WebP, or PNG will re-compress in its own format instead of converting to {OUTPUT_FORMAT_LABELS[format]}.
               </>
             ) : (
               <>
-                Stop keeping each image's own format? This will re-compress the {jobs.length} image{jobs.length === 1 ? '' : 's'} you've
-                already added to {OUTPUT_FORMAT_LABELS[format]}.
+                Stop keeping each image's own format? This will re-compress the {batch.jobs.length} image{batch.jobs.length === 1 ? '' : 's'}{' '}
+                you've already added to {OUTPUT_FORMAT_LABELS[format]}.
               </>
             )}
             <span class="msg__actions">
@@ -520,115 +455,27 @@ export default function ImageCompressor() {
       )}
 
       <MultiFileDropzone
-        onFilesSelected={addFiles}
-        roomRemaining={Math.max(0, MAX_BATCH_FILES - jobs.length)}
+        onFilesSelected={batch.addFiles}
+        roomRemaining={Math.max(0, MAX_BATCH_FILES - batch.jobs.length)}
         maxFiles={MAX_BATCH_FILES}
         chooseLabel="Choose images to compress"
         accept="image/*"
       />
 
-      <ErrorMessage message={batchError} />
+      <ErrorMessage message={batch.batchError} />
 
       {completedJobs.length > 0 && (
-        <div class="savings-banner" data-testid="total-savings">
-          <SavingsBadge beforeBytes={totalOriginalBytes} afterBytes={totalCompressedBytes} large />
-          <span class="field__hint">
-            {formatBytes(totalOriginalBytes)} → {formatBytes(totalCompressedBytes)} across {completedJobs.length}{' '}
-            image{completedJobs.length === 1 ? '' : 's'}
-          </span>
-          <span class="tool-bar__spacer" />
-          <button
-            type="button"
-            class="btn btn--primary"
-            onClick={() => void downloadAll()}
-            disabled={zipping}
-            title={`Download all ${completedJobs.length} compressed images as a .zip`}
-          >
-            <span aria-hidden="true">⭳</span> {zipping ? 'Zipping…' : `Download all (${completedJobs.length})`}
-          </button>
-        </div>
+        <BatchSavingsBanner
+          totalBeforeBytes={totalOriginalBytes}
+          totalAfterBytes={totalCompressedBytes}
+          count={completedJobs.length}
+          zipping={zipping}
+          onDownloadAll={() => void downloadAll()}
+          downloadAllTitle={`Download all ${completedJobs.length} compressed images as a .zip`}
+        />
       )}
 
-      {jobs.length > 0 && (
-        <ul class="job-list">
-          {jobs.map((job) => (
-            <li class={`job${job.id === selectedJobId ? ' job--selected' : ''}`} key={job.id}>
-              <span class="job__thumb-group">
-                <img src={job.originalUrl} alt="" class={`job__thumb${job.file.type === 'image/png' ? ' job__thumb--checkerboard' : ''}`} />
-                {/* Only shown when it would actually change something: the global toggle is
-                    off, this file is one of the three formats the tool can "keep", and its
-                    own format differs from the one it would otherwise convert to. A control
-                    that's always visible but usually a no-op would just be noise. Locked =
-                    stays in its own format; unlocked = follows the batch format like the rest. */}
-                {!keepOriginalFormat && SUPPORTED_KEEP_FORMATS.has(job.file.type) && job.file.type !== format && (
-                  <button
-                    type="button"
-                    class="job__lock"
-                    aria-pressed={job.keepOriginal}
-                    onClick={() => toggleJobKeepOriginal(job, !job.keepOriginal)}
-                    title={
-                      job.keepOriginal
-                        ? `Locked to ${formatShortLabel(job.file.type)} — click to let it convert to ${OUTPUT_FORMAT_LABELS[format]} like the rest of the batch.`
-                        : `Lock this image to its own format (${formatShortLabel(job.file.type)}) instead of converting it to ${OUTPUT_FORMAT_LABELS[format]}.`
-                    }
-                    aria-label={
-                      job.keepOriginal
-                        ? `${job.file.name} is locked to ${formatShortLabel(job.file.type)}, unlock to convert it`
-                        : `Lock ${job.file.name} to ${formatShortLabel(job.file.type)}`
-                    }
-                  >
-                    <span aria-hidden="true">{job.keepOriginal ? '🔒' : '🔓'}</span>
-                  </button>
-                )}
-              </span>
-              <button
-                type="button"
-                class="job__select"
-                aria-pressed={job.id === selectedJobId}
-                onClick={() => setSelectedJobId(job.id)}
-                title={`View ${job.file.name}`}
-              >
-                <span class="job__info">
-                  <span class="job__name">
-                    {outputFileName(job.file, job.result?.format ?? effectiveFormat(job.file, format, keepOriginalFormat || job.keepOriginal))}
-                  </span>
-                  {job.result && (
-                    <span class="job__size field__hint">
-                      {formatBytes(job.file.size)} → {formatBytes(job.result.blob.size)}
-                    </span>
-                  )}
-                </span>
-                {/* Keeps showing the last result while a re-compression runs in the
-                    background (status flips back to 'compressing' every time format/quality/max
-                    dimension changes) — hiding the badge every tick made the row, the totals
-                    banner above, and the rest of the page jump as items shifted in and out. The
-                    spinner is what actually signals "this is stale, working on it" instead —
-                    PNG's WASM pass in particular can take a moment, and a badge that just sits
-                    there unchanged reads as nothing happening. */}
-                {job.status === 'compressing' && <span class="job__spinner" aria-hidden="true" />}
-                {job.status === 'compressing' && !job.result && <span class="field__hint">Compressing…</span>}
-                {job.status === 'error' && <span class="job__error-flag">Error</span>}
-                {job.result?.transparencyLost && (
-                  <span class="job__warning-flag" aria-hidden="true" title="Transparency was lost — JPEG has no alpha channel, so transparent areas were filled in.">
-                    ⚠
-                  </span>
-                )}
-                {job.result && <SavingsBadge beforeBytes={job.file.size} afterBytes={job.result.blob.size} />}
-              </button>
-              <span class="job__actions">
-                {job.result && (
-                  <button type="button" class="btn" onClick={() => downloadJob(job)} title={`Save ${job.file.name} as a compressed file`}>
-                    <span aria-hidden="true">⭳</span> Download
-                  </button>
-                )}
-                <button type="button" class="btn" onClick={() => removeJob(job.id)} title={`Remove ${job.file.name}`} aria-label={`Remove ${job.file.name}`}>
-                  ✕
-                </button>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      {batch.jobs.length > 0 && <ImageJobList items={jobRows} />}
 
       {selectedJob && (
         <div class="job-detail">
@@ -661,7 +508,7 @@ export default function ImageCompressor() {
           )}
 
           {selectedJob.status === 'error' && <ErrorMessage message={selectedJob.error} />}
-          {selectedJob.status === 'compressing' && !selectedJob.result && (
+          {selectedJob.status === 'processing' && !selectedJob.result && (
             <p class="field__hint">
               <span class="job__spinner" aria-hidden="true" /> Compressing…
             </p>
@@ -677,7 +524,7 @@ export default function ImageCompressor() {
                 <span class="field__hint">
                   {formatBytes(selectedJob.file.size)} → {formatBytes(selectedJob.result.blob.size)}
                 </span>
-                {selectedJob.status === 'compressing' && (
+                {selectedJob.status === 'processing' && (
                   <span class="field__hint">
                     <span class="job__spinner" aria-hidden="true" /> Updating…
                   </span>
@@ -758,67 +605,20 @@ export default function ImageCompressor() {
       )}
 
       <style>{`
-        /* Compact, clickable gallery — select a row to view its full comparison below,
-           rather than stacking a full compare slider under every single image. */
-        .job-list { list-style: none; margin: var(--space-4) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
-        .job {
-          display: flex; align-items: center; gap: var(--space-2);
-          border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
-          padding: var(--space-2);
-        }
-        .job--selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-        .job__select {
-          display: flex; align-items: center; gap: var(--space-3); flex: 1; min-width: 0;
-          background: none; border: none; padding: 0; margin: 0; text-align: left; cursor: pointer; color: inherit; font: inherit;
-        }
-        /* Sits outside .job__select (a <button>) rather than inside it — nested interactive
-           controls (a button inside a button) aren't valid HTML. */
-        .job__thumb-group { position: relative; flex-shrink: 0; display: inline-flex; }
-        .job__thumb { width: 2.5rem; height: 2.5rem; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); }
-        /* Smaller checker squares than the full-size preview's — the 16px pattern used
-           there would read as a couple of muddy blobs at this thumbnail's actual size. */
-        .job__thumb--checkerboard {
-          background-color: #fff;
-          background-image:
-            linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%),
-            linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
-          background-size: 8px 8px;
-          background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
-        }
-        .job__lock {
-          position: absolute; bottom: -0.35rem; right: -0.35rem; display: flex; align-items: center; justify-content: center;
-          width: 1.15rem; height: 1.15rem; font-size: 0.65rem; line-height: 1;
-          background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
-          padding: 0; cursor: pointer; box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
-        }
-        .job__lock[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-subtle); }
-        .job__info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-        .job__name { font-family: var(--font-mono); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .job__size { font-size: var(--text-xs); }
-        .job__actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
-
         .job-detail {
           margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border);
         }
         .job-detail__name { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); margin: 0 0 var(--space-2); overflow-wrap: anywhere; }
         .job__stats { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin: 0 0 var(--space-3); }
-        .job__error-flag { font-size: var(--text-sm); font-weight: 600; color: var(--danger); }
-        .job__warning-flag { color: var(--warning); font-size: var(--text-base); line-height: 1; cursor: help; }
         .job__spinner {
           display: inline-block; width: 0.9rem; height: 0.9rem; flex-shrink: 0;
           border: 2px solid var(--border-strong); border-top-color: var(--accent);
-          border-radius: 50%; animation: job-spin 0.6s linear infinite; vertical-align: -0.15em;
+          border-radius: 50%; animation: job-detail-spin 0.6s linear infinite; vertical-align: -0.15em;
         }
         @media (prefers-reduced-motion: reduce) {
           .job__spinner { animation-duration: 1.5s; }
         }
-        @keyframes job-spin { to { transform: rotate(360deg); } }
-
-        .savings-banner {
-          display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;
-          margin: var(--space-4) 0 0; padding: var(--space-3); border-radius: var(--radius-lg);
-          background: var(--surface); border: 1px solid var(--border);
-        }
+        @keyframes job-detail-spin { to { transform: rotate(360deg); } }
 
         /* In-page confirmation for a format switch — deliberately not window.confirm(), which
            renders as a jarring native browser dialog that clashes with everything else here. */
