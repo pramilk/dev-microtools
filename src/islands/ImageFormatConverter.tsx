@@ -18,6 +18,7 @@ import {
 import { canvasHasTransparency } from './shared/canvasTransparency';
 import { formatBytes } from './shared/formatBytes';
 import { SavingsBadge } from './shared/SavingsBadge';
+import { CompareSlider } from './shared/CompareSlider';
 import { MultiFileDropzone } from './shared/MultiFileDropzone';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { useImageJobBatch, type ImageJobBase } from './shared/useImageJobBatch';
@@ -383,23 +384,21 @@ export default function ImageFormatConverter() {
                   </label>
                 )}
               </div>
-              <div class="panes panes--split">
-                <div class="field">
-                  <span class="field__label">Original</span>
-                  <div class="image-preview">
-                    <img src={selectedJob.originalUrl} alt={selectedJob.file.name} />
-                  </div>
-                  <p class="field__hint">
-                    {formatBytes(selectedJob.file.size)} · {formatShortLabel(selectedJob.file.type)}
-                  </p>
-                </div>
-                <div class="field">
-                  <span class="field__label">Converted</span>
-                  <div class={`image-preview${selectedJob.result.format !== 'image/jpeg' ? ' image-preview--checkerboard' : ''}`}>
-                    <img src={selectedJob.result.url} alt={`${selectedJob.file.name}, converted to ${TARGET_FORMAT_LABELS[selectedJob.result.format]}`} />
-                  </div>
-                </div>
-              </div>
+              <p class="field__hint">
+                Original: {formatBytes(selectedJob.file.size)} · {formatShortLabel(selectedJob.file.type)}
+              </p>
+              <CompareSlider
+                beforeUrl={selectedJob.originalUrl}
+                afterUrl={selectedJob.result.url}
+                afterLabel="Converted"
+                width={selectedJob.result.width}
+                height={selectedJob.result.height}
+                // Checkerboard whenever *either* side could carry an alpha channel — basing
+                // it on the target format alone (e.g. JPEG) wrongly dropped the checkerboard
+                // behind a still-transparent PNG original, making its transparency look like
+                // it had been removed rather than just the converted copy losing it.
+                transparent={selectedJob.file.type !== 'image/jpeg' || selectedJob.result.format !== 'image/jpeg'}
+              />
             </>
           )}
         </div>
@@ -437,21 +436,6 @@ export default function ImageFormatConverter() {
         .control { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-3); max-width: 20rem; }
         .control--inline { margin-top: 0; min-width: 12rem; flex: 1 1 12rem; max-width: 20rem; }
         .control__hint { font-size: var(--text-xs); color: var(--text-subtle); }
-
-        .image-preview {
-          border: 1px solid var(--border); border-radius: var(--radius);
-          background: var(--surface-2); min-height: 10rem;
-          display: flex; align-items: center; justify-content: center; padding: var(--space-3);
-        }
-        .image-preview img { max-width: 100%; max-height: 16rem; }
-        .image-preview--checkerboard {
-          background-color: #fff;
-          background-image:
-            linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%),
-            linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
-          background-size: 16px 16px;
-          background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
-        }
       `}</style>
     </div>
   );

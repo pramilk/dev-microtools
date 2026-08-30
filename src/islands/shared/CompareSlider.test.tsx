@@ -134,13 +134,12 @@ describe('<CompareSlider />', () => {
     const zoomIn = screen.getByRole('button', { name: 'Zoom in' });
     const zoomOut = screen.getByRole('button', { name: 'Zoom out' });
 
-    // Starts at 100%, which is already the minimum.
+    // Starts at 100%, with room to zoom out further down to 33%.
     expect(zoomPercent()).toContain('(100%)');
-    expect(zoomOut).toBeDisabled();
+    expect(zoomOut).toBeEnabled();
 
     fireEvent.click(zoomIn);
     expect(zoomPercent()).toContain('(150%)');
-    expect(zoomOut).toBeEnabled();
 
     for (let i = 0; i < 10; i += 1) fireEvent.click(zoomIn);
     expect(zoomPercent()).toContain('(400%)');
@@ -148,6 +147,10 @@ describe('<CompareSlider />', () => {
 
     fireEvent.click(zoomOut);
     expect(zoomPercent()).toContain('(350%)');
+
+    for (let i = 0; i < 10; i += 1) fireEvent.click(zoomOut);
+    expect(zoomPercent()).toContain('(33%)');
+    expect(zoomOut).toBeDisabled();
   });
 
   it('resets the zoom when a new pair of images is compared', () => {
@@ -171,12 +174,74 @@ describe('<CompareSlider />', () => {
     expect(zoomPercent()).toContain('(110%)');
   });
 
-  it('clamps Ctrl+scroll zoom-out at 100%', () => {
+  it('clamps Ctrl+scroll zoom-out at 33%', () => {
     render(<CompareSlider {...props} width={800} height={400} />);
     const scroller = document.querySelector('.compare__scroll')!;
 
-    for (let i = 0; i < 5; i += 1) fireEvent.wheel(scroller, { deltaY: 100, ctrlKey: true });
-    expect(zoomPercent()).toContain('(100%)');
+    for (let i = 0; i < 10; i += 1) fireEvent.wheel(scroller, { deltaY: 100, ctrlKey: true });
+    expect(zoomPercent()).toContain('(33%)');
+  });
+
+  it('drags the image to pan once zoomed in, instead of moving the split', () => {
+    render(<CompareSlider {...props} width={800} height={400} />);
+    stubStageRect(0, 200);
+    const scroller = document.querySelector('.compare__scroll') as HTMLElement;
+    // jsdom never actually lays out content, so scrollWidth/clientWidth stay 0/0 unless
+    // stubbed — this simulates the zoomed content actually overflowing the visible box.
+    Object.defineProperty(scroller, 'scrollWidth', { value: 400, configurable: true });
+    Object.defineProperty(scroller, 'clientWidth', { value: 200, configurable: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+
+    scroller.scrollLeft = 10;
+    scroller.scrollTop = 5;
+
+    fireEvent.pointerDown(stage(), { clientX: 100, clientY: 50, pointerId: 1 });
+    expect(divider().style.left).toBe('50%');
+    expect(stage().className).toContain('compare__stage--panning');
+
+    fireEvent.pointerMove(stage(), { clientX: 70, clientY: 40, buttons: 1 });
+    expect(divider().style.left).toBe('50%');
+    expect(scroller.scrollLeft).toBe(40);
+    expect(scroller.scrollTop).toBe(15);
+
+    fireEvent.pointerUp(stage());
+    expect(stage().className).not.toContain('compare__stage--panning');
+  });
+
+  it('still moves the split by dragging the round handle, even while zoomed in', () => {
+    render(<CompareSlider {...props} width={800} height={400} />);
+    stubStageRect(0, 200);
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+
+    const handle = document.querySelector('.compare__handle') as HTMLElement;
+    fireEvent.pointerDown(handle, { clientX: 150, pointerId: 1 });
+    expect(divider().style.left).toBe('75%');
+    expect(stage().className).not.toContain('compare__stage--panning');
+
+    fireEvent.pointerMove(handle, { clientX: 20, buttons: 1 });
+    expect(divider().style.left).toBe('10%');
+  });
+
+  it('does not pan when zoomed in but the content still fits with no overflow to scroll', () => {
+    render(<CompareSlider {...props} width={800} height={400} />);
+    stubStageRect(0, 200);
+    // scrollWidth/clientWidth are left at jsdom's default (both 0, i.e. no overflow) —
+    // simulating a zoomed image that still fits a generous viewport with no scrollbar.
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+
+    fireEvent.pointerDown(stage(), { clientX: 150, pointerId: 1 });
+    expect(divider().style.left).toBe('75%');
+    expect(stage().className).not.toContain('compare__stage--panning');
+    expect(stage().className).not.toContain('compare__stage--zoomed');
+  });
+
+  it('drags anywhere on the image to move the split while not zoomed in', () => {
+    render(<CompareSlider {...props} width={800} height={400} />);
+    stubStageRect(0, 200);
+
+    fireEvent.pointerDown(stage(), { clientX: 150, pointerId: 1 });
+    expect(divider().style.left).toBe('75%');
+    expect(stage().className).not.toContain('compare__stage--panning');
   });
 
   it('shows the checkerboard only when the content may be transparent', () => {
