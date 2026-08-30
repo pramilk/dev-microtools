@@ -32,6 +32,14 @@ describe('<RegexTester />', () => {
     expect(await screen.findByRole('alert')).toBeInTheDocument();
   });
 
+  it('refuses a catastrophic-backtracking pattern instead of freezing the tab', async () => {
+    render(<RegexTester />);
+    typeInto(screen.getByLabelText(/regular expression/i), '(a+)+$');
+    typeInto(screen.getByLabelText(/test string/i), 'a'.repeat(40) + '!');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/exponentially|freeze/i);
+  });
+
   it('warns when a pattern can match an empty string', async () => {
     render(<RegexTester />);
     typeInto(screen.getByLabelText(/regular expression/i), 'a*');

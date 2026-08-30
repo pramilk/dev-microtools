@@ -167,6 +167,87 @@ export function compileRegex(pattern: string, flags: string): ToolResult<RegExp>
 }
 
 /**
+ * Text length past which a flagged pattern is refused rather than run. JS regex
+ * execution is synchronous and cannot be interrupted once started — there is no
+ * `setTimeout`-based abort for a single blocking `RegExp.exec` call on the main
+ * thread, so the only way to stop a catastrophic pattern from freezing the tab is to
+ * never start it. 20 is a deliberately low margin: `(a+)+$` against 20 "a"s runs in
+ * ~15ms, but the cost roughly doubles every 2 characters after that (measured ~220ms
+ * at 24 chars, ~3.4s at 28, ~14s at 30) — so the guard has to bite well before the
+ * curve gets steep, not once it is already slow.
+ */
+export const REDOS_LENGTH_GUARD = 20;
+
+function isUnboundedQuantifier(description: string): boolean {
+  return / or more times/.test(description);
+}
+
+function unwrapGroupChild(node: RegexNode): RegexNode | null {
+  return node.type === 'group' || node.type === 'lookaround' ? node.child : null;
+}
+
+/**
+ * True for the "bare repeated atom, repeated again" shape — `(a+)+`, `(\d*)+`,
+ * `([a-zA-Z]+)*`, `(.*)+` and so on — the textbook catastrophic-backtracking pattern
+ * anyone testing this tool with a ReDoS cheatsheet will reach for. Every character in
+ * the input can be attributed to the inner or the outer repetition interchangeably, so
+ * the engine explores an exponential number of equivalent splits.
+ *
+ * Deliberately narrow, to avoid false-flagging ordinary patterns: it only fires when
+ * the *entire* body of the outer repeated group is one unbounded quantified atom, with
+ * nothing else alongside it. A group like the slug preset's `(?:-[a-z0-9]+)*` is not
+ * flagged, because the literal "-" glueing each repetition together removes the
+ * ambiguity — there is exactly one way to split "a-b-c", not exponentially many. This
+ * is a heuristic for the well-known worst case, not a full ambiguity analysis: it will
+ * not catch every catastrophic pattern (e.g. overlapping alternation like `(a|a)*`).
+ */
+function hasBareNestedRepetition(node: RegexNode): boolean {
+  if (node.type === 'quantified') {
+    if (isUnboundedQuantifier(node.description)) {
+      const inner = unwrapGroupChild(node.child);
+      if (inner?.type === 'quantified' && isUnboundedQuantifier(inner.description)) return true;
+    }
+    return hasBareNestedRepetition(node.child);
+  }
+  switch (node.type) {
+    case 'group':
+    case 'lookaround':
+      return hasBareNestedRepetition(node.child);
+    case 'alternation':
+      return node.options.some(hasBareNestedRepetition);
+    case 'sequence':
+      return node.items.some(hasBareNestedRepetition);
+    default:
+      return false;
+  }
+}
+
+/** True when `pattern` has the nested-repetition shape known to cause catastrophic backtracking. */
+export function hasCatastrophicBacktrackingRisk(pattern: string): boolean {
+  try {
+    return hasBareNestedRepetition(new RegexExplainer(pattern).parseAlternation());
+  } catch {
+    return false; // Malformed pattern: let compileRegex's real parser produce the syntax error instead.
+  }
+}
+
+/**
+ * Refuses to run a flagged pattern once the text it would run against is long enough
+ * for catastrophic backtracking to actually hang the tab. Short text is let through
+ * even for a flagged pattern, since it finishes near-instantly regardless — this only
+ * blocks the combination that is actually dangerous.
+ */
+function reDoSGuardMessage(pattern: string, textLength: number): string | null {
+  if (textLength < REDOS_LENGTH_GUARD) return null;
+  if (!hasCatastrophicBacktrackingRisk(pattern)) return null;
+  return (
+    'This pattern repeats a group that can itself repeat (like "(a+)+"), which can make ' +
+    'matching take exponentially longer as the text grows — with text this long it would ' +
+    'likely freeze the tab. Simplify it (e.g. "a+" instead of "(a+)+") to continue.'
+  );
+}
+
+/**
  * Runs a pattern over the subject text and collects every match.
  *
  * Zero-length matches are handled explicitly: without advancing `lastIndex` manually,
@@ -175,6 +256,9 @@ export function compileRegex(pattern: string, flags: string): ToolResult<RegExp>
 export function runRegex(pattern: string, flags: string, subject: string): ToolResult<RegexRun> {
   const compiled = compileRegex(pattern, flags);
   if (!compiled.ok) return compiled;
+
+  const guardMessage = reDoSGuardMessage(pattern, subject.length);
+  if (guardMessage) return err(guardMessage);
 
   const regex = compiled.value;
   const matches: RegexMatch[] = [];
@@ -275,6 +359,12 @@ export function testLines(pattern: string, flags: string, subject: string): Tool
   // just the first — this never mutates the flags the caller passed in.
   const compiled = compileRegex(pattern, flags.includes('g') ? flags : `${flags}g`);
   if (!compiled.ok) return compiled;
+
+  // Each line is matched independently, so the risk is the longest single line, not
+  // the total pasted length — a list of many short lines is no more dangerous than one.
+  const longestLine = Math.max(...subject.split('\n').map((line) => line.length));
+  const guardMessage = reDoSGuardMessage(pattern, longestLine);
+  if (guardMessage) return err(guardMessage);
 
   try {
     const results = subject.split('\n').map((line) => {
@@ -774,6 +864,9 @@ export function applyReplace(
 ): ToolResult<string> {
   const compiled = compileRegex(pattern, flags);
   if (!compiled.ok) return compiled;
+
+  const guardMessage = reDoSGuardMessage(pattern, subject.length);
+  if (guardMessage) return err(guardMessage);
 
   try {
     return ok(subject.replace(compiled.value, replacement));

@@ -9,7 +9,9 @@ import {
   buildPatternTree,
   flattenPatternGroups,
   detectFlavorHints,
+  hasCatastrophicBacktrackingRisk,
   COMMON_PATTERNS,
+  REDOS_LENGTH_GUARD,
 } from './regex';
 
 describe('compileRegex', () => {
@@ -80,6 +82,59 @@ describe('runRegex', () => {
   it('propagates an invalid pattern as an error', () => {
     expect(runRegex('(', 'g', 'abc').ok).toBe(false);
   });
+
+  it('lets a catastrophic-looking pattern through against short text, where it is harmless', () => {
+    const shortSubject = 'a'.repeat(REDOS_LENGTH_GUARD - 2) + '!';
+    expect(shortSubject.length).toBeLessThan(REDOS_LENGTH_GUARD);
+    const result = runRegex('(a+)+$', '', shortSubject);
+    expect(result.ok).toBe(true);
+  });
+
+  it('refuses a catastrophic-backtracking pattern once the text is long enough to hang', () => {
+    const longSubject = 'a'.repeat(REDOS_LENGTH_GUARD + 20) + '!';
+    const result = runRegex('(a+)+$', '', longSubject);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/exponentially|freeze/i);
+  });
+
+  it('never blocks a real match with a merely nested-looking but unambiguous group', () => {
+    // The slug preset's shape: a literal glues each repetition, so there is no actual
+    // ambiguity for the engine to backtrack over, however long the input.
+    const longSubject = 'tag-'.repeat(30) + 'end';
+    const result = runRegex('[a-z0-9]+(?:-[a-z0-9]+)*', 'g', longSubject);
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe('hasCatastrophicBacktrackingRisk', () => {
+  it.each([
+    ['(a+)+$', true],
+    ['(\\d*)+', true],
+    ['([a-zA-Z]+)*$', true],
+    ['(.*)+', true],
+    ['(a+)*', true],
+  ])('flags the bare nested-repetition shape: %s', (pattern, expected) => {
+    expect(hasCatastrophicBacktrackingRisk(pattern)).toBe(expected);
+  });
+
+  it.each(COMMON_PATTERNS.map((preset) => [preset.id, preset.pattern] as const))(
+    'does not flag the built-in preset "%s"',
+    (_id, pattern) => {
+      expect(hasCatastrophicBacktrackingRisk(pattern)).toBe(false);
+    }
+  );
+
+  it('does not flag a group repeated a bounded number of times', () => {
+    expect(hasCatastrophicBacktrackingRisk('(?:\\d{1,3}\\.){3}\\d{1,3}')).toBe(false);
+  });
+
+  it('does not flag an unquantified group containing repetition', () => {
+    expect(hasCatastrophicBacktrackingRisk('(a+)')).toBe(false);
+  });
+
+  it('returns false rather than throwing on a malformed pattern', () => {
+    expect(hasCatastrophicBacktrackingRisk('(')).toBe(false);
+  });
 });
 
 describe('toSegments', () => {
@@ -143,6 +198,11 @@ describe('applyReplace', () => {
   it('propagates an invalid pattern', () => {
     expect(applyReplace('(', 'g', 'x', 'y').ok).toBe(false);
   });
+
+  it('refuses a catastrophic-backtracking pattern once the subject is long enough to hang', () => {
+    const result = applyReplace('(a+)+$', '', 'a'.repeat(REDOS_LENGTH_GUARD + 20), 'x');
+    expect(result.ok).toBe(false);
+  });
 });
 
 describe('testLines', () => {
@@ -179,6 +239,18 @@ describe('testLines', () => {
 
   it('propagates an invalid pattern', () => {
     expect(testLines('(', '', 'x').ok).toBe(false);
+  });
+
+  it('refuses when the longest single line is long enough for catastrophic backtracking to hang', () => {
+    const longLine = 'a'.repeat(REDOS_LENGTH_GUARD + 20);
+    const result = testLines('(a+)+$', '', `short\n${longLine}\nshort2`);
+    expect(result.ok).toBe(false);
+  });
+
+  it('is not tripped by many short lines, only by a single long one', () => {
+    const manyShortLines = Array(500).fill('short').join('\n');
+    const result = testLines('(a+)+$', '', manyShortLines);
+    expect(result.ok).toBe(true);
   });
 });
 
