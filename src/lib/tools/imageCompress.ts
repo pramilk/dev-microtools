@@ -8,7 +8,7 @@ export const OUTPUT_FORMATS: OutputFormat[] = ['image/jpeg', 'image/webp', 'imag
 export const OUTPUT_FORMAT_LABELS: Record<OutputFormat, string> = {
   'image/jpeg': 'JPEG',
   'image/webp': 'WebP',
-  'image/png': 'PNG (lossless)',
+  'image/png': 'PNG',
 };
 
 export const OUTPUT_FORMAT_EXTENSIONS: Record<OutputFormat, string> = {
@@ -118,5 +118,71 @@ export async function optimizePngLosslessly(buffer: ArrayBuffer): Promise<ArrayB
   } catch (error) {
     console.warn('PNG lossless optimization pass failed, keeping the canvas-encoded PNG as-is.', error);
     return buffer;
+  }
+}
+
+/** PNG's optional compression mode: `lossless` (the default — no pixel is ever changed,
+ *  see `optimizePngLosslessly` above) or `lossy` (palette color quantization, see
+ *  `quantizePngPixels` below). Unlike JPEG/WebP, the browser's canvas PNG encoder itself
+ *  has no lossy mode — lossiness has to be applied to the pixels before encoding. */
+export type PngMode = 'lossless' | 'lossy';
+
+/**
+ * Maps the same 0-1 quality fraction already used for JPEG/WebP (displayed as the 0-100%
+ * slider) onto a palette color count (2-256) for PNG lossy mode. Non-linear (`quality^1.5`)
+ * so the slider's useful middle (roughly 60-90%) spans a wide, perceptually meaningful
+ * color-count range rather than being crammed into a couple of steps near the top.
+ */
+export function qualityToColorCount(quality: number): number {
+  const percent = Math.min(100, Math.max(1, Math.round(quality * 100)));
+  return Math.max(2, Math.round(2 + (percent / 100) ** 1.5 * 254));
+}
+
+/**
+ * Structurally compatible with the DOM's `ImageData`, declared locally so this module stays
+ * DOM-free like the rest of `lib/tools` — a real `ImageData` satisfies this shape without
+ * this file importing the DOM lib type, and tests can pass a plain object literal with no
+ * jsdom canvas support required.
+ */
+export interface RgbaImageData {
+  readonly data: Uint8ClampedArray<ArrayBuffer>;
+  readonly width: number;
+  readonly height: number;
+}
+
+// Loaded lazily so its bundle is fetched only when someone picks PNG output *and* switches
+// to Lossy mode — never on page load, never for lossless-PNG or JPEG/WebP users. Same
+// pattern as loadOxipng above.
+let imageQModule: typeof import('image-q') | null = null;
+async function loadImageQ(): Promise<typeof import('image-q')> {
+  imageQModule ??= await import('image-q');
+  return imageQModule;
+}
+
+/**
+ * Palette-quantizes raw RGBA pixel data via `image-q` (pure JavaScript Wu quantization plus
+ * Floyd-Steinberg dithering, the same family of technique as the classic `pngquant` tool) —
+ * a genuinely lossy step, unlike `optimizePngLosslessly` above: this changes pixel values by
+ * design, trading a reduced color palette for a much smaller file. `quality` maps to color
+ * count via `qualityToColorCount`. Falls back to returning the input unchanged if the module
+ * can't load or run, matching `optimizePngLosslessly`'s fallback style — a failed
+ * quantization pass degrades to the un-quantized pixels rather than breaking the tool.
+ */
+export async function quantizePngPixels(image: RgbaImageData, quality: number): Promise<RgbaImageData> {
+  try {
+    const { buildPaletteSync, applyPaletteSync, utils } = await loadImageQ();
+    const input = utils.PointContainer.fromUint8Array(image.data, image.width, image.height);
+    const palette = buildPaletteSync([input], { colors: qualityToColorCount(quality), paletteQuantization: 'wuquant' });
+    const applied = applyPaletteSync(input, palette, { imageQuantization: 'floyd-steinberg' });
+    // Copied into a freshly-sized, non-shared buffer (rather than wrapping the quantizer's
+    // own output array directly) so this always satisfies the DOM `ImageData` constructor's
+    // `Uint8ClampedArray<ArrayBuffer>` requirement, regardless of what buffer type the
+    // quantizer library's own typings report.
+    const data = new Uint8ClampedArray(image.width * image.height * 4);
+    data.set(applied.toUint8Array());
+    return { data, width: image.width, height: image.height };
+  } catch (error) {
+    console.warn('PNG lossy quantization failed, keeping the un-quantized pixels.', error);
+    return image;
   }
 }

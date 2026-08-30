@@ -5,7 +5,7 @@ description: Crop and resize a JPEG, PNG, or WebP image entirely in your browser
 summary: Crop an image to a selected area and resize it to exact pixel dimensions, right in your browser.
 category: Images
 order: 29
-updated: 2026-08-24
+updated: 2026-08-30
 whatIsIt: >-
   This tool cuts a rectangular region out of an image and, optionally, scales that region
   to exact output dimensions — the two operations most "I just need to trim/resize this
@@ -47,6 +47,8 @@ faq:
     a: It's independent from the crop's own aspect ratio preset on purpose — you might crop a free-form (non-fixed-ratio) region but still want to resize proportionally, or crop to a fixed 1:1 ratio but then stretch the resize output non-proportionally. Locking it means typing a width automatically fills in a matching height (and vice versa), based on the crop area's own proportions.
   - q: What image formats are supported?
     a: JPEG, PNG, and WebP for output, matching the Image Compressor tool. On upload, the output format defaults to match your original file's format when it's one of those three (so a PNG stays a PNG unless you change it), or falls back to JPEG for anything else the browser can still decode, like BMP.
+  - q: What's the difference between PNG's Lossless and Lossy modes?
+    a: Lossless (the default) never changes a pixel — it only runs the same extra Oxipng optimization pass described below. Lossy mode instead reduces the image to a smaller color palette before encoding (the same family of technique as the classic pngquant tool), trading real visual fidelity for a much smaller file — often 50-70% smaller or more. Flat-color graphics like icons and screenshots usually hold up well even at a low color count; photos and gradients can show visible banding at aggressive settings.
 related:
   - image-compressor
   - svg-optimizer
@@ -67,4 +69,7 @@ the result up or down.
 Cropping and resizing both run on the browser's own Canvas API — the same decoder and
 encoder used by the [Image Compressor](/image-compressor/), which also documents the extra
 lossless PNG optimization pass (via [Oxipng](https://github.com/jamsinclair/jSquash),
-compiled to WebAssembly) that PNG output gets here too.
+compiled to WebAssembly) that PNG output gets here too, and PNG's optional Lossy mode (via
+[`image-q`](https://github.com/ibezkrovnyi/image-quantization), a pure JavaScript
+color-quantization library) for much larger PNG savings when some quality loss is
+acceptable.

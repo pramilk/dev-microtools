@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   validateImageFile,
   optimizePngLosslessly,
+  quantizePngPixels,
+  qualityToColorCount,
   OUTPUT_FORMATS,
   OUTPUT_FORMAT_LABELS,
   OUTPUT_FORMAT_EXTENSIONS,
   LOSSY_FORMATS,
   DEFAULT_QUALITY,
   type OutputFormat,
+  type PngMode,
 } from '../lib/tools/imageCompress';
 import {
   aspectRatioForPreset,
@@ -116,6 +119,9 @@ export default function ImageCropper() {
   const [lockAspectRatio, setLockAspectRatio] = useState(true);
   const [zoom, setZoom] = useState(1);
   const [format, setFormat] = useState<OutputFormat>('image/jpeg');
+  /** PNG's compression mode — only relevant when `format === 'image/png'`. Defaults to
+   *  lossless, matching this tool's original PNG behavior; switching to lossy is opt-in. */
+  const [pngMode, setPngMode] = useState<PngMode>('lossless');
   const [quality, setQuality] = useState(DEFAULT_QUALITY);
   const [debouncedQuality, setDebouncedQuality] = useState(DEFAULT_QUALITY);
   const [result, setResult] = useState<CropResult | null>(null);
@@ -189,6 +195,7 @@ export default function ImageCropper() {
         setNaturalSize(size);
         setZoom(1);
         setFormat((OUTPUT_FORMATS as readonly string[]).includes(file.type) ? (file.type as OutputFormat) : 'image/jpeg');
+        setPngMode('lossless');
 
         if (pendingExampleRef.current) {
           pendingExampleRef.current = false;
@@ -252,37 +259,49 @@ export default function ImageCropper() {
     }
     context.drawImage(bitmap, cropRect.x, cropRect.y, cropRect.width, cropRect.height, 0, 0, outWidth, outHeight);
 
-    canvas.toBlob(
-      (blob) => {
-        if (seqRef.current !== seq) return;
-        if (!blob) {
-          setBusy(false);
-          setProcessError('Could not process this image — try a different format.');
-          return;
-        }
+    const encode = async () => {
+      if (format === 'image/png' && pngMode === 'lossy') {
+        // Quantization changes pixel values before the encoder ever sees them — it must
+        // happen here, on the canvas, since the browser's canvas PNG encoder itself has no
+        // lossy mode.
+        const imageData = context.getImageData(0, 0, outWidth, outHeight);
+        const quantized = await quantizePngPixels(imageData, debouncedQuality);
+        context.putImageData(new ImageData(quantized.data, quantized.width, quantized.height), 0, 0);
+      }
 
-        const finish = (finalBlob: Blob) => {
+      canvas.toBlob(
+        (blob) => {
           if (seqRef.current !== seq) return;
-          setResult({ blob: finalBlob, url: URL.createObjectURL(finalBlob), width: outWidth, height: outHeight });
-          setBusy(false);
-        };
+          if (!blob) {
+            setBusy(false);
+            setProcessError('Could not process this image — try a different format.');
+            return;
+          }
 
-        if (format === 'image/png') {
-          void blob
-            .arrayBuffer()
-            .then(optimizePngLosslessly)
-            .then((optimized) => {
-              const optimizedBlob = new Blob([optimized], { type: 'image/png' });
-              finish(optimizedBlob.size < blob.size ? optimizedBlob : blob);
-            });
-        } else {
-          finish(blob);
-        }
-      },
-      format,
-      LOSSY_FORMATS.has(format) ? debouncedQuality : undefined
-    );
-  }, [cropRect, resizeEnabled, resizeWidth, resizeHeight, lockAspectRatio, format, debouncedQuality]);
+          const finish = (finalBlob: Blob) => {
+            if (seqRef.current !== seq) return;
+            setResult({ blob: finalBlob, url: URL.createObjectURL(finalBlob), width: outWidth, height: outHeight });
+            setBusy(false);
+          };
+
+          if (format === 'image/png') {
+            void blob
+              .arrayBuffer()
+              .then(optimizePngLosslessly)
+              .then((optimized) => {
+                const optimizedBlob = new Blob([optimized], { type: 'image/png' });
+                finish(optimizedBlob.size < blob.size ? optimizedBlob : blob);
+              });
+          } else {
+            finish(blob);
+          }
+        },
+        format,
+        LOSSY_FORMATS.has(format) ? debouncedQuality : undefined
+      );
+    };
+    void encode();
+  }, [cropRect, resizeEnabled, resizeWidth, resizeHeight, lockAspectRatio, format, debouncedQuality, pngMode]);
 
   const scaleFactor = (): number => {
     const rect = stageRef.current?.getBoundingClientRect();
@@ -403,12 +422,36 @@ export default function ImageCropper() {
               class="seg__btn"
               aria-pressed={format === f}
               onClick={() => setFormat(f)}
-              title={f === 'image/png' ? 'PNG — always lossless, re-compressed further with a WASM optimizer' : `${OUTPUT_FORMAT_LABELS[f]} — lossy, adjustable quality`}
+              title={f === 'image/png' ? 'PNG — lossless by default; switch to Lossy mode below for palette-based compression' : `${OUTPUT_FORMAT_LABELS[f]} — lossy, adjustable quality`}
             >
               {OUTPUT_FORMAT_LABELS[f]}
             </button>
           ))}
         </div>
+
+        {format === 'image/png' && (
+          <div class="seg" role="group" aria-label="PNG compression mode">
+            <button
+              type="button"
+              class="seg__btn"
+              aria-pressed={pngMode === 'lossless'}
+              onClick={() => setPngMode('lossless')}
+              title="No pixel is ever changed — the safe default."
+            >
+              Lossless
+            </button>
+            <button
+              type="button"
+              class="seg__btn"
+              aria-pressed={pngMode === 'lossy'}
+              onClick={() => setPngMode('lossy')}
+              title="Reduces the image to a smaller color palette for a much smaller file — a real, visible quality trade-off."
+            >
+              Lossy (smaller)
+            </button>
+          </div>
+        )}
+
         <span class="tool-bar__spacer" />
         <button type="button" class="btn" onClick={loadExample} title="Generate a sample image to try cropping and resizing">
           Load example
@@ -528,15 +571,26 @@ export default function ImageCropper() {
                 }}
               />
 
-              {LOSSY_FORMATS.has(format) && (
-                <div class="crop-section">
-                  <label class="control" title="70-85% is usually visually indistinguishable from the original while cutting file size dramatically.">
-                    <span class="field__hint">Quality ({Math.round(quality * 100)}%)</span>
-                    <input type="range" min="1" max="100" value={Math.round(quality * 100)} aria-label="Quality" onInput={(e) => setQuality(Number((e.target as HTMLInputElement).value) / 100)} />
-                    <span class="control__hint">Recommended: 70–85%</span>
-                  </label>
-                </div>
-              )}
+              {(() => {
+                const isPngLossy = format === 'image/png' && pngMode === 'lossy';
+                if (!LOSSY_FORMATS.has(format) && !isPngLossy) return null;
+                return (
+                  <div class="crop-section">
+                    <label
+                      class="control"
+                      title={
+                        isPngLossy
+                          ? 'Fewer colors means a smaller file but more visible banding, especially in gradients and photos. Sharp-edged graphics (icons, screenshots with flat UI) tolerate a low color count far better than photos do.'
+                          : '70-85% is usually visually indistinguishable from the original while cutting file size dramatically.'
+                      }
+                    >
+                      <span class="field__hint">{isPngLossy ? `Colors (~${qualityToColorCount(quality)})` : `Quality (${Math.round(quality * 100)}%)`}</span>
+                      <input type="range" min="1" max="100" value={Math.round(quality * 100)} aria-label="Quality" onInput={(e) => setQuality(Number((e.target as HTMLInputElement).value) / 100)} />
+                      {!isPngLossy && <span class="control__hint">Recommended: 70–85%</span>}
+                    </label>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 

@@ -9,7 +9,10 @@ import {
   DEFAULT_QUALITY,
   MAX_BATCH_FILES,
   optimizePngLosslessly,
+  quantizePngPixels,
+  qualityToColorCount,
   type OutputFormat,
+  type PngMode,
 } from '../lib/tools/imageCompress';
 import { formatBytes } from './shared/formatBytes';
 import { SavingsBadge } from './shared/SavingsBadge';
@@ -64,7 +67,8 @@ async function compressImage(
   file: File,
   format: OutputFormat,
   quality: number,
-  maxDimension: number | null
+  maxDimension: number | null,
+  pngMode: PngMode
 ): Promise<{
   blob: Blob;
   width: number;
@@ -97,6 +101,14 @@ async function compressImage(
   bitmap.close();
 
   const transparencyLost = format === 'image/jpeg' && ALPHA_CAPABLE_SOURCE_TYPES.has(file.type) && canvasHasTransparency(context, width, height);
+
+  if (format === 'image/png' && pngMode === 'lossy') {
+    // Quantization changes pixel values before the encoder ever sees them — it must happen
+    // here, on the canvas, since the browser's canvas PNG encoder itself has no lossy mode.
+    const imageData = context.getImageData(0, 0, width, height);
+    const quantized = await quantizePngPixels(imageData, quality);
+    context.putImageData(new ImageData(quantized.data, quantized.width, quantized.height), 0, 0);
+  }
 
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, format, LOSSY_FORMATS.has(format) ? quality : undefined)
@@ -146,7 +158,7 @@ const baseName = (filename: string): string => filename.replace(/\.[^./]+$/, '')
 
 /** A short, human-readable format name from a MIME type — "JPEG", "PNG", "BMP" — for the three formats this tool encodes and for any other browser-decodable type a user might drop in. */
 const formatShortLabel = (mime: string): string => {
-  if ((OUTPUT_FORMATS as readonly string[]).includes(mime)) return OUTPUT_FORMAT_LABELS[mime as OutputFormat].replace(' (lossless)', '');
+  if ((OUTPUT_FORMATS as readonly string[]).includes(mime)) return OUTPUT_FORMAT_LABELS[mime as OutputFormat];
   const subtype = mime.split('/')[1];
   return subtype ? subtype.toUpperCase() : mime;
 };
@@ -170,6 +182,9 @@ export default function ImageCompressor() {
     createJob: (base) => ({ ...base, status: 'processing', result: null, error: null, maxDimension: '', originalWidth: null, originalHeight: null, keepOriginal: false }),
   });
   const [format, setFormat] = useState<OutputFormat>('image/jpeg');
+  /** PNG's compression mode — only relevant when `format === 'image/png'`. Defaults to
+   *  lossless, matching this tool's original PNG behavior; switching to lossy is opt-in. */
+  const [pngMode, setPngMode] = useState<PngMode>('lossless');
   /** When on, an uploaded file that's already JPEG, WebP, or PNG keeps its own format instead of converting to `format` above — anything else still falls back to `format`. */
   const [keepOriginalFormat, setKeepOriginalFormat] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
@@ -198,7 +213,7 @@ export default function ImageCompressor() {
   );
 
   /** (Re)compresses one image with the given batch-wide settings and that image's own maxDimension. Safe to call directly from an event handler (e.g. editing one image's Max dimension) without waiting on an effect. */
-  const runJob = (job: ImageJob, fmt: OutputFormat, q: number) => {
+  const runJob = (job: ImageJob, fmt: OutputFormat, q: number, mode: PngMode) => {
     const seq = batch.startJob(job.id);
 
     const validation = validateImageFile(job.file);
@@ -210,7 +225,7 @@ export default function ImageCompressor() {
     const maxDimension = job.maxDimension.trim() === '' ? null : Number(job.maxDimension);
     const jobFormat = effectiveFormat(job.file, fmt, keepOriginalFormat || job.keepOriginal);
 
-    void compressImage(job.file, jobFormat, q, maxDimension)
+    void compressImage(job.file, jobFormat, q, maxDimension, mode)
       .then(({ blob, width, height, originalWidth, originalHeight, format: resultFormat, transparencyLost }) => {
         if (!batch.isCurrentSeq(job.id, seq)) return;
         const url = URL.createObjectURL(blob);
@@ -226,11 +241,12 @@ export default function ImageCompressor() {
 
   useEffect(() => {
     // Re-runs every image whenever the batch's membership changes (files added/removed) or a
-    // batch-wide setting (format/quality/keep-original) changes. A single image's own Max
-    // dimension field instead triggers `runJob` directly from its own input handler, below.
-    batch.jobs.forEach((job) => runJob(job, format, debouncedQuality));
+    // batch-wide setting (format/quality/keep-original/PNG mode) changes. A single image's
+    // own Max dimension field instead triggers `runJob` directly from its own input handler,
+    // below.
+    batch.jobs.forEach((job) => runJob(job, format, debouncedQuality, pngMode));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobIds, format, debouncedQuality, keepOriginalFormat]);
+  }, [jobIds, format, debouncedQuality, keepOriginalFormat, pngMode]);
 
   const updateJobMaxDimension = (job: ImageJob, value: string) => {
     const updated: ImageJob = { ...job, maxDimension: value };
@@ -242,7 +258,7 @@ export default function ImageCompressor() {
       job.id,
       window.setTimeout(() => {
         maxDimensionTimersRef.current.delete(job.id);
-        runJob(updated, format, debouncedQuality);
+        runJob(updated, format, debouncedQuality, pngMode);
       }, 200)
     );
   };
@@ -251,12 +267,13 @@ export default function ImageCompressor() {
   const toggleJobKeepOriginal = (job: ImageJob, next: boolean) => {
     const updated: ImageJob = { ...job, keepOriginal: next };
     batch.setJobs((prev) => prev.map((j) => (j.id === job.id ? updated : j)));
-    runJob(updated, format, debouncedQuality);
+    runJob(updated, format, debouncedQuality, pngMode);
   };
 
   const clearAll = () => {
     batch.clearAll();
     setFormat('image/jpeg');
+    setPngMode('lossless');
     setKeepOriginalFormat(false);
     setPendingAction(null);
     setQuality(DEFAULT_QUALITY);
@@ -385,7 +402,7 @@ export default function ImageCompressor() {
               aria-pressed={format === f}
               onClick={() => requestFormatChange(f)}
               title={
-                (f === 'image/png' ? 'PNG — always lossless, re-compressed further with a WASM optimizer' : `${OUTPUT_FORMAT_LABELS[f]} — lossy, adjustable quality`) +
+                (f === 'image/png' ? 'PNG — lossless by default; switch to Lossy mode below for palette-based compression' : `${OUTPUT_FORMAT_LABELS[f]} — lossy, adjustable quality`) +
                 (keepOriginalFormat ? ' — used as a fallback for anything "Keep original format" can\'t keep as-is.' : '')
               }
             >
@@ -393,6 +410,29 @@ export default function ImageCompressor() {
             </button>
           ))}
         </div>
+
+        {format === 'image/png' && (
+          <div class="seg" role="group" aria-label="PNG compression mode">
+            <button
+              type="button"
+              class="seg__btn"
+              aria-pressed={pngMode === 'lossless'}
+              onClick={() => setPngMode('lossless')}
+              title="No pixel is ever changed — the safe default."
+            >
+              Lossless
+            </button>
+            <button
+              type="button"
+              class="seg__btn"
+              aria-pressed={pngMode === 'lossy'}
+              onClick={() => setPngMode('lossy')}
+              title="Reduces the image to a smaller color palette for a much smaller file — a real, visible quality trade-off."
+            >
+              Lossy (smaller)
+            </button>
+          </div>
+        )}
 
         <label
           class="checkbox"
@@ -532,20 +572,31 @@ export default function ImageCompressor() {
               </p>
               <div class="compare-panel">
                 <div class="compare-panel__controls">
-                  {LOSSY_FORMATS.has(selectedJob.result.format) && (
-                    <label class="control" title="70-85% is usually visually indistinguishable from the original while cutting file size dramatically. Go lower only for thumbnails or previews where some visible compression is acceptable.">
-                      <span class="field__hint">Quality ({Math.round(quality * 100)}%)</span>
-                      <input
-                        type="range"
-                        min="1"
-                        max="100"
-                        value={Math.round(quality * 100)}
-                        aria-label="Quality"
-                        onInput={(event) => setQuality(Number((event.target as HTMLInputElement).value) / 100)}
-                      />
-                      <span class="control__hint">Recommended: 70–85%</span>
-                    </label>
-                  )}
+                  {(() => {
+                    const isPngLossy = selectedJob.result.format === 'image/png' && pngMode === 'lossy';
+                    if (!LOSSY_FORMATS.has(selectedJob.result.format) && !isPngLossy) return null;
+                    return (
+                      <label
+                        class="control"
+                        title={
+                          isPngLossy
+                            ? 'Fewer colors means a smaller file but more visible banding, especially in gradients and photos. Sharp-edged graphics (icons, screenshots with flat UI) tolerate a low color count far better than photos do.'
+                            : '70-85% is usually visually indistinguishable from the original while cutting file size dramatically. Go lower only for thumbnails or previews where some visible compression is acceptable.'
+                        }
+                      >
+                        <span class="field__hint">{isPngLossy ? `Colors (~${qualityToColorCount(quality)})` : `Quality (${Math.round(quality * 100)}%)`}</span>
+                        <input
+                          type="range"
+                          min="1"
+                          max="100"
+                          value={Math.round(quality * 100)}
+                          aria-label="Quality"
+                          onInput={(event) => setQuality(Number((event.target as HTMLInputElement).value) / 100)}
+                        />
+                        {!isPngLossy && <span class="control__hint">Recommended: 70–85%</span>}
+                      </label>
+                    );
+                  })()}
                   <label
                     class="control"
                     title="Downscale so this image's longer side (width or height, whichever is bigger) never exceeds this many pixels, keeping its proportions. Leave blank (or drag the slider to its rightmost end) to keep its original size."

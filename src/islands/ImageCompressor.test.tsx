@@ -9,6 +9,19 @@ vi.mock('@jsquash/oxipng', () => ({
   optimise: vi.fn(async (buffer: ArrayBuffer) => buffer.slice(0, Math.max(1, buffer.byteLength - 1))),
 }));
 
+// Real image-q runs a genuine quantization algorithm — deterministic but unnecessary work
+// for a component test, which only needs to know the quantizer was (or wasn't) invoked.
+// This stand-in returns the input pixels untouched so tests can assert on call counts.
+// Declared via vi.hoisted since vi.mock's factory below is itself hoisted above normal
+// top-level statements, and would otherwise run before a plain `const` was initialized.
+const { quantizeSpy } = vi.hoisted(() => ({
+  quantizeSpy: vi.fn(async (image: { data: Uint8ClampedArray; width: number; height: number }) => image),
+}));
+vi.mock('../lib/tools/imageCompress', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/tools/imageCompress')>();
+  return { ...actual, quantizePngPixels: quantizeSpy };
+});
+
 const PNG_SIGNATURE = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
 
 class FakeImageBitmap {
@@ -28,12 +41,28 @@ class FakeCanvasContext {
   // existing tests that never touch this feature aren't affected by the alpha scan the
   // JPEG-from-alpha-capable-source path runs.
   getImageData(_x: number, _y: number, width: number, height: number) {
-    return { data: new Uint8ClampedArray(width * height * 4).fill(255) };
+    return { data: new Uint8ClampedArray(width * height * 4).fill(255), width, height };
+  }
+  putImageData() {}
+}
+
+// jsdom doesn't implement the `ImageData` constructor at all — only real browsers do — so
+// the PNG-lossy path's `new ImageData(...)` call needs a stand-in, the same way createImageBitmap
+// and canvas itself are stubbed below.
+class FakeImageData {
+  data: Uint8ClampedArray;
+  width: number;
+  height: number;
+  constructor(data: Uint8ClampedArray, width: number, height: number) {
+    this.data = data;
+    this.width = width;
+    this.height = height;
   }
 }
 
 function stubCanvasAndDecode(outputSize = 42) {
   vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(new FakeImageBitmap()));
+  vi.stubGlobal('ImageData', FakeImageData);
 
   const proto = HTMLCanvasElement.prototype;
   vi.spyOn(proto, 'getContext').mockImplementation(
@@ -60,6 +89,7 @@ const jobRows = () => document.querySelectorAll('.job');
 describe('<ImageCompressor />', () => {
   beforeEach(() => {
     stubCanvasAndDecode();
+    quantizeSpy.mockClear();
   });
 
   afterEach(() => {
@@ -417,5 +447,77 @@ describe('<ImageCompressor />', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/only 30 images/i);
     expect(jobRows().length).toBe(30);
+  });
+
+  it('only shows the PNG compression mode toggle when PNG is the selected output format', async () => {
+    render(<ImageCompressor />);
+    expect(screen.queryByRole('group', { name: /png compression mode/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^png/i }));
+
+    expect(screen.getByRole('group', { name: /png compression mode/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^jpeg/i }));
+
+    expect(screen.queryByRole('group', { name: /png compression mode/i })).not.toBeInTheDocument();
+  });
+
+  it('defaults PNG to lossless (no quantizer call), and switching to Lossy mode quantizes and still produces a result', async () => {
+    render(<ImageCompressor />);
+    fireEvent.click(screen.getByRole('button', { name: /^png/i }));
+    const file = new File([PNG_SIGNATURE], 'photo.png', { type: 'image/png' });
+    dropFiles([file]);
+    await waitFor(() => expect(jobRows().length).toBe(1));
+    await waitFor(() => expect(within(jobRows()[0] as HTMLElement).getByText(/smaller|larger|no change/i)).toBeInTheDocument());
+
+    expect(quantizeSpy).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /^lossy \(smaller\)$/i }));
+
+    await waitFor(() => expect(quantizeSpy).toHaveBeenCalled());
+    await waitFor(() => expect(within(jobRows()[0] as HTMLElement).getByText(/smaller|larger|no change/i)).toBeInTheDocument());
+
+    // Switching back to Lossless stops invoking the quantizer for further re-compressions.
+    quantizeSpy.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: /^lossless$/i }));
+    await waitFor(() => expect(within(jobRows()[0] as HTMLElement).getByText(/smaller|larger|no change/i)).toBeInTheDocument());
+    expect(quantizeSpy).not.toHaveBeenCalled();
+  });
+
+  it('shows a "Colors" label instead of "Quality" once PNG Lossy mode is on, and relabels back on Lossless', async () => {
+    render(<ImageCompressor />);
+    fireEvent.click(screen.getByRole('button', { name: /^png/i }));
+    const file = new File([PNG_SIGNATURE], 'photo.png', { type: 'image/png' });
+    dropFiles([file]);
+    await waitFor(() => expect(screen.getByTestId('selected-job-stats')).toBeInTheDocument());
+    expect(screen.queryByLabelText(/^quality$/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^lossy \(smaller\)$/i }));
+
+    await waitFor(() => expect(screen.getByLabelText(/^quality$/i)).toBeInTheDocument());
+    expect(screen.getByText(/^colors \(~\d+\)$/i)).toBeInTheDocument();
+  });
+
+  it('hides the PNG mode toggle without erroring when switching away from PNG while Lossy is selected', async () => {
+    render(<ImageCompressor />);
+    fireEvent.click(screen.getByRole('button', { name: /^png/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^lossy \(smaller\)$/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /^webp/i }));
+
+    expect(screen.queryByRole('group', { name: /png compression mode/i })).not.toBeInTheDocument();
+  });
+
+  it('resets PNG mode back to lossless when Clear is pressed', async () => {
+    render(<ImageCompressor />);
+    fireEvent.click(screen.getByRole('button', { name: /^png/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^lossy \(smaller\)$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^load example$/i }));
+    await waitFor(() => expect(jobRows().length).toBe(1));
+
+    fireEvent.click(screen.getByRole('button', { name: /^clear$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^png/i }));
+
+    expect(screen.getByRole('button', { name: /^lossless$/i })).toHaveAttribute('aria-pressed', 'true');
   });
 });
