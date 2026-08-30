@@ -20,8 +20,9 @@
     "test:watch": "vitest",
     "test:e2e": "npm run build && playwright test",
     "test:e2e:fast": "playwright test",
-    "deploy": "npm run test && npx astro check && npm run test:e2e && npx wrangler deploy --env staging",
-    "deploy:prod": "npm run test && npx astro check && npm run test:e2e && npx wrangler deploy"
+    "test:full": "concurrently -n unit,typecheck,e2e -c blue,magenta,green -g --timings \"npm run test\" \"npm run check\" \"npm run test:e2e\"",
+    "deploy": "npm run test:full && npx wrangler deploy --env staging",
+    "deploy:prod": "npm run test:full && npx wrangler deploy"
   },
   "dependencies": {
     "@astrojs/mdx": "^7.0.5",
@@ -53,6 +54,7 @@
     "@testing-library/preact": "^3.2.4",
     "@types/bcryptjs": "^2.4.6",
     "@types/spark-md5": "^3.0.5",
+    "concurrently": "^10.0.5",
     "jsdom": "^30.0.1",
     "sharp": "^0.35.3",
     "typescript": "^6.0.3",

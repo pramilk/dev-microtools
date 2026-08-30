@@ -183,14 +183,24 @@ describe('quantizePngPixels', () => {
     vi.doMock('image-q', () => {
       throw new Error('module failed to load');
     });
+    // The fallback path logs via console.warn; this test deliberately triggers it, so
+    // silence it here rather than letting expected output read as a real failure in CI logs.
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const { quantizePngPixels: quantizeWithBrokenModule } = await import('./imageCompress');
-    const image: RgbaImageData = { data: new Uint8ClampedArray([10, 20, 30, 40]), width: 1, height: 1 };
-    const result = await quantizeWithBrokenModule(image, 0.5);
+    try {
+      const { quantizePngPixels: quantizeWithBrokenModule } = await import('./imageCompress');
+      const image: RgbaImageData = { data: new Uint8ClampedArray([10, 20, 30, 40]), width: 1, height: 1 };
+      const result = await quantizeWithBrokenModule(image, 0.5);
 
-    expect(result).toEqual(image);
-
-    vi.doUnmock('image-q');
-    vi.resetModules();
+      expect(result).toEqual(image);
+      expect(warnSpy).toHaveBeenCalledWith(
+        'PNG lossy quantization failed, keeping the un-quantized pixels.',
+        expect.any(Error)
+      );
+    } finally {
+      warnSpy.mockRestore();
+      vi.doUnmock('image-q');
+      vi.resetModules();
+    }
   });
 });
