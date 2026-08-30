@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/preact';
+import { createFakeWorkerClass } from '../../test/fakeWorker';
+import { handleImageCompressRequest } from '../workers/imageCompress.worker';
 import ImageCropper from './ImageCropper';
+
+// jsdom has no real Worker; this runs the same request-handling logic the real
+// imageCompress.worker.ts uses (Oxipng/image-q), synchronously, for the two PNG passes.
+vi.mock('../workers/imageCompress.worker?worker', () => ({
+  default: createFakeWorkerClass(handleImageCompressRequest),
+}));
 
 /** Scoped to the result panel, since the "Lossy (smaller)" mode button's own label also
  *  contains the word "smaller" — an unscoped `getByText` would match both once PNG's mode

@@ -1,6 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
+import { createFakeWorkerClass } from '../../test/fakeWorker';
+import { handleHashRequest } from '../workers/hash.worker';
 import HashGenerator from './HashGenerator';
+
+// jsdom has no real Worker; this runs the same request-handling logic the real
+// hash.worker.ts uses, synchronously, so the test still exercises real hashing.
+vi.mock('../workers/hash.worker?worker', () => ({
+  default: createFakeWorkerClass(handleHashRequest),
+}));
 
 const SHA256_ABC = 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad';
 const MD5_ABC = '900150983cd24fb0d6963f7d28e17f72';

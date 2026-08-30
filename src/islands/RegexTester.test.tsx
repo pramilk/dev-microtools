@@ -1,6 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
+import { createFakeWorkerClass } from '../../test/fakeWorker';
+import { handleRegexRequest } from '../workers/regex.worker';
 import RegexTester from './RegexTester';
+
+// jsdom has no real Worker; this runs the same request-handling logic the real
+// regex.worker.ts uses, synchronously, so the test still exercises real regex execution.
+vi.mock('../workers/regex.worker?worker', () => ({
+  default: createFakeWorkerClass(handleRegexRequest),
+}));
 
 const typeInto = (element: HTMLElement, value: string) => {
   fireEvent.input(element, { target: { value } });

@@ -1,6 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
+import { createFakeWorkerClass } from '../../test/fakeWorker';
+import { handleBcryptRequest } from '../workers/bcrypt.worker';
 import BcryptTool from './BcryptTool';
+
+// jsdom has no real Worker; this runs the same request-handling logic the real
+// bcrypt.worker.ts uses, synchronously, so the test still exercises real bcryptjs.
+vi.mock('../workers/bcrypt.worker?worker', () => ({
+  default: createFakeWorkerClass(handleBcryptRequest),
+}));
 
 const typeInto = (element: HTMLElement, value: string) => {
   fireEvent.input(element, { target: { value } });

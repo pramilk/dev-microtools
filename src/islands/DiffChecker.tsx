@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import {
-  compareTexts,
-  compareJson,
-  toSideBySideRows,
-  toAnnotatedText,
-  type DiffMode,
-  type DiffSummary,
-} from '../lib/tools/diff';
+import { toSideBySideRows, toAnnotatedText, type DiffMode, type DiffSummary } from '../lib/tools/diff';
 import { readShareStateFromLocation } from '../lib/shareLink';
 import { consumeHandoff } from '../lib/crossToolHandoff';
 import { ErrorMessage } from './shared/ErrorMessage';
@@ -14,6 +7,9 @@ import { CopyButton } from './shared/CopyButton';
 import { DownloadButton } from './shared/DownloadButton';
 import { ShareLinkButton } from './shared/ShareLinkButton';
 import { useTextFileDrop } from './shared/useTextFileDrop';
+import { useWorkerTask } from './shared/useWorkerTask';
+import DiffWorker from '../workers/diff.worker?worker';
+import type { DiffWorkerRequest } from '../workers/diff.worker';
 
 type Kind = 'text' | 'json';
 type View = 'inline' | 'side-by-side';
@@ -61,6 +57,9 @@ export default function DiffChecker() {
 
   const [summary, setSummary] = useState<DiffSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const diffWorkerTask = useWorkerTask<DiffWorkerRequest, DiffSummary>(() => new DiffWorker());
 
   const leftDrop = useTextFileDrop(setLeft);
   const rightDrop = useTextFileDrop(setRight);
@@ -111,31 +110,36 @@ export default function DiffChecker() {
     if (left === '' && right === '') {
       setSummary(null);
       setError(null);
+      setBusy(false);
       return;
     }
 
     let cancelled = false;
+    setBusy(true);
 
-    const work =
-      kind === 'json'
-        ? compareJson(left, right)
-        : compareTexts(left, right, mode, { ignoreCase, ignoreWhitespace });
+    const request: DiffWorkerRequest =
+      kind === 'json' ? { kind: 'json', left, right } : { kind: 'text', left, right, mode, ignoreCase, ignoreWhitespace };
 
-    void work.then((result) => {
-      // Discard a stale response so fast typing cannot show an outdated diff.
-      if (cancelled) return;
-      if (result.ok) {
-        setSummary(result.value);
+    diffWorkerTask.run(request).then(
+      (result) => {
+        // Discard a stale response so fast typing cannot show an outdated diff.
+        if (cancelled) return;
+        setBusy(false);
+        setSummary(result);
         setError(null);
-      } else {
+      },
+      (thrown: unknown) => {
+        if (cancelled) return;
+        setBusy(false);
         setSummary(null);
-        setError(result.error);
+        setError(thrown instanceof Error ? thrown.message : 'Could not compare those texts.');
       }
-    });
+    );
 
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [left, right, kind, mode, ignoreCase, ignoreWhitespace]);
 
   return (
@@ -285,6 +289,12 @@ export default function DiffChecker() {
       </div>
 
       <ErrorMessage message={error} />
+
+      {busy && (
+        <p class="field__hint">
+          <span class="job__spinner" aria-hidden="true" /> Comparing…
+        </p>
+      )}
 
       {summary && (
         <>

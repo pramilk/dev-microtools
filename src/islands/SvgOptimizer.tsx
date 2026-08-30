@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
-  optimizeSvg,
   MIN_SVG_PRECISION,
   MAX_SVG_PRECISION,
   DEFAULT_SVG_PRECISION,
@@ -17,6 +16,9 @@ import { OutputPane } from './shared/OutputPane';
 import { DownloadButton } from './shared/DownloadButton';
 import { ShareLinkButton } from './shared/ShareLinkButton';
 import { useTextFileDrop } from './shared/useTextFileDrop';
+import { useWorkerTask } from './shared/useWorkerTask';
+import SvgOptimizeWorker from '../workers/svgOptimize.worker?worker';
+import type { SvgOptimizeWorkerRequest } from '../workers/svgOptimize.worker';
 
 // Kept identical to `example.input` in src/content/tools/svg-optimizer.mdx, so the
 // written example on the content page and the "Load example" button never drift apart.
@@ -71,7 +73,9 @@ export default function SvgOptimizer() {
   const [multipass, setMultipass] = useState(true);
   const [keepDescription, setKeepDescription] = useState(false);
   const [prefixIds, setPrefixIds] = useState(false);
+  const [busy, setBusy] = useState(false);
   const requestId = useRef(0);
+  const svgWorkerTask = useWorkerTask<SvgOptimizeWorkerRequest, string>(() => new SvgOptimizeWorker());
 
   const { isDragActive, dropHandlers } = useTextFileDrop(setInput);
 
@@ -94,20 +98,27 @@ export default function SvgOptimizer() {
     if (input.trim() === '') {
       setOutput('');
       setError(null);
+      setBusy(false);
       return;
     }
 
-    void optimizeSvg(input, { precision, transformPrecision, multipass, keepDescription, prefixIds }).then((result) => {
-      // Ignore a stale response if the input or options changed again before this one resolved.
-      if (id !== requestId.current) return;
-      if (result.ok) {
-        setOutput(result.value);
+    setBusy(true);
+    svgWorkerTask.run({ input, options: { precision, transformPrecision, multipass, keepDescription, prefixIds } }).then(
+      (result) => {
+        // Ignore a stale response if the input or options changed again before this one resolved.
+        if (id !== requestId.current) return;
+        setBusy(false);
+        setOutput(result);
         setError(null);
-      } else {
+      },
+      (thrown: unknown) => {
+        if (id !== requestId.current) return;
+        setBusy(false);
         setOutput('');
-        setError(result.error);
+        setError(thrown instanceof Error ? thrown.message : 'Could not optimize that SVG.');
       }
-    });
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input, precision, transformPrecision, multipass, keepDescription, prefixIds]);
 
   const originalBytes = new TextEncoder().encode(input).length;
@@ -178,6 +189,17 @@ export default function SvgOptimizer() {
           <span class="field__hint">
             {formatBytes(originalBytes)} → {formatBytes(optimizedBytes)}
           </span>
+          {busy && (
+            <span class="field__hint">
+              <span class="job__spinner" aria-hidden="true" /> Updating…
+            </span>
+          )}
+        </p>
+      )}
+
+      {output === '' && busy && (
+        <p class="field__hint">
+          <span class="job__spinner" aria-hidden="true" /> Optimizing…
         </p>
       )}
 

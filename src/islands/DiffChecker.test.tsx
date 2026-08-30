@@ -1,6 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
+import { createFakeWorkerClass } from '../../test/fakeWorker';
+import { handleDiffRequest } from '../workers/diff.worker';
 import DiffChecker from './DiffChecker';
+
+// jsdom has no real Worker; this runs the same request-handling logic the real
+// diff.worker.ts uses, synchronously, so the test still exercises the real diff library.
+vi.mock('../workers/diff.worker?worker', () => ({
+  default: createFakeWorkerClass(handleDiffRequest),
+}));
 
 const typeInto = (element: HTMLElement, value: string) => {
   fireEvent.input(element, { target: { value } });

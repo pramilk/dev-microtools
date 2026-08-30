@@ -8,11 +8,10 @@ import {
   LOSSY_FORMATS,
   DEFAULT_QUALITY,
   MAX_BATCH_FILES,
-  optimizePngLosslessly,
-  quantizePngPixels,
   qualityToColorCount,
   type OutputFormat,
   type PngMode,
+  type RgbaImageData,
 } from '../lib/tools/imageCompress';
 import { formatBytes } from './shared/formatBytes';
 import { SavingsBadge } from './shared/SavingsBadge';
@@ -25,6 +24,9 @@ import { ImageJobList, type ImageJobRowProps } from './shared/ImageJobList';
 import { BatchSavingsBanner } from './shared/BatchSavingsBanner';
 import { downloadUrl } from './shared/downloadUrl';
 import { downloadZip, uniqueZipName } from './shared/downloadZip';
+import { useWorkerTask } from './shared/useWorkerTask';
+import ImageCompressWorker from '../workers/imageCompress.worker?worker';
+import type { ImageCompressWorkerRequest, ImageCompressWorkerResult } from '../workers/imageCompress.worker';
 
 // Deliberately no ShareLinkButton — the input is a binary image the visitor picked from
 // their own disk. There is nothing shareable to encode: the file itself can't go in a URL
@@ -63,12 +65,22 @@ interface ImageJob extends ImageJobBase<CompressedResult> {
 /** Source formats that can actually carry an alpha channel — checking for real transparency is only worth the pixel scan below when converting one of these to JPEG, the one output format with no alpha support at all. */
 const ALPHA_CAPABLE_SOURCE_TYPES = new Set(['image/png', 'image/webp', 'image/avif']);
 
+/** The two PNG-specific passes, run in a Web Worker (see `imageCompress.worker.ts`) —
+ *  injected rather than imported directly so `compressImage` doesn't hard-code which
+ *  worker instance it talks to, matching this codebase's dependency-inversion convention
+ *  for logic functions (CLAUDE.md's OOP/SOLID section). */
+interface PngWorkerClient {
+  optimize: (buffer: ArrayBuffer) => Promise<ArrayBuffer>;
+  quantize: (image: RgbaImageData, quality: number) => Promise<RgbaImageData>;
+}
+
 async function compressImage(
   file: File,
   format: OutputFormat,
   quality: number,
   maxDimension: number | null,
-  pngMode: PngMode
+  pngMode: PngMode,
+  pngWorker: PngWorkerClient
 ): Promise<{
   blob: Blob;
   width: number;
@@ -106,7 +118,7 @@ async function compressImage(
     // Quantization changes pixel values before the encoder ever sees them — it must happen
     // here, on the canvas, since the browser's canvas PNG encoder itself has no lossy mode.
     const imageData = context.getImageData(0, 0, width, height);
-    const quantized = await quantizePngPixels(imageData, quality);
+    const quantized = await pngWorker.quantize(imageData, quality);
     context.putImageData(new ImageData(quantized.data, quantized.width, quantized.height), 0, 0);
   }
 
@@ -119,7 +131,7 @@ async function compressImage(
     // The canvas encoder above only does a generic deflate pass — Oxipng (WASM) finds real
     // extra savings on top with no pixel changes, so it's always worth trying, and only
     // kept if it actually helped.
-    const optimized = await optimizePngLosslessly(await blob.arrayBuffer());
+    const optimized = await pngWorker.optimize(await blob.arrayBuffer());
     const optimizedBlob = new Blob([optimized], { type: 'image/png' });
     if (optimizedBlob.size < blob.size) return { blob: optimizedBlob, width, height, originalWidth, originalHeight, format, transparencyLost };
   }
@@ -200,6 +212,30 @@ export default function ImageCompressor() {
   // setTimeout>`, which resolves to Node's `Timeout` here because @types/node is in scope.
   const maxDimensionTimersRef = useRef<Map<string, number>>(new Map());
 
+  const pngWorkerTask = useWorkerTask<ImageCompressWorkerRequest, ImageCompressWorkerResult>(() => new ImageCompressWorker());
+  /** Preserves `optimizePngLosslessly`/`quantizePngPixels`'s own graceful-degradation
+   *  contract (fall back to the un-optimized input) across the worker boundary too — a
+   *  worker crash or failed dynamic import inside it is exactly the same kind of failure
+   *  those functions already catch internally, just one layer further out. */
+  const pngWorker: PngWorkerClient = {
+    optimize: (buffer) =>
+      pngWorkerTask.run({ kind: 'optimizePng', buffer }).then(
+        (result) => (result.kind === 'optimizePng' ? result.buffer : buffer),
+        (error: unknown) => {
+          console.warn('PNG lossless optimization pass failed, keeping the canvas-encoded PNG as-is.', error);
+          return buffer;
+        }
+      ),
+    quantize: (image, quality) =>
+      pngWorkerTask.run({ kind: 'quantizePng', image, quality }).then(
+        (result) => (result.kind === 'quantizePng' ? result.image : image),
+        (error: unknown) => {
+          console.warn('PNG lossy quantization failed, keeping the un-quantized pixels.', error);
+          return image;
+        }
+      ),
+  };
+
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuality(quality), 200);
     return () => window.clearTimeout(timer);
@@ -225,7 +261,7 @@ export default function ImageCompressor() {
     const maxDimension = job.maxDimension.trim() === '' ? null : Number(job.maxDimension);
     const jobFormat = effectiveFormat(job.file, fmt, keepOriginalFormat || job.keepOriginal);
 
-    void compressImage(job.file, jobFormat, q, maxDimension, mode)
+    void compressImage(job.file, jobFormat, q, maxDimension, mode, pngWorker)
       .then(({ blob, width, height, originalWidth, originalHeight, format: resultFormat, transparencyLost }) => {
         if (!batch.isCurrentSeq(job.id, seq)) return;
         const url = URL.createObjectURL(blob);
@@ -661,15 +697,8 @@ export default function ImageCompressor() {
         }
         .job-detail__name { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); margin: 0 0 var(--space-2); overflow-wrap: anywhere; }
         .job__stats { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin: 0 0 var(--space-3); }
-        .job__spinner {
-          display: inline-block; width: 0.9rem; height: 0.9rem; flex-shrink: 0;
-          border: 2px solid var(--border-strong); border-top-color: var(--accent);
-          border-radius: 50%; animation: job-detail-spin 0.6s linear infinite; vertical-align: -0.15em;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .job__spinner { animation-duration: 1.5s; }
-        }
-        @keyframes job-detail-spin { to { transform: rotate(360deg); } }
+        /* .job__spinner itself now lives in src/styles/tool.css, shared with every other
+           worker-backed tool. */
 
         /* In-page confirmation for a format switch — deliberately not window.confirm(), which
            renders as a jarring native browser dialog that clashes with everything else here. */

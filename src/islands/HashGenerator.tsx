@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { hashAll, hashFile, hmacAll, digestsMatch, type HashAlgorithm } from '../lib/tools/hash';
+import { digestsMatch, type HashAlgorithm } from '../lib/tools/hash';
 import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { CopyButton } from './shared/CopyButton';
 import { FileDropzone } from './shared/FileDropzone';
 import { DownloadButton } from './shared/DownloadButton';
 import { ShareLinkButton } from './shared/ShareLinkButton';
+import { useWorkerTask } from './shared/useWorkerTask';
+import HashWorker from '../workers/hash.worker?worker';
+import type { HashWorkerRequest, HashDigest } from '../workers/hash.worker';
 
-interface Digest {
-  algorithm: HashAlgorithm;
-  digest: string;
-}
+type Digest = HashDigest;
 
 type Mode = 'text' | 'file';
 
@@ -37,6 +37,8 @@ export default function HashGenerator() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [compareTo, setCompareTo] = useState('');
+
+  const hashWorkerTask = useWorkerTask<HashWorkerRequest, HashDigest[]>(() => new HashWorker());
 
   // Restore state from a shared link, if the page was opened with one. The HMAC key
   // is deliberately never part of this — a secret has no business living in a URL.
@@ -65,15 +67,17 @@ export default function HashGenerator() {
           return;
         }
         setBusy(true);
-        const result = await hashFile(file);
-        if (cancelled) return;
-        setBusy(false);
-        if (result.ok) {
-          setDigests(result.value);
+        try {
+          const result = await hashWorkerTask.run({ kind: 'file', file });
+          if (cancelled) return;
+          setDigests(result);
           setError(null);
-        } else {
+        } catch (thrown) {
+          if (cancelled) return;
           setDigests([]);
-          setError(result.error);
+          setError(thrown instanceof Error ? thrown.message : 'Could not hash that file.');
+        } finally {
+          if (!cancelled) setBusy(false);
         }
         return;
       }
@@ -84,16 +88,18 @@ export default function HashGenerator() {
         return;
       }
       setBusy(true);
-      const result = useHmac ? await hmacAll(input, hmacKey) : await hashAll(input);
-      // Guard against an out-of-order response overwriting newer input.
-      if (cancelled) return;
-      setBusy(false);
-      if (result.ok) {
-        setDigests(result.value);
+      try {
+        const result = await hashWorkerTask.run({ kind: 'text', input, useHmac, hmacKey });
+        // Guard against an out-of-order response overwriting newer input.
+        if (cancelled) return;
+        setDigests(result);
         setError(null);
-      } else {
+      } catch (thrown) {
+        if (cancelled) return;
         setDigests([]);
-        setError(result.error);
+        setError(thrown instanceof Error ? thrown.message : 'Could not compute that hash.');
+      } finally {
+        if (!cancelled) setBusy(false);
       }
     };
 
@@ -101,6 +107,7 @@ export default function HashGenerator() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, input, file, useHmac, hmacKey]);
 
   const trimmedCompare = compareTo.trim();
@@ -201,7 +208,11 @@ export default function HashGenerator() {
         <FileDropzone file={file} onFileSelected={setFile} chooseLabel="Choose a file to hash" />
       )}
 
-      {busy && <p class="field__hint">Hashing…</p>}
+      {busy && (
+        <p class="field__hint">
+          <span class="job__spinner" aria-hidden="true" /> Hashing…
+        </p>
+      )}
 
       <ErrorMessage message={error} />
 

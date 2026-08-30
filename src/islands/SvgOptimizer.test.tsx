@@ -1,6 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
+import { createFakeWorkerClass } from '../../test/fakeWorker';
+import { handleSvgOptimizeRequest } from '../workers/svgOptimize.worker';
 import SvgOptimizer from './SvgOptimizer';
+
+// jsdom has no real Worker; this runs the same request-handling logic the real
+// svgOptimize.worker.ts uses, synchronously, so the test still exercises real SVGO.
+vi.mock('../workers/svgOptimize.worker?worker', () => ({
+  default: createFakeWorkerClass(handleSvgOptimizeRequest),
+}));
 
 const SVG_WITH_CRUFT =
   '<!-- Generator: Some Tool -->\n' +

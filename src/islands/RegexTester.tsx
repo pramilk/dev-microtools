@@ -1,11 +1,8 @@
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
 import {
-  runRegex,
   toSegments,
-  applyReplace,
   explainRegex,
-  testLines,
   REGEX_FLAGS,
   COMMON_PATTERNS,
   buildPatternTree,
@@ -13,13 +10,40 @@ import {
   detectFlavorHints,
   GROUP_TINT_COUNT,
   type PatternSegmentNode,
+  type RegexRun,
+  type LineTestResult,
 } from '../lib/tools/regex';
+import { ok, err, type ToolResult } from '../lib/tools/result';
 import { readShareStateFromLocation } from '../lib/shareLink';
 import { CopyButton } from './shared/CopyButton';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { OutputPane } from './shared/OutputPane';
 import { ShareLinkButton } from './shared/ShareLinkButton';
 import { useTextFileDrop } from './shared/useTextFileDrop';
+import { useWorkerTask, WorkerTimeoutError } from './shared/useWorkerTask';
+import RegexWorker from '../workers/regex.worker?worker';
+import type { RegexWorkerRequest, RegexWorkerResult } from '../workers/regex.worker';
+
+/**
+ * Debounce before a keystroke actually triggers a worker round-trip — cheap insurance
+ * against posting a message per keystroke on a fast typist, matching the same reasoning
+ * as the Image Compressor's quality-slider debounce.
+ */
+const REGEX_DEBOUNCE_MS = 150;
+
+/**
+ * How long a single run/replace/line-test call gets before `useWorkerTask` terminates and
+ * replaces the worker. `regex.ts`'s own static guard (`hasCatastrophicBacktrackingRisk`)
+ * already refuses the textbook catastrophic-backtracking shape once text is long enough to
+ * matter, and rejects fast — well under this — for anything it flags. This timeout exists
+ * for what that guard deliberately doesn't catch (its own doc names ambiguous alternation
+ * like `(a|a)*` as a known miss): the actual, final backstop PLAN.md's 12.1 note deferred
+ * to this Web Worker migration, since only a worker can be killed mid-execution.
+ */
+const REGEX_TIMEOUT_MS = 750;
+
+const TIMEOUT_MESSAGE =
+  'This pattern took too long to run and was stopped — it likely has catastrophic backtracking on this text (a shape like "(a|a)*" that the quick check above does not catch). Simplify the pattern or shorten the text.';
 
 const SAMPLE = COMMON_PATTERNS[0]!;
 
@@ -78,9 +102,42 @@ export default function RegexTester() {
     });
   }, []);
 
-  const run = useMemo(() => {
-    if (pattern === '' || subject === '') return null;
-    return runRegex(pattern, flags, subject);
+  const regexWorkerTask = useWorkerTask<RegexWorkerRequest, RegexWorkerResult>(() => new RegexWorker());
+
+  const timeoutMessage = (thrown: unknown, fallback: string): string =>
+    thrown instanceof WorkerTimeoutError ? TIMEOUT_MESSAGE : thrown instanceof Error ? thrown.message : fallback;
+
+  const [run, setRun] = useState<ToolResult<RegexRun> | null>(null);
+  const [runBusy, setRunBusy] = useState(false);
+  const runRequestId = useRef(0);
+
+  // Matching runs in a worker (see regex.worker.ts) so a pattern the static ReDoS guard
+  // misses hangs that worker instead of the tab — recoverable via the timeout above.
+  // Debounced so a fast typist doesn't post a worker message per keystroke.
+  useEffect(() => {
+    if (pattern === '' || subject === '') {
+      setRun(null);
+      setRunBusy(false);
+      return;
+    }
+    const id = (runRequestId.current += 1);
+    const timer = window.setTimeout(() => {
+      setRunBusy(true);
+      regexWorkerTask.run({ kind: 'run', pattern, flags, subject }, { timeoutMs: REGEX_TIMEOUT_MS }).then(
+        (result) => {
+          if (id !== runRequestId.current || result.kind !== 'run') return;
+          setRunBusy(false);
+          setRun(ok(result.value));
+        },
+        (thrown: unknown) => {
+          if (id !== runRequestId.current) return;
+          setRunBusy(false);
+          setRun(err(timeoutMessage(thrown, 'Something went wrong running that pattern.')));
+        }
+      );
+    }, REGEX_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pattern, flags, subject]);
 
   const matches = run?.ok ? run.value.matches : [];
@@ -91,9 +148,34 @@ export default function RegexTester() {
     [run, subject, matches]
   );
 
-  const replaced = useMemo(() => {
-    if (!showReplace || pattern === '' || subject === '') return null;
-    return applyReplace(pattern, flags, subject, replacement);
+  const [replaced, setReplaced] = useState<ToolResult<string> | null>(null);
+  const [replaceBusy, setReplaceBusy] = useState(false);
+  const replaceRequestId = useRef(0);
+
+  useEffect(() => {
+    if (!showReplace || pattern === '' || subject === '') {
+      setReplaced(null);
+      setReplaceBusy(false);
+      return;
+    }
+    const id = (replaceRequestId.current += 1);
+    const timer = window.setTimeout(() => {
+      setReplaceBusy(true);
+      regexWorkerTask.run({ kind: 'replace', pattern, flags, subject, replacement }, { timeoutMs: REGEX_TIMEOUT_MS }).then(
+        (result) => {
+          if (id !== replaceRequestId.current || result.kind !== 'replace') return;
+          setReplaceBusy(false);
+          setReplaced(ok(result.value));
+        },
+        (thrown: unknown) => {
+          if (id !== replaceRequestId.current) return;
+          setReplaceBusy(false);
+          setReplaced(err(timeoutMessage(thrown, 'Could not apply that replacement.')));
+        }
+      );
+    }, REGEX_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showReplace, pattern, flags, subject, replacement]);
 
   const explanation = useMemo(() => {
@@ -101,9 +183,34 @@ export default function RegexTester() {
     return explainRegex(pattern, flags);
   }, [showExplain, pattern, flags]);
 
-  const lineResults = useMemo(() => {
-    if (!showLineTest || pattern === '' || testList === '') return null;
-    return testLines(pattern, flags, testList);
+  const [lineResults, setLineResults] = useState<ToolResult<LineTestResult[]> | null>(null);
+  const [lineTestBusy, setLineTestBusy] = useState(false);
+  const lineTestRequestId = useRef(0);
+
+  useEffect(() => {
+    if (!showLineTest || pattern === '' || testList === '') {
+      setLineResults(null);
+      setLineTestBusy(false);
+      return;
+    }
+    const id = (lineTestRequestId.current += 1);
+    const timer = window.setTimeout(() => {
+      setLineTestBusy(true);
+      regexWorkerTask.run({ kind: 'testLines', pattern, flags, subject: testList }, { timeoutMs: REGEX_TIMEOUT_MS }).then(
+        (result) => {
+          if (id !== lineTestRequestId.current || result.kind !== 'testLines') return;
+          setLineTestBusy(false);
+          setLineResults(ok(result.value));
+        },
+        (thrown: unknown) => {
+          if (id !== lineTestRequestId.current) return;
+          setLineTestBusy(false);
+          setLineResults(err(timeoutMessage(thrown, 'Something went wrong testing those lines.')));
+        }
+      );
+    }, REGEX_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showLineTest, pattern, flags, testList]);
 
   const patternTree = useMemo(() => (pattern !== '' ? buildPatternTree(pattern) : []), [pattern]);
@@ -291,6 +398,12 @@ export default function RegexTester() {
 
       <ErrorMessage message={error} />
 
+      {runBusy && (
+        <p class="field__hint">
+          <span class="job__spinner" aria-hidden="true" /> Testing pattern…
+        </p>
+      )}
+
       <div class="field">
         <label class="field__label" for="rx-subject">
           <span>Test string</span>
@@ -418,6 +531,12 @@ export default function RegexTester() {
             />
           </div>
 
+          {lineTestBusy && (
+            <p class="field__hint">
+              <span class="job__spinner" aria-hidden="true" /> Testing lines…
+            </p>
+          )}
+
           {lineResults && !lineResults.ok && <ErrorMessage message={lineResults.error} />}
 
           {lineResults?.ok && (
@@ -474,6 +593,12 @@ export default function RegexTester() {
               onInput={(event) => setReplacement((event.target as HTMLInputElement).value)}
             />
           </div>
+
+          {replaceBusy && (
+            <p class="field__hint">
+              <span class="job__spinner" aria-hidden="true" /> Replacing…
+            </p>
+          )}
 
           {replaced && !replaced.ok && <ErrorMessage message={replaced.error} />}
 

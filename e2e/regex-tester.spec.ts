@@ -60,4 +60,20 @@ test.describe('Regex Tester', () => {
     await expect(subjectField(tool)).toHaveValue('');
     await expect(clear).toBeDisabled();
   });
+
+  test('kills a hung worker on a catastrophic pattern the static guard cannot catch (12.5\'s real ReDoS backstop)', async ({ page }) => {
+    // `(a|a)+$` is ambiguous alternation, not the "bare repeated group" shape regex.ts's
+    // static guard (hasCatastrophicBacktrackingRisk) looks for — its own doc names this
+    // exact shape as a known miss. Matching runs in a Web Worker now (see 12.5 in
+    // PLAN.md), which is what makes killing it possible at all: a synchronous
+    // RegExp.exec on the main thread cannot be interrupted once started, only a whole
+    // worker thread can be terminated out from under it.
+    await gotoTool(page, 'regex-tester');
+    const tool = widget(page);
+
+    await patternField(tool).fill('(a|a)+$');
+    await subjectField(tool).fill('a'.repeat(32) + 'b');
+
+    await expect(tool.getByText(/took too long to run and was stopped/i)).toBeVisible({ timeout: 5_000 });
+  });
 });

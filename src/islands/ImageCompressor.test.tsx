@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/preact';
+import { createFakeWorkerClass } from '../../test/fakeWorker';
+import { handleImageCompressRequest } from '../workers/imageCompress.worker';
 import ImageCompressor from './ImageCompressor';
+
+// jsdom has no real Worker; this runs the same request-handling logic the real
+// imageCompress.worker.ts uses (Oxipng/image-q), synchronously, for the two PNG passes.
+vi.mock('../workers/imageCompress.worker?worker', () => ({
+  default: createFakeWorkerClass(handleImageCompressRequest),
+}));
 
 // Real @jsquash/oxipng loads and runs actual WebAssembly, which is unnecessary weight and
 // risk for a unit test — this stands in for it, shrinking the buffer by one byte so the

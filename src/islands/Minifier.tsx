@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { minifyCode, MINIFY_LANGUAGES, MINIFY_LANGUAGE_LABELS, type MinifyLanguage } from '../lib/tools/minifier';
+import { MINIFY_LANGUAGES, MINIFY_LANGUAGE_LABELS, type MinifyLanguage } from '../lib/tools/minifier';
 import { readShareStateFromLocation } from '../lib/shareLink';
 import { formatBytes } from './shared/formatBytes';
 import { ErrorMessage } from './shared/ErrorMessage';
@@ -7,6 +7,9 @@ import { OutputPane } from './shared/OutputPane';
 import { DownloadButton } from './shared/DownloadButton';
 import { ShareLinkButton } from './shared/ShareLinkButton';
 import { useTextFileDrop } from './shared/useTextFileDrop';
+import { useWorkerTask } from './shared/useWorkerTask';
+import MinifierWorker from '../workers/minifier.worker?worker';
+import type { MinifierWorkerRequest } from '../workers/minifier.worker';
 
 const SAMPLE: Record<MinifyLanguage, string> = {
   html: '<!DOCTYPE html>\n<html>\n  <head>\n    <!-- page title -->\n    <title>Example</title>\n  </head>\n  <body>\n    <p>\n      Hello, world!\n    </p>\n  </body>\n</html>\n',
@@ -27,7 +30,9 @@ export default function Minifier() {
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const requestId = useRef(0);
+  const minifierWorkerTask = useWorkerTask<MinifierWorkerRequest, string>(() => new MinifierWorker());
 
   const { isDragActive, dropHandlers } = useTextFileDrop(setInput);
 
@@ -46,20 +51,27 @@ export default function Minifier() {
     if (input.trim() === '') {
       setOutput('');
       setError(null);
+      setBusy(false);
       return;
     }
 
-    void minifyCode(input, language).then((result) => {
-      // Ignore a stale response if the input or language changed again before this one resolved.
-      if (id !== requestId.current) return;
-      if (result.ok) {
-        setOutput(result.value);
+    setBusy(true);
+    minifierWorkerTask.run({ input, language }).then(
+      (result) => {
+        // Ignore a stale response if the input or language changed again before this one resolved.
+        if (id !== requestId.current) return;
+        setBusy(false);
+        setOutput(result);
         setError(null);
-      } else {
+      },
+      (thrown: unknown) => {
+        if (id !== requestId.current) return;
+        setBusy(false);
         setOutput('');
-        setError(result.error);
+        setError(thrown instanceof Error ? thrown.message : 'Could not minify that input.');
       }
-    });
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input, language]);
 
   const originalBytes = new TextEncoder().encode(input).length;
@@ -135,6 +147,12 @@ export default function Minifier() {
         <p class="field__hint" data-testid="minify-stats">
           {formatBytes(originalBytes)} → {formatBytes(minifiedBytes)}{' '}
           {savedPercent > 0 ? `(${savedPercent}% smaller)` : savedPercent < 0 ? `(${-savedPercent}% larger)` : '(no change)'}
+        </p>
+      )}
+
+      {busy && (
+        <p class="field__hint">
+          <span class="job__spinner" aria-hidden="true" /> Minifying…
         </p>
       )}
 

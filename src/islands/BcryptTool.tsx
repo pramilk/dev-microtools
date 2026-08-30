@@ -1,7 +1,10 @@
 import { useState } from 'preact/hooks';
-import { hashPassword, verifyPassword, MIN_BCRYPT_ROUNDS, MAX_BCRYPT_ROUNDS } from '../lib/tools/bcrypt';
+import { MIN_BCRYPT_ROUNDS, MAX_BCRYPT_ROUNDS } from '../lib/tools/bcrypt';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { CopyButton } from './shared/CopyButton';
+import { useWorkerTask } from './shared/useWorkerTask';
+import BcryptWorker from '../workers/bcrypt.worker?worker';
+import type { BcryptWorkerRequest, BcryptWorkerResult } from '../workers/bcrypt.worker';
 
 type Mode = 'generate' | 'verify';
 
@@ -15,6 +18,7 @@ const SAMPLE_PASSWORD = 'hunter2';
 
 export default function BcryptTool() {
   const [mode, setMode] = useState<Mode>('generate');
+  const bcryptWorkerTask = useWorkerTask<BcryptWorkerRequest, BcryptWorkerResult>(() => new BcryptWorker());
 
   const [password, setPassword] = useState('');
   const [rounds, setRounds] = useState(DEFAULT_ROUNDS);
@@ -30,14 +34,16 @@ export default function BcryptTool() {
 
   const generate = async () => {
     setGenBusy(true);
-    const result = await hashPassword(password, rounds);
-    setGenBusy(false);
-    if (result.ok) {
+    try {
+      const result = await bcryptWorkerTask.run({ kind: 'hash', password, rounds });
+      if (result.kind !== 'hash') throw new Error('Unexpected worker response.');
       setHash(result.value);
       setGenError(null);
-    } else {
+    } catch (thrown) {
       setHash('');
-      setGenError(result.error);
+      setGenError(thrown instanceof Error ? thrown.message : 'Could not compute the bcrypt hash.');
+    } finally {
+      setGenBusy(false);
     }
   };
 
@@ -50,14 +56,16 @@ export default function BcryptTool() {
 
   const verify = async () => {
     setVerifyBusy(true);
-    const result = await verifyPassword(verifyPw, verifyHash);
-    setVerifyBusy(false);
-    if (result.ok) {
+    try {
+      const result = await bcryptWorkerTask.run({ kind: 'verify', password: verifyPw, hash: verifyHash });
+      if (result.kind !== 'verify') throw new Error('Unexpected worker response.');
       setVerifyResult(result.value);
       setVerifyError(null);
-    } else {
+    } catch (thrown) {
       setVerifyResult(null);
-      setVerifyError(result.error);
+      setVerifyError(thrown instanceof Error ? thrown.message : 'Could not verify that hash.');
+    } finally {
+      setVerifyBusy(false);
     }
   };
 
@@ -82,13 +90,15 @@ export default function BcryptTool() {
       return;
     }
     setExampleBusy(true);
-    const result = await hashPassword(SAMPLE_PASSWORD, DEFAULT_ROUNDS);
-    setExampleBusy(false);
-    if (result.ok) {
+    try {
+      const result = await bcryptWorkerTask.run({ kind: 'hash', password: SAMPLE_PASSWORD, rounds: DEFAULT_ROUNDS });
+      if (result.kind !== 'hash') throw new Error('Unexpected worker response.');
       setVerifyPw(SAMPLE_PASSWORD);
       setVerifyHash(result.value);
       setVerifyResult(null);
       setVerifyError(null);
+    } finally {
+      setExampleBusy(false);
     }
   };
 
@@ -131,7 +141,11 @@ export default function BcryptTool() {
         </button>
       </div>
 
-      {exampleBusy && <p class="field__hint">Computing a sample hash…</p>}
+      {exampleBusy && (
+        <p class="field__hint">
+          <span class="job__spinner" aria-hidden="true" /> Computing a sample hash…
+        </p>
+      )}
 
       <p class="msg msg--info">
         <span class="msg__icon" aria-hidden="true">
@@ -202,7 +216,11 @@ export default function BcryptTool() {
             </button>
           </div>
 
-          {genBusy && <p class="field__hint">Hashing… higher round counts take longer.</p>}
+          {genBusy && (
+            <p class="field__hint">
+              <span class="job__spinner" aria-hidden="true" /> Hashing… higher round counts take longer.
+            </p>
+          )}
 
           <ErrorMessage message={genError} />
 
@@ -268,7 +286,11 @@ export default function BcryptTool() {
             </button>
           </div>
 
-          {verifyBusy && <p class="field__hint">Checking…</p>}
+          {verifyBusy && (
+            <p class="field__hint">
+              <span class="job__spinner" aria-hidden="true" /> Checking…
+            </p>
+          )}
 
           <ErrorMessage message={verifyError} />
 

@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   validateImageFile,
-  optimizePngLosslessly,
-  quantizePngPixels,
   qualityToColorCount,
   OUTPUT_FORMATS,
   OUTPUT_FORMAT_LABELS,
@@ -30,6 +28,9 @@ import { formatBytes } from './shared/formatBytes';
 import { SavingsBadge } from './shared/SavingsBadge';
 import { ResizeFields } from './shared/ResizeFields';
 import { downloadUrl } from './shared/downloadUrl';
+import { useWorkerTask } from './shared/useWorkerTask';
+import ImageCompressWorker from '../workers/imageCompress.worker?worker';
+import type { ImageCompressWorkerRequest, ImageCompressWorkerResult } from '../workers/imageCompress.worker';
 
 // Deliberately no ShareLinkButton — the input is a binary image from the visitor's disk,
 // which can't (and shouldn't) be encoded into a URL. Crop rectangle and resize dimensions
@@ -134,6 +135,27 @@ export default function ImageCropper() {
   const dragRef = useRef<DragState | null>(null);
   const seqRef = useRef(0);
   const pendingExampleRef = useRef(false);
+
+  const pngWorkerTask = useWorkerTask<ImageCompressWorkerRequest, ImageCompressWorkerResult>(() => new ImageCompressWorker());
+  /** Same worker as the Image Compressor's PNG passes — see that file's `PngWorkerClient`
+   *  comment for why the graceful-degradation fallback is preserved across the worker
+   *  boundary here too. */
+  const optimizePng = (buffer: ArrayBuffer): Promise<ArrayBuffer> =>
+    pngWorkerTask.run({ kind: 'optimizePng', buffer }).then(
+      (result) => (result.kind === 'optimizePng' ? result.buffer : buffer),
+      (error: unknown) => {
+        console.warn('PNG lossless optimization pass failed, keeping the canvas-encoded PNG as-is.', error);
+        return buffer;
+      }
+    );
+  const quantizePng = (image: ImageData, quality: number): Promise<ImageData> =>
+    pngWorkerTask.run({ kind: 'quantizePng', image, quality }).then(
+      (result) => (result.kind === 'quantizePng' ? new ImageData(result.image.data, result.image.width, result.image.height) : image),
+      (error: unknown) => {
+        console.warn('PNG lossy quantization failed, keeping the un-quantized pixels.', error);
+        return image;
+      }
+    );
 
   // Debounces the quality slider the same way the Image Compressor does — recompression
   // on every tick made dragging feel laggy.
@@ -265,8 +287,7 @@ export default function ImageCropper() {
         // happen here, on the canvas, since the browser's canvas PNG encoder itself has no
         // lossy mode.
         const imageData = context.getImageData(0, 0, outWidth, outHeight);
-        const quantized = await quantizePngPixels(imageData, debouncedQuality);
-        context.putImageData(new ImageData(quantized.data, quantized.width, quantized.height), 0, 0);
+        context.putImageData(await quantizePng(imageData, debouncedQuality), 0, 0);
       }
 
       canvas.toBlob(
@@ -287,7 +308,7 @@ export default function ImageCropper() {
           if (format === 'image/png') {
             void blob
               .arrayBuffer()
-              .then(optimizePngLosslessly)
+              .then(optimizePng)
               .then((optimized) => {
                 const optimizedBlob = new Blob([optimized], { type: 'image/png' });
                 finish(optimizedBlob.size < blob.size ? optimizedBlob : blob);
@@ -605,7 +626,7 @@ export default function ImageCropper() {
                 </span>
                 {busy && (
                   <span class="field__hint">
-                    <span class="crop-spinner" aria-hidden="true" /> Updating…
+                    <span class="job__spinner" aria-hidden="true" /> Updating…
                   </span>
                 )}
                 <span class="tool-bar__spacer" />
@@ -681,15 +702,8 @@ export default function ImageCropper() {
         .crop-preset-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }
         .crop-result { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: var(--space-2); }
         .crop-result__stats { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin: 0; }
-        .crop-spinner {
-          display: inline-block; width: 0.9rem; height: 0.9rem; margin-right: var(--space-1);
-          border: 2px solid var(--border-strong); border-top-color: var(--accent);
-          border-radius: 50%; animation: crop-spin 0.6s linear infinite; vertical-align: -0.15em;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .crop-spinner { animation-duration: 1.5s; }
-        }
-        @keyframes crop-spin { to { transform: rotate(360deg); } }
+        /* .job__spinner (shared with every other worker-backed tool) lives in
+           src/styles/tool.css. */
         @media (max-width: 40rem) {
           .crop-fields { grid-template-columns: 1fr 1fr; }
         }

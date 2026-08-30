@@ -135,6 +135,28 @@
   font-weight: 450;
 }
 
+/* Inline busy indicator for any tool whose work now runs in a Web Worker (see
+   src/islands/shared/useWorkerTask.ts) — first used by Image Compressor, now shared by
+   every tool with a genuinely async, potentially-slow operation instead of each
+   redefining the same spinner in its own scoped <style> block. */
+.job__spinner {
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+  flex-shrink: 0;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: job-spin 0.6s linear infinite;
+  vertical-align: -0.15em;
+}
+@media (prefers-reduced-motion: reduce) {
+  .job__spinner { animation-duration: 1.5s; }
+}
+@keyframes job-spin {
+  to { transform: rotate(360deg); }
+}
+
 .input,
 .textarea,
 .select {

@@ -1,6 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/preact';
+import { createFakeWorkerClass } from '../../test/fakeWorker';
+import { handleMinifierRequest } from '../workers/minifier.worker';
 import Minifier from './Minifier';
+
+// jsdom has no real Worker; this runs the same request-handling logic the real
+// minifier.worker.ts uses, synchronously, so the test still exercises real minification.
+vi.mock('../workers/minifier.worker?worker', () => ({
+  default: createFakeWorkerClass(handleMinifierRequest),
+}));
 
 const output = () => within(document.querySelector<HTMLElement>('.output')!);
 

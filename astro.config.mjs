@@ -58,6 +58,7 @@ export default defineConfig({
         'qrcode-generator',
         'svgo/browser',
         'fflate',
+        'image-q',
       ],
       /*
        * `@jsquash/oxipng` ships a wasm-bindgen-generated WASM module. Vite's esbuild-based
@@ -66,6 +67,17 @@ export default defineConfig({
        * native asset pipeline resolve the `.wasm` file directly.
        */
       exclude: ['@jsquash/oxipng'],
+    },
+    worker: {
+      // Every worker in src/workers/ dynamically import()s its own heavy dependency
+      // (terser, svgo/browser, bcryptjs, diff, blueimp-md5/spark-md5, image-q,
+      // @jsquash/oxipng) to keep it out of that worker's own initial chunk, the same
+      // reason the main thread lazy-loads them. Vite's default worker output is a single
+      // IIFE that can't code-split or use dynamic import() at all; 'es' produces a real ES
+      // module worker (built with `{ type: 'module' }`, matching every `?worker` import in
+      // src/islands/) so those dynamic imports keep working in the production build, not
+      // just in dev.
+      format: 'es',
     },
   },
 });
