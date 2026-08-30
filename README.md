@@ -67,7 +67,8 @@ src/
   pages/
     index.astro              # tool directory
     [slug].astro              # dynamic route over the content collection (tools live at /<slug>/)
-public/                      # robots.txt, ads.txt, favicon
+    llms.txt.ts              # /llms.txt, generated from the content collection
+public/                      # robots.txt (AI crawler policy), ads.txt, favicon
 ```
 
 Each tool keeps three concerns separate: pure logic (`lib/tools/`), UI/state (`islands/`),

@@ -65,3 +65,34 @@ test.describe('Theme toggle', () => {
     await expect(html).not.toHaveAttribute('data-theme', /.*/);
   });
 });
+
+/*
+ * `/llms.txt` is generated from the content collection by an endpoint, and `/robots.txt`
+ * is a static asset. Both are invisible to the unit tests: what only a built, served site
+ * proves is that the endpoint is actually routed and both files ship at the root, with a
+ * text content type rather than being swallowed by the HTML fallback.
+ */
+test.describe('Crawler files', () => {
+  test('serves /llms.txt with every tool listed under a category heading', async ({ request }) => {
+    const response = await request.get('/llms.txt');
+
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toContain('text/plain');
+
+    const body = await response.text();
+    expect(body.startsWith('# DevMicroTools\n')).toBe(true);
+    expect(body).toContain('## Format');
+    expect(body).toContain('- [JSON Formatter](https://devmicrotools.com/json-formatter/):');
+  });
+
+  test('serves /robots.txt allowing AI assistants, blocking known-bad crawlers', async ({ request }) => {
+    const response = await request.get('/robots.txt');
+
+    expect(response.status()).toBe(200);
+
+    const body = await response.text();
+    expect(body).toContain('Sitemap: https://devmicrotools.com/sitemap-index.xml');
+    expect(body).toMatch(/User-agent: GPTBot\n(User-agent: .+\n|#.*\n)*Allow: \//);
+    expect(body).toMatch(/User-agent: Bytespider\n(User-agent: .+\n|#.*\n)*Disallow: \//);
+  });
+});

@@ -1,4 +1,130 @@
+# robots.txt for https://devmicrotools.com
+#
+# Policy, in one line: everything on this site is public and crawlable, AI assistants
+# that identify themselves and follow the rules are welcome, and crawlers with a known
+# record of ignoring robots.txt, hammering origins, or reselling scraped content are not.
+#
+# Note on precedence: a crawler obeys the single most specific group that names it and
+# ignores every other group, including `*`. So the explicit `Allow: /` groups below are
+# not redundant with the default — without them, a bot named in this file would fall
+# through to `*`, and more importantly the list documents an intentional decision rather
+# than leaving "are AI crawlers allowed here?" to be inferred from silence.
+#
+# An LLM-oriented site summary lives at https://devmicrotools.com/llms.txt
+
+
+# ---------------------------------------------------------------------------
+# Default — all search engines and any well-behaved crawler
+# ---------------------------------------------------------------------------
 User-agent: *
 Allow: /
+
+
+# ---------------------------------------------------------------------------
+# AI assistants and LLM crawlers: allowed, deliberately
+#
+# These tools answer developer questions, which is exactly the audience this site is
+# for, and they cite and link their sources. Training crawlers (GPTBot, ClaudeBot,
+# Google-Extended, Applebot-Extended, CCBot) are allowed on the same terms: the content
+# here is documentation for free public tools, and being in the training set is a
+# distribution channel, not a loss.
+# ---------------------------------------------------------------------------
+
+# OpenAI — training, search index, and user-triggered fetches
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+# Anthropic
+User-agent: ClaudeBot
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: anthropic-ai
+# Google (Gemini / AI Overviews opt-in; Googlebot itself is covered by `*` above)
+User-agent: Google-Extended
+# Apple
+User-agent: Applebot
+User-agent: Applebot-Extended
+# Perplexity
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+# DuckDuckGo assist
+User-agent: DuckAssistBot
+# Amazon (Alexa / Rufus)
+User-agent: Amazonbot
+# Meta AI
+User-agent: meta-externalagent
+User-agent: meta-externalfetcher
+# Mistral
+User-agent: MistralAI-User
+# Cohere
+User-agent: cohere-ai
+User-agent: cohere-training-data-crawler
+# You.com
+User-agent: YouBot
+# Allen Institute for AI (non-profit research corpora)
+User-agent: AI2Bot
+# Common Crawl — the open corpus most smaller models are built from
+User-agent: CCBot
+Allow: /
+
+
+# ---------------------------------------------------------------------------
+# Blocked: crawlers with a documented record of ignoring robots.txt, overloading
+# origins, or scraping content purely to resell it. Nothing here sends traffic back.
+#
+# A blocked crawler that ignores this file has to be stopped at the edge instead —
+# Cloudflare's bot rules, not robots.txt.
+# ---------------------------------------------------------------------------
+
+# ByteDance — the most widely reported robots.txt-ignoring, origin-hammering crawler
+User-agent: Bytespider
+User-agent: ByteSpider
+# Webz.io — scrapes to resell as a data feed
+User-agent: Omgilibot
+User-agent: Omgili
+User-agent: Webzio-Extended
+# Hive — bulk image scraping for generative image models
+User-agent: ImagesiftBot
+# Content-resale and media-monitoring scrapers
+User-agent: Diffbot
+User-agent: magpie-crawler
+User-agent: Meltwater
+User-agent: peer39_crawler
+User-agent: peer39_crawler/1.0
+User-agent: VelenPublicWebCrawler
+# Assorted AI crawlers with no published policy and no referral traffic
+User-agent: PanguBot
+User-agent: Timpibot
+User-agent: Kangaroo Bot
+User-agent: iaskspider/2.0
+User-agent: ISSCyberRiskCrawler
+# Generic scraping frameworks running unmodified — never a real user or product
+User-agent: Scrapy
+User-agent: python-requests
+Disallow: /
+
+
+# ---------------------------------------------------------------------------
+# Blocked: SEO backlink and lead-generation crawlers
+#
+# These are commercial link-index and contact-scraping bots. They crawl aggressively,
+# and the index they build is sold to other people — this site gets nothing back.
+#
+# Trade-off worth knowing: if you ever subscribe to Ahrefs or Semrush and want to run
+# their site audit against devmicrotools.com, delete their two lines below — the audit
+# crawler honours robots.txt and will report the site as unreachable otherwise.
+# ---------------------------------------------------------------------------
+User-agent: AhrefsBot
+User-agent: SemrushBot
+User-agent: MJ12bot
+User-agent: DotBot
+User-agent: BLEXBot
+User-agent: DataForSeoBot
+User-agent: Barkrowler
+User-agent: serpstatbot
+User-agent: ZoominfoBot
+User-agent: SeekportBot
+Disallow: /
+
 
 Sitemap: https://devmicrotools.com/sitemap-index.xml
