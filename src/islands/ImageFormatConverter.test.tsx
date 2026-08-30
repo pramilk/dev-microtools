@@ -258,6 +258,22 @@ describe('<ImageFormatConverter />', () => {
     expect(jobRows().length).toBe(30);
   });
 
+  it('returns the original bytes unchanged converting PNG to PNG, instead of re-encoding through canvas', async () => {
+    stubCanvasAndDecode();
+    render(<ImageFormatConverter />);
+    const original = new Uint8Array(500).fill(9);
+    original.set(PNG_SIGNATURE, 0);
+    const file = new File([original], 'photo.png', { type: 'image/png' });
+
+    dropFiles([file]);
+
+    await waitFor(() => expect(jobRows().length).toBe(1));
+    await waitFor(() => expect(within(jobRows()[0] as HTMLElement).getByText(/no change/i)).toBeInTheDocument());
+    // The canvas mock's toBlob always returns a fixed 16-byte blob — if the identity
+    // shortcut weren't taken, the badge above would read "smaller" instead of "no change".
+    expect(HTMLCanvasElement.prototype.toBlob).not.toHaveBeenCalled();
+  });
+
   it('does not offer a share-link button, since the input is a set of files, not text', () => {
     stubCanvasAndDecode();
     render(<ImageFormatConverter />);

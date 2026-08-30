@@ -58,6 +58,19 @@ async function convertImage(file: File, format: TargetFormat, quality: number): 
   }
 
   let { width, height } = bitmap;
+
+  // Converting a file to the format it's already in, for a lossless target: re-encoding
+  // through canvas can only add bytes here (the canvas's PNG/BMP encoder always writes full
+  // RGBA pixel data with its own fixed compression, never a palette or the smarter filter
+  // choices a tool like pngcrush/optipng made on the original), and can never shrink or
+  // change them, since neither format has a quality knob. Returning the original bytes
+  // untouched is strictly better. JPEG/WebP are excluded — picking the same lossy format is
+  // a deliberate request to recompress at a possibly different quality.
+  if (file.type === format && format !== 'image/x-icon' && !LOSSY_TARGET_FORMATS.has(format)) {
+    bitmap.close();
+    return { blob: file, width, height, transparencyLost: false };
+  }
+
   if (format === 'image/x-icon') {
     ({ width, height } = computeIcoDimensions(width, height));
   }
