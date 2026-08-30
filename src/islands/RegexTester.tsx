@@ -40,7 +40,7 @@ const REGEX_DEBOUNCE_MS = 150;
  * like `(a|a)*` as a known miss): the actual, final backstop PLAN.md's 12.1 note deferred
  * to this Web Worker migration, since only a worker can be killed mid-execution.
  */
-const REGEX_TIMEOUT_MS = 750;
+const REGEX_TIMEOUT_MS = 2000;
 
 const TIMEOUT_MESSAGE =
   'This pattern took too long to run and was stopped — it likely has catastrophic backtracking on this text (a shape like "(a|a)*" that the quick check above does not catch). Simplify the pattern or shorten the text.';
