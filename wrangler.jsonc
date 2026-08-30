@@ -21,9 +21,25 @@
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page"
   },
+  // Only the apex is bound to this Worker. www is NOT a route here on purpose.
+  //
+  // www.devmicrotools.com is a redirect-only hostname: it has a proxied A record
+  // pointing at 192.0.2.1 (a reserved documentation IP that routes nowhere), and a
+  // zone-level Redirect Rule (Rules -> Redirect Rules, "Redirect from WWW to root")
+  // 301s it to the apex, preserving path and query string. The record exists purely
+  // so requests reach Cloudflare edge where the rule can act on them -- nothing is
+  // ever served from it, and www never reaches this Worker.
+  //
+  // Do NOT add www back as a custom_domain. Doing so makes wrangler re-provision the
+  // hostname and overwrite that A record, which breaks the redirect. Equally, do not
+  // delete the A record: without it www is NXDOMAIN and the Redirect Rule never fires,
+  // because a rule can only run on traffic that resolves to Cloudflare in the first place.
+  //
+  // The redirect cannot live in this repo: a static-assets `_redirects` file matches on
+  // path only and cannot match a hostname, and a `main` Worker with `run_worker_first`
+  // would add a Worker invocation to every request on an otherwise fully static site.
   "routes": [
-    { "pattern": "devmicrotools.com", "custom_domain": true },
-    { "pattern": "www.devmicrotools.com", "custom_domain": true }
+    { "pattern": "devmicrotools.com", "custom_domain": true }
   ],
   "env": {
     "staging": {
