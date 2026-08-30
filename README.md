@@ -33,7 +33,8 @@ using any tool and you'll see no outbound request carrying your input.
 | [Diff Checker](https://devmicrotools.com/diff-checker/) | Text | Compare two texts or JSON documents and see exactly what changed. |
 | [Word Counter](https://devmicrotools.com/word-counter/) | Text | Count words and characters, convert text case, and find and replace text — all in your browser. |
 | [Duplicate Line Remover](https://devmicrotools.com/duplicate-line-remover/) | Text | Find duplicate lines, sentences, or paragraphs and remove one, some, or all of them — all in your browser. |
-| [LLM Token Counter](https://devmicrotools.com/llm-token-counter/) | Text | Count tokens in a prompt and estimate the API cost across GPT, Claude and Gemini models. |
+| [LLM Token Counter](https://devmicrotools.com/llm-token-counter/) | AI | Count tokens in a prompt and estimate the API cost across GPT, Claude and Gemini models. |
+| [robots.txt & llms.txt Generator](https://devmicrotools.com/robots-txt-generator/) | AI | Allow or block AI crawlers by name and generate a matching robots.txt and llms.txt. |
 | [User-Agent Parser](https://devmicrotools.com/user-agent-parser/) | Web & Network | Parse a User-Agent string into browser, OS, rendering engine and device type. |
 | [Cron Expression Explainer](https://devmicrotools.com/cron-expression-explainer/) | Web & Network | Explain a cron expression in plain English and see its next run times. |
 | [CIDR / Subnet Calculator](https://devmicrotools.com/cidr-subnet-calculator/) | Web & Network | Calculate network address, broadcast address, host range and mask from a CIDR block. |

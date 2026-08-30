@@ -14,6 +14,7 @@ export const CATEGORIES = [
   'Generate',
   'Security',
   'Text',
+  'AI',
   'Web & Network',
   'Images',
   'CSS',

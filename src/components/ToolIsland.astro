@@ -32,6 +32,7 @@ import ImageFormatConverter from '../islands/ImageFormatConverter';
 import WordCounter from '../islands/WordCounter';
 import DuplicateLineRemover from '../islands/DuplicateLineRemover';
 import TokenCounter from '../islands/TokenCounter';
+import RobotsTxtGenerator from '../islands/RobotsTxtGenerator';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -89,3 +90,4 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'word-counter' && <WordCounter client:load />}
 {slug === 'duplicate-line-remover' && <DuplicateLineRemover client:load />}
 {slug === 'llm-token-counter' && <TokenCounter client:load />}
+{slug === 'robots-txt-generator' && <RobotsTxtGenerator client:load />}

@@ -1,0 +1,167 @@
+---
+title: robots.txt & llms.txt Generator
+headline: robots.txt & llms.txt Generator for AI Crawlers
+description: Build a robots.txt that allows or blocks GPTBot, ClaudeBot, CCBot, Perplexity and more, plus an llms.txt scaffold. Free, in your browser, nothing uploaded.
+summary: Allow or block AI crawlers by name and generate a matching robots.txt and llms.txt.
+category: AI
+order: 34
+updated: 2026-08-29
+whatIsIt: >-
+  Every site now gets crawled by three different kinds of bot with three different bargains
+  attached. Search engines index you and send visitors back. AI answer engines read you and
+  usually cite you. Training crawlers take a copy and send nothing at all. robots.txt is
+  where you say which of those you accept — but it is a file with sharp edges: a crawler
+  obeys only the single most specific group that names it and ignores every other group,
+  including the catch-all, so a hand-written file that names GPTBot has quietly stopped
+  applying its own site-wide rules to GPTBot. This tool builds the file from a decision
+  instead of from syntax. Pick a stance for each crawler — and each one is listed with who
+  runs it and what it does with what it takes — and the generator writes correct groups,
+  repeats your path rules everywhere they need repeating, and warns you when a rule cannot
+  do what you appear to want. The second tab writes an llms.txt: the newer convention that
+  tells a language model what your site is and which pages actually matter, instead of
+  making it guess from thirty crawled HTML pages.
+useCases:
+  - Keeping a site out of AI training sets while staying visible in the AI search results that cite and link back to you.
+  - Blocking the scrapers and backlink crawlers that cost you bandwidth and send no traffic in return.
+  - Writing a first robots.txt for a new site without having to learn the precedence rules that make hand-written files wrong.
+  - Auditing an existing policy — seeing which well-known crawlers you have never made a decision about at all.
+  - Publishing an llms.txt so assistants summarising your product read your documentation rather than inferring it.
+  - Checking whether the crawler hitting your logs is a search engine, an AI answer engine, or something that just resells your content.
+howTo:
+  - Set each group's own Allow / Block / Not listed control — the groups are independent, so blocking AI training and blocking content resellers is two clicks, not a compromise.
+  - Or start from one of the common stances at the top — including "Known bots only", which blocks everything by default and allows just the crawlers run by companies that publish a policy. Each replaces every setting below it, so use them first and fine-tune after.
+  - Open a group to override a single crawler inside it, leaving the rest of the group as it is.
+  - Set "Every other crawler" to say what anything left off the list is told, including crawlers that do not exist yet.
+  - Add your sitemap URL, and any paths nobody should crawl — one path per line, each starting with a slash.
+  - Read the warnings under the output; they flag rules that cannot do what they look like they do.
+  - Copy or download the file and upload it to the root of your domain, so it is served at /robots.txt.
+  - Switch to the llms.txt tab to describe your site and list the pages worth reading, then save that at /llms.txt.
+example:
+  label: Blocking two training crawlers, allowing ChatGPT search, and hiding two paths.
+  input: 'GPTBot and CCBot blocked, OAI-SearchBot allowed, /admin/ and /cart/ disallowed for everyone, sitemap at https://example.com/sitemap.xml.'
+  output: |-
+    # robots.txt
+    #
+    # A crawler obeys only the most specific group that names it, and ignores every other
+    # group — including `*`. Rules meant for everyone are therefore repeated inside each
+    # named group below rather than inherited from it.
+    #
+    # None of this is enforcement: robots.txt is a request that well-behaved crawlers
+    # honour voluntarily. Anything that must be blocked has to be blocked at the edge.
+
+    # Default — every crawler not named below.
+    User-agent: *
+    Disallow: /admin/
+    Disallow: /cart/
+    Allow: /
+
+    # AI training crawlers — blocked.
+    # Collect pages to train or fine-tune models. They send no traffic back.
+    User-agent: GPTBot
+    User-agent: CCBot
+    Disallow: /
+
+    # AI answer engines — allowed.
+    # Index pages to answer questions, normally citing and linking the source.
+    User-agent: OAI-SearchBot
+    Disallow: /admin/
+    Disallow: /cart/
+    Allow: /
+
+    Sitemap: https://example.com/sitemap.xml
+  note: >-
+    Press "Load example" to build exactly this. Note that /admin/ and /cart/ are repeated
+    inside the OAI-SearchBot group: that group replaces the catch-all for that crawler
+    rather than adding to it, so a file that did not repeat them would be telling ChatGPT's
+    crawler that the checkout is fair game.
+faq:
+  - q: Does robots.txt actually stop a crawler?
+    a: No. It is a request, not a control. Well-behaved crawlers — every search engine and every major AI company — read it and honour it, because ignoring it publicly is a reputational problem for them. Crawlers that do not care simply do not fetch it, or fetch it and carry on. If a bot must be stopped rather than asked, that has to happen at your CDN or firewall, by user-agent and by IP range. This tool flags the crawlers with a documented record of ignoring robots.txt so you know which rules are requests and which are wishful thinking.
+  - q: What is the difference between blocking GPTBot and blocking OAI-SearchBot?
+    a: GPTBot collects pages to train OpenAI's models; OAI-SearchBot indexes pages so ChatGPT's search can answer questions and link back to the source. Blocking the first keeps you out of the training data. Blocking the second removes you from an answer surface that sends real visitors. Most sites that arrive here want the first without the second, which is what the "Block AI training" preset does. Google draws the same line with Google-Extended, which controls Gemini training without affecting your Google Search ranking at all.
+  - q: Why does the generated file repeat the same Disallow lines in several groups?
+    a: "Because robots.txt groups do not inherit. A crawler finds the single most specific group that names it and follows only that group's rules, ignoring the catch-all entirely. So the moment you name a crawler — even to allow it — it stops seeing everything you wrote under `User-agent: *`, including your Disallow paths. Repeating them is the fix, and forgetting to repeat them is the most common way a hand-written robots.txt accidentally exposes exactly the paths it was written to hide."
+  - q: How do I allow only the well-known crawlers — Google, Bing, OpenAI — and block everything else?
+    a: "Use the \"Known bots only\" stance. It flips the catch-all rule to Block, so anything not named in the file is told to stay out, and then names every crawler run by a company that publishes a policy — the search engines, the AI answer engines, the user-triggered fetchers and the AI training crawlers — and allows those. SEO indexes, content resellers and unidentified scripts are simply never mentioned, so the catch-all covers them. Understand the trade-off before you ship it: an allow-list also excludes crawlers that launch after you write the file, including a new search engine you would have wanted, so it needs revisiting occasionally in a way that a permissive file does not. If you want the reputable crawlers in without that maintenance cost, use \"Block scrapers & SEO bots\" instead — same crawlers welcome, but the default stays open."
+  - q: Isn't an AI training crawler also a scraper?
+    a: "Technically yes — every crawler in the list scrapes, so \"scraper\" on its own is not a category that means anything. The groups here split by what the fetch is turned into and who stands behind it, because that is the line people actually want to draw. GPTBot and ClaudeBot are run by named companies, identify themselves, publish an opt-out token and honour it; nothing comes back to you, but there is a policy and a party. The \"content resellers and unidentified bots\" group is for crawlers that sell your page itself as a data feed, or that are unmodified scripts with no product and no policy behind them at all. Bytespider is the awkward case: a training crawler with a documented record of ignoring robots.txt. It stays under training, because that is what it does with what it takes, and it is flagged separately rather than reclassified by reputation."
+  - q: What does "Not listed" mean, and how is it different from "Allow"?
+    a: "\"Not listed\" writes no rule for that crawler at all, so it is left out of the file and simply follows whatever the \"Every other crawler\" setting says. \"Allow\" names it in the file and gives it its own group. They usually produce the same crawling behaviour, but they are genuinely different files: naming a crawler changes which group it obeys, and a named group inherits nothing from the catch-all. Naming a crawler you allow is also a record that you decided, rather than leaving \"are AI crawlers welcome here?\" to be inferred from silence."
+  - q: How do I block AI training crawlers and scrapers at the same time?
+    a: "Use the group controls rather than the presets. Each group — AI training, AI answer engines, user-triggered fetchers, search engines, SEO crawlers, content resellers — has its own Allow / Block / Not listed control, and setting one never touches another, so you can block two groups and leave the rest alone. The buttons at the top of the tool are starting points that replace the whole policy in one click, which is why combining two of them by clicking both does not work: the second one wins. The highlighted button, if there is one, tells you which stance your current settings happen to add up to."
+  - q: What is llms.txt, and does anything actually read it?
+    a: It is a proposed convention (llmstxt.org) for a Markdown file at the root of your domain that says what the site is and links to the pages worth reading, so a model does not have to reverse-engineer that from crawled HTML. Adoption is real but partial — a growing number of documentation sites publish one, and no major model provider has committed to reading it as a standard. It costs a few minutes to write and it cannot hurt you, but treat it as a low-cost bet rather than a requirement, and do not let it substitute for the pages themselves.
+  - q: Will blocking AI crawlers hurt my search ranking?
+    a: Not if you block only the AI-specific user-agents. Google-Extended, Applebot-Extended, GPTBot and the rest are separate tokens from Googlebot, Bingbot and Applebot, and blocking them has no effect on classic search indexing — that separation is exactly why the vendors introduced them. What does hurt is setting "Everything else" to Block, or blocking Googlebot directly; the tool warns you loudly when you do either.
+  - q: Why is there no Crawl-delay in some generated files?
+    a: Because it is only written when you set one, and it is worth less than it looks. Google ignores Crawl-delay entirely — it uses its own crawl-rate signals — while Bing and Yandex honour it. If a crawler is genuinely overloading your origin, rate-limiting at the edge is the only thing that reliably works; the directive is a polite hint to the two engines that read it.
+  - q: Can I block a bot that is not in your list?
+    a: Yes — the "Your own user-agents" section takes any token you type, so you can add a crawler you found in your own access logs. Use the first word of its User-Agent header, and nothing else — robots.txt matches the token as a prefix, case-insensitively, and a rule containing a space or a full browser-style user-agent string will simply never match anything.
+  - q: Is anything I type here uploaded?
+    a: No. The whole tool is string generation running in your browser tab — there is no server involved, and no request is made when you edit a field, generate a file, or copy the result. Your site URL, paths and notes never leave the page. You can confirm it in your browser's Network tab.
+related:
+  - llm-token-counter
+  - user-agent-parser
+  - url-parser
+---
+
+## Where the two files go
+
+Both files only work at the root of a domain: `https://example.com/robots.txt` and
+`https://example.com/llms.txt`. A crawler will never look in a subdirectory, and a
+`robots.txt` on `example.com` says nothing about `blog.example.com` — a subdomain is a
+separate origin and needs its own file. Serve both as `text/plain`.
+
+## Reading the groups the way a crawler does
+
+The rule that surprises people is precedence. When a crawler fetches your file it looks
+for the most specific group naming its own token, follows that group, and ignores every
+other group in the file — including `User-agent: *`. There is no inheritance and no
+merging. That is why this tool repeats your site-wide `Disallow` lines inside every group
+it allows, and why it never adds them to a group it blocks outright, where `Disallow: /`
+already covers everything.
+
+Matching is a case-insensitive prefix test against the token, not the full browser-style
+user-agent string. `User-agent: Google` would match `Googlebot` and `Google-Extended`
+alike — usually not what anyone means, which is why the catalogue here uses each crawler's
+exact published token.
+
+## How the groups are split
+
+Not by technique — every crawler on the list fetches your pages the same way. They are
+split by what the fetch is turned into, and whether a named party stands behind it:
+
+| Group | What it does with your page | What comes back |
+|---|---|---|
+| AI training crawlers | Trains a model on it | Nothing, but they identify themselves and publish an opt-out |
+| AI answer engines | Answers questions from it | A citation and, usually, a link |
+| User-triggered AI fetchers | Fetches it because a person asked about that URL | The visit itself |
+| Search engines | Indexes it | The bulk of most sites' traffic |
+| SEO & backlink crawlers | Builds a link index | Nothing; the index is sold to other people |
+| Content resellers & unidentified bots | Resells or mirrors the page itself | Nothing, and there is often no party to appeal to |
+
+Each group has its own Allow / Block / Not listed control and they are independent, so any
+combination is expressible — blocking training crawlers and content resellers while keeping
+search and AI answer engines is four separate decisions, not a preset you have to find.
+
+## What the warnings are telling you
+
+The tool refuses to generate a file it knows is malformed — a path that does not start
+with `/`, a relative sitemap URL, a user-agent containing a space — and warns about rules
+that are legal but inert or expensive:
+
+- **An `Allow` with nothing to carve out of.** `Allow` only matters where a `Disallow`
+  would otherwise cover the same path. On its own it does nothing.
+- **A blocking default.** Setting "Everything else" to Block shuts out every crawler you
+  have not named, including ones that launch next year.
+- **Blocking a search engine.** That removes you from its results entirely, not just from
+  its AI features.
+- **Blocking a crawler that ignores robots.txt.** The rule records your intent; only a
+  firewall rule enforces it.
+
+## What powers this tool
+
+Pure string assembly in your browser — no dependency, no network request, nothing
+transmitted. The crawler catalogue is a single list in the source, reviewed on the date at
+the top of this page; bots get launched and renamed constantly, so if you meet one in your
+logs that is missing here, add it by hand in the "Your own user-agents" section.

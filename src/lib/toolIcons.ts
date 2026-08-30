@@ -44,6 +44,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'word-counter': 'WC',
   'duplicate-line-remover': 'DUP',
   'llm-token-counter': 'TOK',
+  'robots-txt-generator': 'BOT',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';
