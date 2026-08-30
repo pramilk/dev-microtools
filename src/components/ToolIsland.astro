@@ -31,6 +31,7 @@ import ImageCropper from '../islands/ImageCropper';
 import ImageFormatConverter from '../islands/ImageFormatConverter';
 import WordCounter from '../islands/WordCounter';
 import DuplicateLineRemover from '../islands/DuplicateLineRemover';
+import TokenCounter from '../islands/TokenCounter';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -87,3 +88,4 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'image-format-converter' && <ImageFormatConverter client:load />}
 {slug === 'word-counter' && <WordCounter client:load />}
 {slug === 'duplicate-line-remover' && <DuplicateLineRemover client:load />}
+{slug === 'llm-token-counter' && <TokenCounter client:load />}

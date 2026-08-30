@@ -43,6 +43,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'image-format-converter': 'FMT',
   'word-counter': 'WC',
   'duplicate-line-remover': 'DUP',
+  'llm-token-counter': 'TOK',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

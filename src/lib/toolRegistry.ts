@@ -32,6 +32,7 @@ import ImageCropper from '../islands/ImageCropper';
 import ImageFormatConverter from '../islands/ImageFormatConverter';
 import WordCounter from '../islands/WordCounter';
 import DuplicateLineRemover from '../islands/DuplicateLineRemover';
+import TokenCounter from '../islands/TokenCounter';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -73,6 +74,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'image-format-converter': ImageFormatConverter,
   'word-counter': WordCounter,
   'duplicate-line-remover': DuplicateLineRemover,
+  'llm-token-counter': TokenCounter,
 };
 
 /**

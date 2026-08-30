@@ -1,0 +1,110 @@
+---
+title: LLM Token Counter
+headline: LLM Token Counter & API Cost Estimator
+description: Count the tokens in a prompt for GPT-5, Claude and Gemini, and estimate what it costs to run. Exact OpenAI tokenizer, in your browser, nothing uploaded.
+summary: Count tokens in a prompt and estimate the API cost across GPT, Claude and Gemini models.
+category: Text
+order: 33
+updated: 2026-08-29
+whatIsIt: >-
+  Large language models do not read characters or words — they read tokens, the sub-word
+  chunks their tokenizer breaks text into. Every API bills per token, every model has a
+  context window measured in tokens, and "about 750 words" is not a number you can budget
+  against. This tool counts the tokens in whatever you paste and turns that count into money:
+  pick a model, say how long you expect the reply to be and how many times the call runs, and
+  it shows the cost per call and the total. For OpenAI models the count is exact, not
+  approximate — the tool loads the same published BPE vocabulary the API itself uses and
+  agrees with your invoice token-for-token, with nothing to switch on. For Claude and Gemini,
+  whose tokenizers have never been published, it shows a clearly-labelled estimate, because
+  no browser-only tool can honestly claim more than that. Everything runs locally: the prompt
+  you paste never leaves your machine.
+useCases:
+  - Checking whether a long document, transcript or codebase dump will fit inside a model's context window before you send it.
+  - Estimating what a batch job will cost before you run it — one prompt, multiplied by ten thousand rows.
+  - Comparing the same prompt across GPT-5, Claude and Gemini to see which is actually cheaper for your workload.
+  - Trimming a system prompt that runs on every request, where a hundred saved tokens compound across millions of calls.
+  - Working out why a request was rejected for length, by seeing exactly where the tokenizer split your text.
+howTo:
+  - Paste your prompt, document or transcript into the box, or drag a text file onto it — the token count updates as you type.
+  - Choose the model you are pricing against; the context window, prices and counting method all follow from it.
+  - For an OpenAI model, wait a moment on first use while the tokenizer vocabulary downloads — the badge flips from "Estimate" to "Exact" when it lands, and it is instant from then on.
+  - Set "Expected output tokens" to roughly how long you expect the reply to be — output is billed several times higher than input on most models.
+  - Set "Number of calls" to how many times the prompt runs, so a per-call fraction of a cent becomes a real monthly figure.
+  - Open "Compare this prompt across every model" to see the same prompt priced against every model at once.
+example:
+  label: Pricing a short rewriting prompt against GPT-5.4.
+  input: |-
+    You are a senior technical writer. Rewrite the following release note so a
+    non-technical customer can understand it, keep it under 80 words, and end with a single
+    sentence explaining why the change matters.
+
+    Release note: Migrated the ingestion pipeline from per-row inserts to batched COPY
+    statements, reducing p99 write latency from 840ms to 62ms under peak load.
+  output: |-
+    80 input tokens (exact) · 365 characters · 58 words · <0.1% of GPT-5.4's 400,000-token context window
+    Assuming a 500-token reply: $0.0077 per call — $77.00 for 10,000 calls
+  note: The heuristic estimate for this prompt is 76 tokens, about 5% under the true 80. That gap is why the badge above the number always says which of the two you are looking at, and why the exact count is not something you have to opt into.
+faq:
+  - q: Why is the count exact for GPT models but only an estimate for Claude and Gemini?
+    a: Because OpenAI publishes its tokenizers and the others do not. The cl100k_base and o200k_base vocabularies are open, so any tool can reproduce OpenAI's token counts precisely. Anthropic and Google have never released theirs, and this site has no backend that could ask their APIs on your behalf — so for those models the only honest options are an estimate or nothing at all. The tool shows an estimate and labels it as one, rather than presenting a guess as a fact.
+  - q: How can I get an exact token count for Claude or Gemini?
+    a: Through the vendor's own API. Anthropic exposes a token-counting endpoint that returns the exact input token count for a request, and Google's SDK has an equivalent count-tokens call. Both need an API key, which means a server to keep that key on — so neither can run inside a page like this one, where the whole design promise is that nothing you paste is transmitted anywhere. If you need an exact Claude or Gemini number, call those endpoints from your own backend; use this page for the estimate, the comparison and the cost maths.
+  - q: How accurate is the estimate?
+    a: Measured against the real OpenAI tokenizer across English prose, source code, JSON, SQL and non-Latin scripts, the estimate averages about 4% error on English prose and about 11% on source code — roughly half the error of the widely-quoted "characters divided by four" rule. It is least accurate on dense punctuation, base64-like strings, and scripts other than Latin. The Claude and Gemini figures then add a per-model correction on top, derived from each vendor's published characters-per-token guidance and from Anthropic's note that its newer tokenizer (Opus 4.7 onward) produces more tokens than its older one. Treat those as planning numbers, not invoice numbers.
+  - q: What is being downloaded when I first use an OpenAI model?
+    a: A BPE vocabulary — roughly 450 KB for cl100k_base or 1 MB for o200k_base, gzipped, fetched once per browser session and cached after that. There is no smaller way to be exact; the token count depends on a merge table of a hundred thousand or more entries, and no rule-based algorithm can infer that table. The page tells you while it is downloading, shows the instant estimate in the meantime, and never blocks on it — and if the download fails, the estimate simply stays.
+  - q: Is my prompt uploaded anywhere?
+    a: No. Counting, tokenizing and pricing all happen in your browser's own JavaScript. The only network request this page ever makes beyond the page itself is fetching the tokenizer vocabulary, and that request sends nothing but a request for a static file. You can confirm this in your browser's DevTools Network tab — which matters here, because prompts routinely contain unreleased product copy, customer data and internal documents.
+  - q: Why is my actual API bill higher than this estimate?
+    a: Several things this tool cannot see. Chat APIs add a few tokens of structural overhead per message and a few more per request. Your system prompt, tool and function definitions, and any conversation history are all billed as input on every turn, and they are usually far larger than the message you are testing here. Reasoning models bill their internal reasoning as output tokens, which can dwarf the visible reply. Images, audio and file attachments are billed on their own scales. Treat the number here as the cost of the text you pasted, not of the whole request.
+  - q: Do the prices account for prompt caching, batch discounts or free tiers?
+    a: No — the prices are the standard per-token rates published for each model, and the tool shows the date they were last checked. Cached input tokens are typically billed at a fraction of the standard rate, and batch endpoints are commonly around half price, so a workload that uses either will cost less than shown. Where a vendor charges a higher rate above a token threshold, as Google does for its Pro models past 200,000 tokens, that tier is applied automatically. Use "Use my own rates" to enter the effective rate you actually pay, including a negotiated price or a provider not in the list.
+  - q: Why not just count words and multiply?
+    a: Because the ratio is not stable. English prose runs around 1.3 tokens per word, but a URL, a UUID, a base64 blob, a minified JavaScript bundle or a paragraph of Japanese can each cost several times that for the same word count. Source code sits somewhere in between and varies by language. The tool shows the tokens-per-word and characters-per-token ratios for your specific text so you can see how far your content sits from the rule of thumb.
+related:
+  - word-counter
+  - diff-checker
+  - json-formatter
+---
+
+## Why token counts and word counts disagree
+
+A tokenizer is a compression scheme, not a dictionary. Common English words get a token each,
+so ordinary prose lands near 1.3 tokens per word — but anything the vocabulary has not seen
+before gets broken into pieces. `internationalization` costs several tokens; so does a UUID, a
+long hash, or a stretch of minified JavaScript. Languages written in other scripts are more
+expensive again, and how much more depends on the model: OpenAI's newer `o200k_base`
+vocabulary handles Cyrillic, Arabic and CJK far better than the older `cl100k_base` did, which
+is why the same Russian paragraph can cost noticeably fewer tokens on a newer model.
+
+This is also why "roughly 750 words per 1,000 tokens" quietly fails on exactly the inputs
+people most want to price: log dumps, CSV extracts, scraped HTML, and source code.
+
+## Exact where it can be, estimated where it cannot
+
+The number on this page is always one of two things, and the badge next to it says which.
+There is no setting to find — which one you get is decided by the model you picked, because
+it is decided by whether that vendor published a tokenizer.
+
+For **OpenAI models**, the count is exact. The page loads the real merge table and runs it, so
+the number matches what the API will bill you, token for token. That matters when the answer
+has to be right: near a context limit, trimming a system prompt token by token, or
+reconciling an invoice.
+
+For **Claude and Gemini**, the count is an estimate, and the tool says so in a warning above
+the number. Anthropic and Google have never published their vocabularies, so the figure is
+modelled on OpenAI's tokenizer and corrected using each vendor's own published
+characters-per-token guidance. It is close enough to answer "will this fit?" and "is this
+roughly a dollar or roughly a hundred dollars?" — and not close enough to reconcile a bill.
+For that, those vendors' own token-counting endpoints are the only exact route, and they need
+an API key and therefore a server; see the FAQ.
+
+## What a token count cannot tell you about cost
+
+Token count is one input to a bill, not the whole of it. The pieces this tool deliberately
+does not guess at are the ones that vary most between setups: how large your system prompt is,
+how much conversation history you resend each turn, how many tokens a reasoning model spends
+thinking, and whether your traffic hits cached or batched pricing. The honest way to use this
+page is to price the text in front of you accurately, then add your own known overheads on top
+— which is why the output-token and call-count fields are yours to set rather than guessed for
+you.
