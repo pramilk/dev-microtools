@@ -41,16 +41,33 @@ export function tokenize(query: string): string[] {
 }
 
 /**
- * A search token matches a haystack if it's a plain substring (handles partial words
- * like "form" -> "formatter"), or, for tokens long enough that typos are meaningful, if
- * it's within a small edit distance of some word in the haystack (so "regeex"/"csvv"
- * still find "Regex Tester"/"CSV to JSON").
+ * A search token matches a haystack if it's the start of some whole word (handles both
+ * an exact word like "ai" and a partial one being typed, like "form" -> "formatter"), or,
+ * for tokens long enough that typos are meaningful, if it's within a small edit distance
+ * of some word (so "regeex"/"csvv" still find "Regex Tester"/"CSV to JSON").
+ *
+ * Deliberately a *prefix* check against whole words, not `haystack.includes(token)` — a
+ * plain substring search matches a token anywhere inside any word, so a short query like
+ * "ai" would hit "rep-AI-r" or "em-AI-ls" by pure coincidence, unrelated to what the tool
+ * actually does.
  */
-export function tokenMatches(token: string, haystack: string, words: string[]): boolean {
-  if (haystack.includes(token)) return true;
+export function tokenMatches(token: string, words: string[]): boolean {
+  if (words.some((word) => word.startsWith(token))) return true;
   if (token.length < 4) return false;
   const maxDistance = token.length <= 5 ? 1 : 2;
   return words.some((word) => editDistance(token, word, maxDistance) <= maxDistance);
+}
+
+/**
+ * Whether every search token matches the category's own name — e.g. typing "ai" matches
+ * the "AI" category. Used to pull in every tool in that category even when a given tool's
+ * own title/summary doesn't happen to mention the word, since the category itself is what
+ * the visitor was looking for. Both the sidebar and the homepage search share this rule.
+ */
+export function categoryMatchesTokens(category: string, tokens: string[]): boolean {
+  if (tokens.length === 0) return false;
+  const words = category.toLowerCase().split(/\s+/).filter(Boolean);
+  return tokens.every((token) => tokenMatches(token, words));
 }
 
 export interface ToolMatch {
@@ -71,7 +88,7 @@ export interface ToolMatch {
 export function matchTool(name: string, summary: string, tokens: string[]): ToolMatch {
   const haystack = `${name} ${summary}`;
   const words = haystack.split(/\s+/).filter(Boolean);
-  const match = tokens.length === 0 || tokens.every((token) => tokenMatches(token, haystack, words));
+  const match = tokens.length === 0 || tokens.every((token) => tokenMatches(token, words));
   const weak = match && tokens.length > 0 && !tokens.every((token) => name.includes(token));
   return { match, weak };
 }
@@ -122,6 +139,14 @@ export function initSidebar(): void {
   const searchKbd = document.querySelector<HTMLElement>('[data-sidebar-search-kbd]');
   if (searchKbd && isMacPlatform(navigator)) searchKbd.textContent = '⌘ K';
 
+  const searchClear = document.querySelector<HTMLButtonElement>('[data-sidebar-search-clear]');
+  searchClear?.addEventListener('click', () => {
+    if (!input) return;
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    input.focus();
+  });
+
   document.addEventListener('keydown', (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
       event.preventDefault();
@@ -134,6 +159,10 @@ export function initSidebar(): void {
   const items = document.querySelectorAll<HTMLLIElement>('[data-sidebar-item]');
   const groups = document.querySelectorAll<HTMLElement>('[data-sidebar-group]');
   const empty = document.querySelector<HTMLElement>('[data-sidebar-empty]');
+
+  const categoriesPresent = new Set(
+    Array.from(items, (item) => item.dataset.toolCategory).filter((category): category is string => !!category)
+  );
 
   // Original (category, then `order`) DOM position of every item, so search can freely
   // reorder items to float better matches to the top and still put them back exactly
@@ -148,11 +177,19 @@ export function initSidebar(): void {
     const tokens = tokenize(input.value);
     let anyVisible = false;
 
+    // A query that names a category outright (e.g. "ai" for the AI category) pulls in
+    // every tool in it, even ones whose own title/summary don't happen to match.
+    const boostedCategories = new Set(
+      Array.from(categoriesPresent).filter((category) => categoryMatchesTokens(category, tokens))
+    );
+
     for (const item of items) {
       const { match, weak } = matchTool(item.dataset.toolName ?? '', item.dataset.toolSummary ?? '', tokens);
-      item.hidden = !match;
+      const boosted = boostedCategories.has(item.dataset.toolCategory ?? '');
+      const visible = match || boosted;
+      item.hidden = !visible;
       item.classList.toggle('sidebar__item--weak-match', weak);
-      if (match) anyVisible = true;
+      if (visible) anyVisible = true;
     }
 
     for (const group of groups) {

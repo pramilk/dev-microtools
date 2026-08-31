@@ -18,9 +18,14 @@ interface Props {
   /** Path to a page-specific social preview image, e.g. `/og/json-formatter.png`.
    *  Defaults to the site's generic `/og-image.png`. */
   ogImagePath?: string;
+  /** Omits the persistent tools sidebar. Only the homepage uses this — it has its own
+   *  inline search-and-category filter instead, so the sidebar would be a redundant
+   *  second way to do the same thing. */
+  hideSidebar?: boolean;
 }
 
-const { title, description, canonicalPath, schema = [], noindex = false, ogImagePath } = Astro.props;
+const { title, description, canonicalPath, schema = [], noindex = false, ogImagePath, hideSidebar = false } =
+  Astro.props;
 
 const canonical = new URL(canonicalPath ?? Astro.url.pathname, Astro.site ?? SITE.url).href;
 const fullTitle = title === SITE.name ? title : `${title} | ${SITE.name}`;
@@ -132,7 +137,7 @@ const ogImage = new URL(ogImagePath ?? '/og-image.png', Astro.site ?? SITE.url).
     <a class="skip-link" href="#main">Skip to content</a>
     <Header />
     <div class="shell">
-      <ToolsSidebar />
+      {!hideSidebar && <ToolsSidebar />}
       <main id="main" class="shell__main">
         <slot />
         <BuyMeACoffee />

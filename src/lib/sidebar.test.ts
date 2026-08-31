@@ -60,32 +60,39 @@ describe('tokenize', () => {
 });
 
 describe('tokenMatches', () => {
-  const haystack = 'json formatter format and validate json';
-  const words = haystack.split(' ');
+  const words = 'json formatter format and validate json'.split(' ');
 
-  it('matches a plain substring, including a partial word', () => {
-    expect(tokenMatches('form', haystack, words)).toBe(true);
-    expect(tokenMatches('json', haystack, words)).toBe(true);
+  it('matches the start of a word, including a partial word being typed', () => {
+    expect(tokenMatches('form', words)).toBe(true);
+    expect(tokenMatches('json', words)).toBe(true);
   });
 
-  it('rejects a short token that is not a substring, rather than fuzzy-matching it', () => {
+  it('rejects a token that is not a prefix of any word, rather than fuzzy-matching it', () => {
     // Below four characters almost anything is within one edit of something, which
     // would make short queries match the entire list.
-    expect(tokenMatches('xyz', haystack, words)).toBe(false);
+    expect(tokenMatches('xyz', words)).toBe(false);
+  });
+
+  it('rejects a short token that only occurs mid-word, not at the start of one', () => {
+    // A plain substring search would match "ai" inside "validate" or "format" by pure
+    // coincidence — irrelevant to what the tool actually does. Only a word that starts
+    // with the token should count.
+    expect(tokenMatches('ai', words)).toBe(false);
+    expect(tokenMatches('at', ['validate'])).toBe(false);
   });
 
   it('tolerates one typo in a token of four or five characters', () => {
-    expect(tokenMatches('jsno', haystack, words)).toBe(true);
-    expect(tokenMatches('jsonn', haystack, words)).toBe(true);
+    expect(tokenMatches('jsno', words)).toBe(true);
+    expect(tokenMatches('jsonn', words)).toBe(true);
   });
 
   it('tolerates two typos only once a token is longer than five characters', () => {
-    expect(tokenMatches('formatr', haystack, words)).toBe(true);
-    expect(tokenMatches('vlidat', haystack, words)).toBe(true);
+    expect(tokenMatches('formatr', words)).toBe(true);
+    expect(tokenMatches('vlidat', words)).toBe(true);
   });
 
   it('rejects a token too far from anything in the haystack', () => {
-    expect(tokenMatches('bcrypt', haystack, words)).toBe(false);
+    expect(tokenMatches('bcrypt', words)).toBe(false);
   });
 });
 
@@ -156,6 +163,7 @@ const TOOLS: ToolFixture[] = [
   { name: 'sql formatter', summary: 'pretty-print sql queries', category: 'Format' },
   { name: 'uuid generator', summary: 'generate random identifiers and short codes', category: 'Generate' },
   { name: 'qr code generator', summary: 'build a qr code from json or text', category: 'Generate' },
+  { name: 'llm token counter', summary: 'count tokens across gpt, claude and gemini models', category: 'AI' },
 ];
 
 /** The markup `ToolsSidebar.astro` renders, reduced to what the script actually reads. */
@@ -166,6 +174,7 @@ function renderSidebar(): void {
     <button type="button" data-sidebar-toggle aria-expanded="true"></button>
     <input type="search" data-sidebar-search />
     <kbd data-sidebar-search-kbd>Ctrl K</kbd>
+    <button type="button" data-sidebar-search-clear aria-label="Clear search">×</button>
     <nav>
       ${categories
         .map(
@@ -178,7 +187,7 @@ function renderSidebar(): void {
                   // A hash href rather than the real `/<slug>/`: the click handler never
                   // reads it, and jsdom logs a "navigation not implemented" error for a
                   // cross-document link.
-                  `<li data-sidebar-item data-tool-name="${tool.name}" data-tool-summary="${tool.summary}"><a href="#${tool.name.replace(/\s+/g, '-')}">${tool.name}</a></li>`
+                  `<li data-sidebar-item data-tool-name="${tool.name}" data-tool-summary="${tool.summary}" data-tool-category="${tool.category}"><a href="#${tool.name.replace(/\s+/g, '-')}">${tool.name}</a></li>`
               )
               .join('')}
           </ul>
@@ -197,6 +206,7 @@ const visibleNames = () =>
     .filter((item) => !item.hidden)
     .map((item) => item.dataset.toolName);
 const emptyMessage = () => document.querySelector<HTMLElement>('[data-sidebar-empty]')!;
+const searchClear = () => document.querySelector<HTMLButtonElement>('[data-sidebar-search-clear]')!;
 
 function type(value: string): void {
   search().value = value;
@@ -355,6 +365,25 @@ describe('initSidebar — keyboard shortcut', () => {
   });
 });
 
+describe('initSidebar — clear button', () => {
+  it('empties the field, reapplies the filter and refocuses the input', () => {
+    initSidebar();
+    type('formatter');
+
+    searchClear().click();
+
+    expect(search().value).toBe('');
+    expect(visibleNames()).toHaveLength(TOOLS.length);
+    expect(document.activeElement).toBe(search());
+  });
+
+  it('does nothing if the search input is missing', () => {
+    document.body.innerHTML = '<button data-sidebar-search-clear></button>';
+    initSidebar();
+    expect(() => searchClear().click()).not.toThrow();
+  });
+});
+
 describe('initSidebar — search filtering', () => {
   it('shows everything before a query is typed', () => {
     initSidebar();
@@ -455,5 +484,22 @@ describe('initSidebar — search filtering', () => {
     type('  JSON  ');
 
     expect(visibleNames()).toContain('json formatter');
+  });
+
+  it('shows every tool in a category whose own name matches the query, even ones whose text does not', () => {
+    // "llm token counter" doesn't say "ai" anywhere in its own title or summary, but it
+    // belongs to the AI category, which the query names directly — same rule the
+    // homepage search applies, via the shared `categoryMatchesTokens`.
+    initSidebar();
+    type('ai');
+
+    expect(visibleNames()).toContain('llm token counter');
+  });
+
+  it('does not boost a category the query does not name', () => {
+    initSidebar();
+    type('generate');
+
+    expect(visibleNames()).not.toContain('llm token counter');
   });
 });
