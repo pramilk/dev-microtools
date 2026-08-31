@@ -91,11 +91,40 @@ describe('<WordCounter />', () => {
 
     // The hover reason lives directly on the word itself — a real, hoverable mark stacked
     // on top of the textarea at exactly that word's position, not a list below the box.
-    // "Fox" is also an ordinary dictionary word, so it gets the more specific "commonWord"
-    // reason rather than the generic one.
+    // "Fox" is also an ordinary dictionary word, so it's demoted to lowercase by default
+    // and gets the more specific "commonWord" reason rather than the generic one.
     const hint = document.querySelector('.wc-lowconf-hint');
-    expect(hint).toHaveTextContent('Fox');
+    expect(hint).toHaveTextContent('fox');
     expect(hint).toHaveAttribute('title', expect.stringContaining('also an ordinary English word'));
+  });
+
+  it('toggles a flagged word\'s capitalization on click, and back again on a second click', async () => {
+    render(<WordCounter />);
+    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+    fireEvent.input(input, { target: { value: 'I saw a Fox in the yard.' } });
+    fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
+    await waitFor(() => expect(document.querySelector('.wc-lowconf-hint')).toBeInTheDocument(), { timeout: 5000 });
+
+    const hint = document.querySelector('.wc-lowconf-hint') as HTMLElement;
+    fireEvent.click(hint);
+    expect(input.value).toBe('I saw a Fox in the yard.');
+    // The highlight stays put — it's still the same uncertain guess, just toggled — so the
+    // word remains clickable to flip back.
+    expect(document.querySelector('.wc-lowconf-hint')).toBeInTheDocument();
+
+    fireEvent.click(document.querySelector('.wc-lowconf-hint') as HTMLElement);
+    expect(input.value).toBe('I saw a fox in the yard.');
+  });
+
+  it('toggles a flagged word via the keyboard (Enter), not just a mouse click', async () => {
+    render(<WordCounter />);
+    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+    fireEvent.input(input, { target: { value: 'I saw a Fox in the yard.' } });
+    fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
+    await waitFor(() => expect(document.querySelector('.wc-lowconf-hint')).toBeInTheDocument(), { timeout: 5000 });
+
+    fireEvent.keyDown(document.querySelector('.wc-lowconf-hint') as HTMLElement, { key: 'Enter' });
+    expect(input.value).toBe('I saw a Fox in the yard.');
   });
 
   it('gives a different hover reason for a flagged word that is not a common dictionary word', async () => {

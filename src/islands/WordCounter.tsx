@@ -9,7 +9,7 @@ import {
   CASE_LABELS,
   type CaseType,
 } from '../lib/tools/wordCounter';
-import { applySentenceCase, type LowConfidenceRange } from '../lib/tools/sentenceCase';
+import { applySentenceCase, toggleGuessedCase, type LowConfidenceRange } from '../lib/tools/sentenceCase';
 import { readShareStateFromLocation } from '../lib/shareLink';
 import { ShareLinkButton } from './shared/ShareLinkButton';
 import { CopyButton } from './shared/CopyButton';
@@ -31,8 +31,11 @@ function formatDuration(seconds: number): string {
 }
 
 function lowConfidenceReasonText(word: string, reason: LowConfidenceRange['reason']): string {
+  if (reason === 'contextual') {
+    return `Guessed as a name because of nearby wording like "named" or "name is", not because "${word}" is a recognized name — could be wrong.`;
+  }
   if (reason === 'commonWord') {
-    return `Capitalized in your text, but "${word.toLowerCase()}" is also an ordinary English word — likely just capitalized by habit rather than an actual name, though it's kept capitalized since real names can be common words too.`;
+    return `"${word.toLowerCase()}" is also an ordinary English word, so it's shown lowercase by default even though it was capitalized in your original text — it might actually be a name.`;
   }
   return `Capitalized in your text, but not recognized as a known name, place, or organization, and not a common English word either — could be a real proper noun the tool just doesn't know.`;
 }
@@ -101,21 +104,36 @@ export default function WordCounter() {
   // *other* layer in .wc-editor is entirely non-interactive (pointer-events: none), so
   // clicking/typing always falls through to the real textarea underneath — this topmost
   // layer keeps that for its plain-text runs too, and turns on pointer-events only for the
-  // exact <mark> spans covering a flagged word, each carrying its own `title`. Since it's
-  // pixel-aligned with the textarea via the same overlay technique (shared .textarea class,
-  // identical text content), those marks sit exactly on top of the real glyphs they explain
-  // — the trade-off is that clicking precisely inside a flagged word now hits this mark
-  // instead of placing the cursor there, same as it would for any other overlay-highlighted
-  // click target.
-  const lowConfidenceReasons = useMemo(() => {
+  // exact <mark> spans covering a flagged word, each carrying its own `title` and, since
+  // this is a guess the user can override, a click/Enter handler that flips it between the
+  // guess and plain lowercase (see toggleLowConfidenceWord). Since it's pixel-aligned with
+  // the textarea via the same overlay technique (shared .textarea class, identical text
+  // content), those marks sit exactly on top of the real glyphs they explain — the
+  // trade-off is that clicking precisely inside a flagged word now toggles it instead of
+  // placing the cursor there, same as it would for any other overlay-highlighted click
+  // target.
+  const lowConfidenceHints = useMemo(() => {
     let rangeIndex = 0;
     return lowConfidenceSegments.map((segment) => {
       if (!segment.isMatch) return null;
-      const reason = lowConfidenceRanges[rangeIndex]?.reason ?? 'unrecognized';
+      const index = rangeIndex;
       rangeIndex += 1;
-      return lowConfidenceReasonText(segment.text, reason);
+      const reason = lowConfidenceRanges[index]?.reason ?? 'unrecognized';
+      return { rangeIndex: index, title: `${lowConfidenceReasonText(segment.text, reason)} Click to toggle capitalization.` };
     });
   }, [lowConfidenceSegments, lowConfidenceRanges]);
+
+  // Flips one flagged word between this tool's capitalized guess and plain lowercase — a
+  // one-click fix for an uncertain guess instead of retyping the word by hand. Updates
+  // `input` directly (not `setText`) so the low-confidence ranges and `baseText` survive:
+  // every other range's position stays valid because toggling never changes word length.
+  const toggleLowConfidenceWord = (rangeIndex: number) => {
+    const range = lowConfidenceRanges[rangeIndex];
+    if (!range) return;
+    const current = input.slice(range.start, range.end);
+    const next = toggleGuessedCase(current, range.original);
+    setInput(input.slice(0, range.start) + next + input.slice(range.end));
+  };
 
   const applyCase = (type: CaseType) => {
     setInput(convertCase(baseText, type));
@@ -246,15 +264,28 @@ export default function WordCounter() {
               aria-hidden="true"
               ref={lowConfidenceHintsRef}
             >
-              {lowConfidenceSegments.map((segment, index) =>
-                segment.isMatch ? (
-                  <mark key={index} class="wc-lowconf-hint" title={lowConfidenceReasons[index] ?? undefined}>
+              {lowConfidenceSegments.map((segment, index) => {
+                const hint = lowConfidenceHints[index];
+                return segment.isMatch && hint ? (
+                  <mark
+                    key={index}
+                    class="wc-lowconf-hint"
+                    tabIndex={0}
+                    role="button"
+                    title={hint.title}
+                    onClick={() => toggleLowConfidenceWord(hint.rangeIndex)}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return;
+                      event.preventDefault();
+                      toggleLowConfidenceWord(hint.rangeIndex);
+                    }}
+                  >
                     {segment.text}
                   </mark>
                 ) : (
                   <span key={index}>{segment.text}</span>
-                )
-              )}
+                );
+              })}
             </div>
           )}
         </div>
@@ -263,7 +294,7 @@ export default function WordCounter() {
             {lowConfidenceRanges.length} word{lowConfidenceRanges.length === 1 ? '' : 's'} above{' '}
             {lowConfidenceRanges.length === 1 ? 'is' : 'are'} underlined because Sentence case
             wasn't confident {lowConfidenceRanges.length === 1 ? "it's a proper noun" : "they're proper nouns"}{' '}
-            — hover a word above for why, and review before trusting the result.
+            — hover a word above for why, or click it to toggle its capitalization.
           </p>
         )}
       </div>
@@ -495,7 +526,7 @@ export default function WordCounter() {
           background: transparent;
           color: transparent;
           pointer-events: auto;
-          cursor: help;
+          cursor: pointer;
         }
 
         /* All children share one grid cell so they stay pixel-aligned at any size,

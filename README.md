@@ -31,8 +31,9 @@ using any tool and you'll see no outbound request carrying your input.
 | [Bcrypt Generator](https://devmicrotools.com/bcrypt-generator/) | Security | Generate a bcrypt hash from a password, or verify a password against one. |
 | [Regex Tester](https://devmicrotools.com/regex-tester/) | Text | Test regular expressions with live highlighting, groups and replace preview. |
 | [Diff Checker](https://devmicrotools.com/diff-checker/) | Text | Compare two texts or JSON documents and see exactly what changed. |
-| [Word Counter](https://devmicrotools.com/word-counter/) | Text | Count words and characters, convert text case, and find and replace text — all in your browser. |
-| [Duplicate Line Remover](https://devmicrotools.com/duplicate-line-remover/) | Text | Find duplicate lines, sentences, or paragraphs and remove one, some, or all of them — all in your browser. |
+| [Word Counter](https://devmicrotools.com/word-counter/) | Text | Count words and characters, convert text case, and find and replace text. |
+| [Duplicate Line Remover](https://devmicrotools.com/duplicate-line-remover/) | Text | Find duplicate lines, sentences, or paragraphs and remove one, some, or all of them. |
+| [Case Converter](https://devmicrotools.com/case-converter/) | Text | Convert text between nine common casing styles, plus a smarter NLP-assisted Sentence case. |
 | [LLM Token Counter](https://devmicrotools.com/llm-token-counter/) | AI | Count tokens in a prompt and estimate the API cost across GPT, Claude and Gemini models. |
 | [robots.txt & llms.txt Generator](https://devmicrotools.com/robots-txt-generator/) | AI | Allow or block AI crawlers by name and generate a matching robots.txt and llms.txt. |
 | [User-Agent Parser](https://devmicrotools.com/user-agent-parser/) | Web & Network | Parse a User-Agent string into browser, OS, rendering engine and device type. |

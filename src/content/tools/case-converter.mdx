@@ -1,0 +1,89 @@
+---
+title: Case Converter
+headline: Case Converter — Text Case Conversion Online
+description: Convert text between UPPERCASE, lowercase, Title Case, camelCase, snake_case, and more, plus NLP-assisted Sentence case. Runs in your browser, nothing uploaded.
+summary: Convert text between nine common casing styles, plus a smarter NLP-assisted Sentence case — all in your browser.
+category: Text
+order: 35
+updated: 2026-08-30
+whatIsIt: >-
+  A case converter rewrites text between the casing styles used in everyday writing and in
+  code — UPPERCASE, lowercase, and Title Case for prose, and identifier styles like camelCase,
+  PascalCase, snake_case, CONSTANT_CASE, kebab-case, and dot.case for variable names, file
+  names, and URL slugs. This tool converts between all nine with one click, and also includes
+  a "Sentence case (beta)" button that goes further than a mechanical lowercase-everything
+  rule: it uses a small NLP library to guess which words are proper nouns — names, places,
+  organizations — so it can capitalize sentence starts without also lowercasing "Paris" or
+  "Google" along with everything else. Any word it wasn't confident about gets underlined
+  in the text box, and clicking an underlined word toggles its capitalization, so a wrong
+  guess is a one-click fix instead of a retype. Everything runs locally in your browser — the
+  text you paste or drop in is never uploaded anywhere.
+useCases:
+  - Converting a phrase into camelCase or snake_case for a variable name, or into kebab-case for a URL slug.
+  - Turning a heading or title pasted from another document into consistent Title Case.
+  - Cleaning up text typed with caps lock stuck on, or pasted from an all-uppercase source like a legal document or old system export.
+  - Converting an already-cased identifier — camelCase, snake_case, or another format — into a different casing style, such as renaming a variable to match a new style guide.
+  - Best-effort restoring readable sentence casing to text that was typed or pasted in all caps or all lowercase, with proper nouns like names and places kept capitalized.
+howTo:
+  - Paste or type your text into the box, or drag a .txt file onto it.
+  - Click a case button to convert the text in place — prose-style cases (UPPERCASE, lowercase, Title Case) keep your original spacing, while identifier-style cases (camelCase, snake_case, and the rest) rebuild the text as a single token per word, the way those formats work everywhere else.
+  - Click "Sentence case (beta)" for a smarter, NLP-assisted conversion that tries to keep proper nouns capitalized — review any word it underlines, since automatic proper-noun detection is a best-effort guess, not a guarantee; click an underlined word to toggle it between capitalized and lowercase.
+  - Click "Copy text" to copy the converted result, or "Copy link" to share the current text as a URL.
+example:
+  label: Converting a mixed-case sentence to a few different casings.
+  input: elon musk announced that SpaceX will launch a new ROCKET to Mars next year.
+  output: |-
+    Sentence case (beta): Elon musk announced that SpaceX will launch a new rocket to Mars next year.
+    Title Case: Elon Musk Announced That SpaceX Will Launch a New Rocket to Mars Next Year.
+    kebab-case: elon-musk-announced-that-space-x-will-launch-a-new-rocket-to-mars-next-year
+  note: Sentence case keeps "SpaceX" capitalized without mangling its internal capital, and correctly recognizes "Mars" as a place — but underlines both, since neither matched a confirmed name/place/organization in its known-word list, only a capitalization guess.
+faq:
+  - q: Why does converting to camelCase or snake_case strip out my spacing, but Title Case doesn't?
+    a: Prose-style cases — UPPERCASE, lowercase, and Title Case — transform each word in place and leave your original spacing, line breaks, and punctuation exactly where they were. Identifier-style cases — camelCase, PascalCase, snake_case, CONSTANT_CASE, kebab-case, and dot.case — have no concept of whitespace at all in the contexts they're actually used (variable names, file names, CSS classes), so converting to one of them rebuilds the text as a single run of joined words, the same way it would look in real code.
+  - q: How does Sentence case handle names, places, and other proper nouns?
+    a: It uses a small natural-language-processing library to guess which words are proper nouns from context and a built-in list of known names, places, and organizations, then keeps only those capitalized while lowercasing everything else (except sentence starts). This is fundamentally a best-effort guess, not a lookup you can fully trust — an uncommon name, a brand the library doesn't recognize, or an ordinary word that happens to be capitalized (like "Fox" mid-sentence) can be misjudged in either direction. Any word it guessed was a proper noun purely from capitalization or context, without matching a known name, gets underlined in the text so you can review it yourself before trusting the result — click it to toggle between the guess and lowercase.
+  - q: Can I fix a wrong Sentence case guess without retyping it?
+    a: Yes — click directly on any underlined word to flip it between the tool's guessed capitalization and plain lowercase; click it again to switch back. This only affects that one word and never changes the sentence-start capitals or any other flagged word, so you can review a whole paragraph of guesses one click at a time.
+  - q: Can I convert an already-cased identifier to a different style?
+    a: Yes. The tool recognizes existing camelCase and PascalCase boundaries (including acronym runs like "XMLParser" splitting into "XML" and "Parser") as well as underscores, hyphens, and dots, so converting helloWorldExample to snake_case produces hello_world_example, and converting it again to kebab-case produces hello-world-example.
+  - q: Is my text uploaded anywhere when I use this tool?
+    a: No. Every case conversion runs in your browser's own JavaScript engine. Nothing you type, paste, or drop as a file is ever sent to a server — you can confirm this yourself by opening your browser's DevTools Network tab while using the tool.
+  - q: Does Word Counter still have case conversion too?
+    a: Yes — the same case buttons and Sentence case (beta) feature are still available on the Word Counter page for anyone already there working with word/character stats. This page exists separately so case conversion is easier to find on its own, without needing to know it was bundled inside a word counter.
+related:
+  - word-counter
+  - duplicate-line-remover
+  - regex-tester
+---
+
+## Prose casing vs. identifier casing
+
+The nine case options split into two groups that behave differently, and it's worth knowing
+which is which before you click one. UPPERCASE, lowercase, and Title Case are "prose" cases —
+they change the letters and leave everything else, including your line breaks, alone. The
+other six — camelCase, PascalCase, snake_case, CONSTANT_CASE, kebab-case, and dot.case — are
+"identifier" cases borrowed from programming and URL conventions, where a name is always a
+single unbroken token. Converting to one of these treats each word in your text as a
+component of that token and joins them with the target style's separator (or no separator at
+all, for camelCase and PascalCase). Converting an already-cased identifier — `helloWorldExample`
+back to `snake_case`, for instance — works too: the tool recognises the existing camelCase
+boundaries and re-splits on them before rejoining.
+
+## How Sentence case works
+
+Prose casing (UPPERCASE, lowercase, Title Case) is a pure mechanical transform — every
+letter's target case follows directly from the rule, no judgment required. Real sentence
+case isn't: deciding whether to keep a word capitalized means deciding whether it's a name,
+a place, or a brand, and no dictionary-free rule can make that call correctly. Sentence case
+(beta) uses [`compromise`](https://github.com/spencermountain/compromise) (MIT licensed), a
+small natural-language-processing library, to make that judgment automatically — loaded only
+if you click the button, so nobody pays for it just by visiting the page. It's still a
+best-effort guess rather than a guarantee; see the FAQ above for exactly where it can go
+wrong and how the tool flags its own uncertainty.
+
+## Why a browser-only tool
+
+Text worth re-casing is often not finished yet — a variable name mid-refactor, a heading in a
+draft document, a message you haven't sent. Running entirely client-side means there's no
+version of this tool that could log or retain that text, by accident or otherwise, because it
+never leaves your machine.

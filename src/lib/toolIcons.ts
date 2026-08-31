@@ -42,6 +42,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'image-cropper': 'CROP',
   'image-format-converter': 'FMT',
   'word-counter': 'WC',
+  'case-converter': 'ABC',
   'duplicate-line-remover': 'DUP',
   'llm-token-counter': 'TOK',
   'robots-txt-generator': 'BOT',

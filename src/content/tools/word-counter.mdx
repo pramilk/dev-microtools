@@ -15,9 +15,10 @@ whatIsIt: >-
   that highlights every match live as you type. A separate "Sentence case (beta)" button uses
   a small NLP library to guess which words are proper nouns — names, places, organizations —
   so it can capitalize sentence starts without lowercasing "Paris" or "Google" along with
-  everything else; it underlines any word it wasn't confident about so you can double-check
-  it. Everything runs locally in your browser — the text you paste or drop in is never
-  uploaded anywhere.
+  everything else; it underlines any word it wasn't confident about, and clicking an
+  underlined word toggles its capitalization, so you can fix a wrong guess in one click
+  instead of retyping it. Everything runs locally in your browser — the text you paste or
+  drop in is never uploaded anywhere.
 useCases:
   - Checking a tweet, meta description, or form field against a hard character limit before submitting it.
   - Estimating how long a blog post, script, or presentation will take to read or speak aloud.
@@ -28,7 +29,7 @@ howTo:
   - Paste or type your text into the box, or drag a .txt file onto it — stats update live as you go.
   - Read the stats row for word, character, sentence, paragraph and line counts, plus estimated reading and speaking time.
   - Click a case button to convert the text in place — prose-style cases (UPPERCASE, lowercase, Title Case) keep your original spacing, while identifier-style cases (camelCase, snake_case, and the rest) rebuild the text as a single token per word, the way those formats work everywhere else.
-  - Click "Sentence case (beta)" for a smarter, NLP-assisted conversion that tries to keep proper nouns capitalized — review any word it underlines, since automatic proper-noun detection is a best-effort guess, not a guarantee.
+  - Click "Sentence case (beta)" for a smarter, NLP-assisted conversion that tries to keep proper nouns capitalized — review any word it underlines, since automatic proper-noun detection is a best-effort guess, not a guarantee; click an underlined word to toggle it between capitalized and lowercase.
   - Tick "Find & replace" to search the text — matches highlight live below the box — then fill in a replacement and click "Replace all".
   - Click "Copy report" to copy a plain-text summary of every stat, ready to paste into an email or ticket.
 example:
@@ -53,8 +54,9 @@ faq:
   - q: Does find and replace support regular expressions?
     a: No — it's a literal, exact-text search with an optional case-sensitivity toggle, which covers the common case of fixing a repeated typo or swapping one term for another. If you need pattern-based matching with capture groups, the Regex Tester on this site is the dedicated tool for that.
   - q: How does Sentence case handle names, places, and other proper nouns?
-    a: It uses a small natural-language-processing library to guess which words are proper nouns from context and a built-in list of known names, places, and organizations, then keeps only those capitalized while lowercasing everything else (except sentence starts). This is fundamentally a best-effort guess, not a lookup you can fully trust — an uncommon name, a brand the library doesn't recognize, or an ordinary word that happens to be capitalized (like "Fox" mid-sentence) can be misjudged in either direction. Any word it guessed was a proper noun purely from capitalization or context, without matching a known name, gets underlined in the text so you can review it yourself before trusting the result. Words it doesn't recognize and that weren't already capitalized in your original text won't be capitalized either — it can't invent a name it has never seen.
+    a: It uses a small natural-language-processing library to guess which words are proper nouns from context and a built-in list of known names, places, and organizations, then keeps only those capitalized while lowercasing everything else (except sentence starts). This is fundamentally a best-effort guess, not a lookup you can fully trust — an uncommon name, a brand the library doesn't recognize, or an ordinary word that happens to be capitalized (like "Fox" mid-sentence) can be misjudged in either direction. Any word it guessed was a proper noun purely from capitalization or context, without matching a known name, gets underlined in the text so you can review it yourself before trusting the result — click an underlined word to flip it to lowercase (or click again to restore the guess) instead of retyping it. Words it doesn't recognize and that weren't already capitalized in your original text won't be capitalized either — it can't invent a name it has never seen.
 related:
+  - case-converter
   - regex-tester
   - diff-checker
   - llm-token-counter

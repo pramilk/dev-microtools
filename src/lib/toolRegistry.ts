@@ -31,6 +31,7 @@ import CurlCommandBuilder from '../islands/CurlCommandBuilder';
 import ImageCropper from '../islands/ImageCropper';
 import ImageFormatConverter from '../islands/ImageFormatConverter';
 import WordCounter from '../islands/WordCounter';
+import CaseConverter from '../islands/CaseConverter';
 import DuplicateLineRemover from '../islands/DuplicateLineRemover';
 import TokenCounter from '../islands/TokenCounter';
 import RobotsTxtGenerator from '../islands/RobotsTxtGenerator';
@@ -74,6 +75,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'image-cropper': ImageCropper,
   'image-format-converter': ImageFormatConverter,
   'word-counter': WordCounter,
+  'case-converter': CaseConverter,
   'duplicate-line-remover': DuplicateLineRemover,
   'llm-token-counter': TokenCounter,
   'robots-txt-generator': RobotsTxtGenerator,

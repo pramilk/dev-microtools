@@ -1,0 +1,140 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
+import CaseConverter from './CaseConverter';
+
+beforeEach(() => {
+  Object.defineProperty(navigator, 'clipboard', {
+    value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    configurable: true,
+  });
+});
+
+describe('<CaseConverter />', () => {
+  it('starts empty', () => {
+    render(<CaseConverter />);
+
+    expect(screen.getByLabelText(/^text/i)).toHaveValue('');
+  });
+
+  it('loads the sample text when "Load example" is pressed', () => {
+    render(<CaseConverter />);
+
+    fireEvent.click(screen.getByRole('button', { name: /load example/i }));
+
+    expect((screen.getByLabelText(/^text/i) as HTMLTextAreaElement).value).toContain('SpaceX');
+  });
+
+  it('fills the text area from a file dropped directly onto it', async () => {
+    render(<CaseConverter />);
+    const file = new File(['dropped file contents'], 'notes.txt', { type: 'text/plain' });
+
+    fireEvent.drop(screen.getByLabelText(/^text/i), { dataTransfer: { files: [file] } });
+
+    await waitFor(() => {
+      expect((screen.getByLabelText(/^text/i) as HTMLTextAreaElement).value).toBe('dropped file contents');
+    });
+  });
+
+  it('converts the text to each case when its button is pressed', () => {
+    render(<CaseConverter />);
+    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+    fireEvent.input(input, { target: { value: 'hello world' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /^uppercase$/i }));
+    expect(input.value).toBe('HELLO WORLD');
+
+    fireEvent.click(screen.getByRole('button', { name: /^camelcase$/i }));
+    expect(input.value).toBe('helloWorld');
+
+    fireEvent.click(screen.getByRole('button', { name: /^snake_case$/i }));
+    expect(input.value).toBe('hello_world');
+  });
+
+  it('always converts from the original text, not the currently displayed cased text', () => {
+    render(<CaseConverter />);
+    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+    fireEvent.input(input, { target: { value: 'the lord of the rings' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /^pascalcase$/i }));
+    expect(input.value).toBe('TheLordOfTheRings');
+
+    fireEvent.click(screen.getByRole('button', { name: /^title case$/i }));
+    expect(input.value).toBe('The Lord of the Rings');
+  });
+
+  it('applies sentence case via NLP, disabled until there is text', async () => {
+    render(<CaseConverter />);
+    const button = screen.getByRole('button', { name: /sentence case/i });
+    expect(button).toBeDisabled();
+
+    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+    fireEvent.input(input, { target: { value: 'john smith went to paris.' } });
+    expect(button).not.toBeDisabled();
+
+    fireEvent.click(button);
+
+    // A generous timeout: this awaits a real dynamic import() of compromise (~136KB) plus
+    // NLP tagging, not a mock.
+    await waitFor(() => expect(input.value).toBe('John Smith went to Paris.'), { timeout: 5000 });
+  });
+
+  it('underlines and warns about words sentence case was not confident were proper nouns', async () => {
+    render(<CaseConverter />);
+    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+    fireEvent.input(input, { target: { value: 'I saw a Fox in the yard.' } });
+    fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
+
+    await waitFor(() => expect(document.querySelectorAll('.highlight__lowconf')).toHaveLength(1), { timeout: 5000 });
+    expect(screen.getByText(/wasn't confident.*proper noun/i)).toBeInTheDocument();
+
+    const hint = document.querySelector('.cc-lowconf-hint');
+    expect(hint).toHaveTextContent('fox');
+    expect(hint).toHaveAttribute('title', expect.stringContaining('also an ordinary English word'));
+  });
+
+  it('toggles a flagged word\'s capitalization on click, and back again on a second click', async () => {
+    render(<CaseConverter />);
+    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+    fireEvent.input(input, { target: { value: 'I saw a Fox in the yard.' } });
+    fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
+    await waitFor(() => expect(document.querySelector('.cc-lowconf-hint')).toBeInTheDocument(), { timeout: 5000 });
+
+    fireEvent.click(document.querySelector('.cc-lowconf-hint') as HTMLElement);
+    expect(input.value).toBe('I saw a Fox in the yard.');
+
+    fireEvent.click(document.querySelector('.cc-lowconf-hint') as HTMLElement);
+    expect(input.value).toBe('I saw a fox in the yard.');
+  });
+
+  it('clears the low-confidence highlight once the user edits the text directly', async () => {
+    render(<CaseConverter />);
+    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+    fireEvent.input(input, { target: { value: 'I saw a Fox in the yard.' } });
+    fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
+    await waitFor(() => expect(document.querySelectorAll('.highlight__lowconf')).toHaveLength(1), { timeout: 5000 });
+
+    fireEvent.input(input, { target: { value: 'I saw a Fox in the yard. Edited.' } });
+    expect(document.querySelectorAll('.highlight__lowconf')).toHaveLength(0);
+  });
+
+  it('shows a "Copy text" button, enabled only once there is text', async () => {
+    render(<CaseConverter />);
+    expect(screen.getByRole('button', { name: /^copy text$/i })).toBeDisabled();
+
+    fireEvent.input(screen.getByLabelText(/^text/i), { target: { value: 'hello world' } });
+
+    const copyButton = screen.getByRole('button', { name: /^copy text$/i });
+    expect(copyButton).not.toBeDisabled();
+
+    fireEvent.click(copyButton);
+    expect(await screen.findByRole('button', { name: /^copied$/i })).toBeInTheDocument();
+  });
+
+  it('clears the input when Clear is pressed', () => {
+    render(<CaseConverter />);
+    fireEvent.input(screen.getByLabelText(/^text/i), { target: { value: 'hello world' } });
+    fireEvent.click(screen.getByRole('button', { name: /^clear$/i }));
+
+    expect(screen.getByLabelText(/^text/i)).toHaveValue('');
+  });
+});

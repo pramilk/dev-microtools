@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applySentenceCase } from './sentenceCase';
+import { applySentenceCase, toggleGuessedCase } from './sentenceCase';
 
 describe('applySentenceCase', () => {
   it('returns empty output for empty input', async () => {
@@ -32,14 +32,16 @@ describe('applySentenceCase', () => {
     expect(result.text).toBe('The XML parser broke, said NASA.');
   });
 
-  it('flags a mid-sentence capitalized common word as low-confidence, not a known name', async () => {
+  it('demotes a mid-sentence capitalized common word to lowercase by default, but flags it', async () => {
     const result = await applySentenceCase('I saw a Fox in the yard.');
-    expect(result.text).toBe('I saw a Fox in the yard.');
+    // "fox" is also an ordinary English word, so it's a toss-up whether it was meant as a
+    // name — demoted to lowercase by default (the guess is a click away via the flag).
+    expect(result.text).toBe('I saw a fox in the yard.');
     const [range] = result.lowConfidenceRanges;
     expect(range).toBeDefined();
-    expect(result.text.slice(range!.start, range!.end)).toBe('Fox');
-    // "fox" is also an ordinary English word, so it gets the more specific reason.
+    expect(result.text.slice(range!.start, range!.end)).toBe('fox');
     expect(range!.reason).toBe('commonWord');
+    expect(range!.original).toBe('Fox');
   });
 
   it('flags a capitalized, unrecognized word as "unrecognized" rather than "commonWord"', async () => {
@@ -81,5 +83,65 @@ describe('applySentenceCase', () => {
   it('leaves already-correct lowercase prose alone except sentence starts', async () => {
     const result = await applySentenceCase('the weather is nice today.');
     expect(result.text).toBe('The weather is nice today.');
+  });
+
+  it('preserves a stylized brand name\'s internal capital instead of flattening it', async () => {
+    const result = await applySentenceCase('elon musk announced that SpaceX will launch a rocket.');
+    // Regression test: capitalize() used to force every character after the first to
+    // lowercase for any proper noun, turning "SpaceX" into "Spacex".
+    expect(result.text).toContain('SpaceX');
+    expect(result.text).not.toContain('Spacex');
+  });
+
+  it('still normalizes a shouted proper noun with no genuine internal capital', async () => {
+    const result = await applySentenceCase('PARIS is nice in the spring.');
+    expect(result.text).toBe('Paris is nice in the spring.');
+  });
+
+  it('capitalizes an unrecognized lowercase name sitting in a "name is X" slot', async () => {
+    // Regression test: compromise never tags a lowercase, unrecognized word as a proper
+    // noun at all when there's no capitalization to guess from — so without contextual
+    // detection this word gets no signal and is silently left lowercase.
+    const result = await applySentenceCase("my daughter's name is pranshi.");
+    expect(result.text).toBe("My daughter's name is Pranshi.");
+    const flagged = result.lowConfidenceRanges.find((r) => result.text.slice(r.start, r.end) === 'Pranshi');
+    expect(flagged?.reason).toBe('contextual');
+  });
+
+  it('capitalizes a name after "named" and "called"', async () => {
+    const named = await applySentenceCase('my dog is named rex.');
+    expect(named.text).toBe('My dog is named Rex.');
+
+    const called = await applySentenceCase('the boy called pranshi is my friend.');
+    expect(called.text).toBe('The boy called Pranshi is my friend.');
+  });
+
+  it('does not treat a function word after "named"/"called" as a name', async () => {
+    // "named after" and "called for" are common phrasings where the following word is
+    // clearly not a name — a naive "word right after the trigger" rule would wrongly
+    // capitalize "after"/"for" here.
+    const result = await applySentenceCase(
+      'the mountain named after its discoverer is tall. this situation called for action.'
+    );
+    expect(result.text).toBe(
+      'The mountain named after its discoverer is tall. This situation called for action.'
+    );
+  });
+
+  it('carries the exact guessed form on each low-confidence range for click-to-toggle', async () => {
+    const result = await applySentenceCase('I saw a Fox in the yard.');
+    const [range] = result.lowConfidenceRanges;
+    expect(range).toBeDefined();
+    expect(range!.original).toBe('Fox');
+  });
+});
+
+describe('toggleGuessedCase', () => {
+  it('lowercases the guessed form when it currently matches the guess', () => {
+    expect(toggleGuessedCase('Fox', 'Fox')).toBe('fox');
+  });
+
+  it('restores the exact guessed form, including an internal capital, when toggled back', () => {
+    expect(toggleGuessedCase('spacex', 'SpaceX')).toBe('SpaceX');
   });
 });
