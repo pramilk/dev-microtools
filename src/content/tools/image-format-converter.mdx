@@ -18,10 +18,14 @@ whatIsIt: >-
   decode works, including rasterizing an SVG into a real pixel-based image and grabbing a
   still frame from an animated GIF. Drop in up to 30 images at once and every one converts
   to the same target format; a quality slider appears for the two lossy targets (JPEG,
-  WebP), ICO output is automatically capped and downscaled to fit its 256×256px practical
-  limit, and a clear warning appears whenever converting to JPEG would flatten real
-  transparency onto a solid background, since JPEG has no alpha channel at all. Finished
-  images download individually or all at once as a zip.
+  WebP), while PNG output gets its own optional Lossless/Lossy compression mode instead —
+  every PNG is always run through a real optimizer (Oxipng, via WebAssembly) for a smaller
+  file with no pixel changes, and switching to Lossy mode adds color-palette quantization on
+  top for much bigger savings at a real quality trade-off. ICO output is automatically
+  capped and downscaled to fit its 256×256px practical limit, and a clear warning appears
+  whenever converting to JPEG would flatten real transparency onto a solid background, since
+  JPEG has no alpha channel at all. Finished images download individually or all at once as
+  a zip.
 useCases:
   - Turning a batch of PNG screenshots or logos into JPEGs when a form, upload target, or CMS only accepts that one format.
   - Rasterizing an SVG icon into a PNG at its natural size for a context that can't render vector graphics.
@@ -33,6 +37,7 @@ howTo:
   - Drop in one or many images (up to 30 at once), or choose them from your device — almost any format the browser can display works as input.
   - Pick a target format from PNG, JPEG, WebP, BMP, or ICO — every image in the batch converts to it.
   - For JPEG or WebP, drag the quality slider and watch each image's converted size update live.
+  - For PNG, every image is optimized automatically; optionally switch to Lossy mode and drag the same slider to trade fidelity for a much smaller file.
   - Select any image's row to see its full size comparison and, for JPEG, its transparency warning if it had any.
   - Download one image at a time, or grab the whole finished batch as a single zip.
 example:
@@ -53,6 +58,8 @@ faq:
     a: Only its first frame converts — canvas-based re-encoding has no concept of animation, so every frame after the first is discarded. A warning appears the moment you choose a GIF so this is never a silent surprise.
   - q: Why did my image lose its transparent background?
     a: JPEG has no alpha channel at all, so converting any image with real transparency (a PNG, WebP, or BMP with a genuinely transparent area) to JPEG fills that area with a solid background. This tool checks for that and shows a clear warning whenever it happens — PNG, WebP, and BMP output all keep transparency intact.
+  - q: Can I make the PNG output smaller?
+    a: Yes. Every PNG conversion is automatically run through Oxipng (a dedicated PNG optimizer compiled to WebAssembly, running entirely in your browser) for a genuinely better compression pass than the canvas encoder's own baseline output — no pixel is ever changed. For much bigger savings, switch PNG's compression mode to Lossy, which reduces the image to a smaller color palette before encoding — often 50-70% smaller, at the cost of a real, visible quality trade-off. If a smaller file matters more than staying lossless, JPEG or WebP at a lower quality will usually shrink further still, and WebP keeps transparency support PNG has.
   - q: What's the largest image this will handle?
     a: Files up to 25 MB each. Decoding and re-encoding both happen synchronously in your browser tab, so a much larger file risks becoming unresponsive rather than failing gracefully — resize a very large image with a desktop tool first if you hit this limit.
   - q: Can I convert a batch of images at once?
@@ -66,8 +73,10 @@ related:
 
 ## Choosing a target format
 
-PNG stays fully lossless and keeps transparency, making it the safe default for
-screenshots, logos, and anything with sharp edges or text. JPEG produces the smallest files
+PNG stays fully lossless by default and keeps transparency, making it the safe default for
+screenshots, logos, and anything with sharp edges or text — and its output is still
+optimized for size, just without ever changing a pixel; an optional Lossy mode trades some
+fidelity for a much smaller file when that matters more. JPEG produces the smallest files
 for photos but has no transparency support at all. WebP is usually the best of both worlds
 on a modern site — smaller than JPEG at equivalent quality, and it still supports
 transparency — but it isn't universally supported by every legacy tool. BMP is
@@ -81,4 +90,10 @@ PNG, JPEG, and WebP output all go through the browser's own Canvas API, the same
 and encoder a browser already uses to display an image. BMP and ICO have no such
 browser-native encoder, so this tool writes both file formats itself: an uncompressed
 32-bit bitmap for BMP, and a minimal ICO container wrapping a PNG-compressed image for ICO
-— both plain JavaScript, running entirely in your browser with no external library.
+— both plain JavaScript, running entirely in your browser with no external library. Every
+PNG conversion additionally runs through [`@jsquash/oxipng`](https://github.com/jamsinclair/jSquash)
+(Apache-2.0 licensed), a WebAssembly build of the Oxipng optimizer, for real savings on top
+of the canvas encoder's own baseline output. PNG's optional Lossy mode instead uses
+[`image-q`](https://github.com/ibezkrovnyi/image-quantization) (MIT licensed), a pure
+JavaScript color-quantization library implementing the same family of technique as the
+classic `pngquant` tool, before encoding — for much larger savings at a real quality cost.

@@ -141,9 +141,9 @@ describe('<ImageCompressor />', () => {
     await waitFor(() => expect(jobRows().length).toBe(1));
     const row = within(jobRows()[0] as HTMLElement);
     await waitFor(() => expect(row.getByText(/smaller|larger|no change/i)).toBeInTheDocument());
-    // Displayed name reflects the *output* format (default JPEG), not the uploaded file's own
-    // extension — this is what the row/detail panel will actually download as.
-    expect(row.getByText('photo.jpg')).toBeInTheDocument();
+    // A lone PNG upload into an empty, untouched batch adopts PNG as the output format
+    // automatically, so the row shows the native name, not a silent conversion to JPEG.
+    expect(row.getByText('photo.png')).toBeInTheDocument();
     // The single job auto-selects, so its full comparison shows in the detail panel below.
     expect(await screen.findByTestId('selected-job-stats')).toHaveTextContent(/smaller|larger|no change/i);
     expect(screen.getByAltText('Compressed')).toBeInTheDocument();
@@ -156,9 +156,11 @@ describe('<ImageCompressor />', () => {
 
     dropFiles([a, b]);
 
+    // Both uploaded files share one format (PNG), so it's adopted as the output format —
+    // the rows show the native names, not a silent conversion to JPEG.
     await waitFor(() => expect(jobRows().length).toBe(2));
-    expect(within(jobRows()[0] as HTMLElement).getByText('a.jpg')).toBeInTheDocument();
-    expect(within(jobRows()[1] as HTMLElement).getByText('b.jpg')).toBeInTheDocument();
+    expect(within(jobRows()[0] as HTMLElement).getByText('a.png')).toBeInTheDocument();
+    expect(within(jobRows()[1] as HTMLElement).getByText('b.png')).toBeInTheDocument();
   });
 
   it('switches the detail panel to a different image when its row is selected', async () => {
@@ -168,14 +170,13 @@ describe('<ImageCompressor />', () => {
     dropFiles([a, b]);
     await waitFor(() => expect(jobRows().length).toBe(2));
 
-    // "a.jpg" (output name for uploaded a.png) auto-selected first — shows in both the row
-    // and the detail panel.
-    expect(await screen.findByText('a.jpg', { selector: '.job-detail__filename' })).toBeInTheDocument();
+    // "a.png" auto-selected first — shows in both the row and the detail panel.
+    expect(await screen.findByText('a.png', { selector: '.job-detail__filename' })).toBeInTheDocument();
 
-    fireEvent.click(within(jobRows()[1] as HTMLElement).getByRole('button', { name: /^b\.jpg/i }));
+    fireEvent.click(within(jobRows()[1] as HTMLElement).getByRole('button', { name: /^b\.png/i }));
 
-    expect(await screen.findByText('b.jpg', { selector: '.job-detail__filename' })).toBeInTheDocument();
-    expect(screen.queryByText('a.jpg', { selector: '.job-detail__filename' })).not.toBeInTheDocument();
+    expect(await screen.findByText('b.png', { selector: '.job-detail__filename' })).toBeInTheDocument();
+    expect(screen.queryByText('a.png', { selector: '.job-detail__filename' })).not.toBeInTheDocument();
   });
 
   it('runs PNG output through the lossless WASM optimizer and still produces a result', async () => {
@@ -221,26 +222,29 @@ describe('<ImageCompressor />', () => {
     const file = new File([PNG_SIGNATURE], 'photo.png', { type: 'image/png' });
     dropFiles([file]);
     await waitFor(() => expect(jobRows().length).toBe(1));
+    // The lone PNG upload already adopted PNG as the output format automatically (nothing was
+    // converted away from anything, so no confirmation was needed for that step).
+    expect(within(jobRows()[0] as HTMLElement).getByText('photo.png')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /^png/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^jpeg/i }));
 
     const banner = screen.getByRole('alertdialog', { name: /confirm output format change/i });
-    expect(banner).toHaveTextContent(/switch output format to png/i);
+    expect(banner).toHaveTextContent(/switch output format to jpeg/i);
     // Still pending — the format button itself hasn't flipped yet.
-    expect(screen.getByRole('button', { name: /^png/i })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: /^jpeg/i })).toHaveAttribute('aria-pressed', 'false');
 
     fireEvent.click(within(banner).getByRole('button', { name: /^cancel$/i }));
 
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^png/i })).toHaveAttribute('aria-pressed', 'false');
-    expect(within(jobRows()[0] as HTMLElement).getByText('photo.jpg')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^jpeg/i })).toHaveAttribute('aria-pressed', 'false');
+    expect(within(jobRows()[0] as HTMLElement).getByText('photo.png')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /^png/i }));
-    fireEvent.click(screen.getByRole('button', { name: /^switch to png/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^jpeg/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^switch to jpeg/i }));
 
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^png/i })).toHaveAttribute('aria-pressed', 'true');
-    await waitFor(() => expect(within(jobRows()[0] as HTMLElement).getByText('photo.png')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /^jpeg/i })).toHaveAttribute('aria-pressed', 'true');
+    await waitFor(() => expect(within(jobRows()[0] as HTMLElement).getByText('photo.jpg')).toBeInTheDocument());
   });
 
   it('does not ask for confirmation when switching format before any image is added', () => {
@@ -254,11 +258,16 @@ describe('<ImageCompressor />', () => {
 
   it('"Keep original format" keeps each image in its own format instead of the fallback, with confirmation once images exist', async () => {
     render(<ImageCompressor />);
-    const png = new File([PNG_SIGNATURE], 'photo.png', { type: 'image/png' });
-    dropFiles([png]);
+    // Explicitly select PNG before uploading, so the auto-adopt-on-first-upload behavior
+    // (which only fires while the user hasn't picked a format yet) doesn't make the fallback
+    // and the file's own format coincidentally the same thing.
+    fireEvent.click(screen.getByRole('button', { name: /^png/i }));
+
+    const jpeg = new File([PNG_SIGNATURE], 'photo.jpg', { type: 'image/jpeg' });
+    dropFiles([jpeg]);
     await waitFor(() => expect(jobRows().length).toBe(1));
-    // Output format defaults to JPEG, so with the toggle off the row shows the converted name.
-    expect(within(jobRows()[0] as HTMLElement).getByText('photo.jpg')).toBeInTheDocument();
+    // Output format is PNG, so with the toggle off the row shows the converted name.
+    expect(within(jobRows()[0] as HTMLElement).getByText('photo.png')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('checkbox', { name: /keep original format/i }));
     const banner = screen.getByRole('alertdialog', { name: /confirm output format change/i });
@@ -269,7 +278,7 @@ describe('<ImageCompressor />', () => {
     fireEvent.click(within(banner).getByRole('button', { name: /^keep original formats$/i }));
 
     expect(screen.getByRole('checkbox', { name: /keep original format/i })).toBeChecked();
-    await waitFor(() => expect(within(jobRows()[0] as HTMLElement).getByText('photo.png')).toBeInTheDocument());
+    await waitFor(() => expect(within(jobRows()[0] as HTMLElement).getByText('photo.jpg')).toBeInTheDocument());
   });
 
   it('still falls back to the selected format for a type "Keep original format" cannot keep (e.g. BMP)', async () => {
@@ -289,24 +298,33 @@ describe('<ImageCompressor />', () => {
 
   it('cancelling a "Keep original format" toggle leaves it unchanged', async () => {
     render(<ImageCompressor />);
+    // Select a fallback format that differs from the uploaded file's own type, so there's
+    // actually something for the toggle to change (auto-adopt-on-first-upload would otherwise
+    // just default straight to PNG, matching the file already).
+    fireEvent.click(screen.getByRole('button', { name: /^webp/i }));
     const png = new File([PNG_SIGNATURE], 'photo.png', { type: 'image/png' });
     dropFiles([png]);
     await waitFor(() => expect(jobRows().length).toBe(1));
+    expect(within(jobRows()[0] as HTMLElement).getByText('photo.webp')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('checkbox', { name: /keep original format/i }));
     fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: /^cancel$/i }));
 
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: /keep original format/i })).not.toBeChecked();
-    expect(within(jobRows()[0] as HTMLElement).getByText('photo.jpg')).toBeInTheDocument();
+    expect(within(jobRows()[0] as HTMLElement).getByText('photo.webp')).toBeInTheDocument();
   });
 
   it('lets one image lock to its own format via the per-row lock button, applied immediately with no confirmation', async () => {
     render(<ImageCompressor />);
+    // Select a fallback format that differs from the uploaded file's own type, so the lock
+    // button actually has something to override (auto-adopt-on-first-upload would otherwise
+    // just default straight to PNG, leaving nothing to lock away from).
+    fireEvent.click(screen.getByRole('button', { name: /^webp/i }));
     const png = new File([PNG_SIGNATURE], 'photo.png', { type: 'image/png' });
     dropFiles([png]);
     await waitFor(() => expect(jobRows().length).toBe(1));
-    expect(within(jobRows()[0] as HTMLElement).getByText('photo.jpg')).toBeInTheDocument();
+    expect(within(jobRows()[0] as HTMLElement).getByText('photo.webp')).toBeInTheDocument();
 
     const lockButton = screen.getByRole('button', { name: /lock photo\.png to png/i });
     expect(lockButton).toHaveAttribute('aria-pressed', 'false');
@@ -327,6 +345,71 @@ describe('<ImageCompressor />', () => {
     expect(screen.queryByRole('button', { name: /lock photo\.png to png/i })).not.toBeInTheDocument();
   });
 
+  it('prompts to resolve a mix of keepable formats dropped together, and "Keep original formats" locks each one to its own', async () => {
+    render(<ImageCompressor />);
+    const png = new File([PNG_SIGNATURE], 'a.png', { type: 'image/png' });
+    const jpeg = new File([PNG_SIGNATURE], 'b.jpg', { type: 'image/jpeg' });
+
+    dropFiles([png, jpeg]);
+    await waitFor(() => expect(jobRows().length).toBe(2));
+
+    const banner = screen.getByRole('alertdialog', { name: /confirm output format for mixed file types/i });
+    expect(banner).toHaveTextContent(/different formats/i);
+    expect(banner).toHaveTextContent(/png/i);
+    expect(banner).toHaveTextContent(/jpeg/i);
+    // Nothing has been decided yet, so both rows still show the untouched default fallback
+    // (JPEG) rather than either image's own format — the whole point of the prompt is that
+    // neither "convert everything" nor "keep everything" has been chosen yet.
+    expect(within(jobRows()[0] as HTMLElement).getByText('a.jpg')).toBeInTheDocument();
+    expect(within(jobRows()[1] as HTMLElement).getByText('b.jpg')).toBeInTheDocument();
+
+    fireEvent.click(within(banner).getByRole('button', { name: /^keep original formats$/i }));
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /keep original format/i })).toBeChecked();
+    await waitFor(() => expect(within(jobRows()[0] as HTMLElement).getByText('a.png')).toBeInTheDocument());
+    await waitFor(() => expect(within(jobRows()[1] as HTMLElement).getByText('b.jpg')).toBeInTheDocument());
+  });
+
+  it('resolves a mixed-format prompt by converting every image to the chosen format', async () => {
+    render(<ImageCompressor />);
+    const png = new File([PNG_SIGNATURE], 'a.png', { type: 'image/png' });
+    const jpeg = new File([PNG_SIGNATURE], 'b.jpg', { type: 'image/jpeg' });
+
+    dropFiles([png, jpeg]);
+    const banner = await screen.findByRole('alertdialog', { name: /confirm output format for mixed file types/i });
+
+    fireEvent.click(within(banner).getByRole('button', { name: /^convert all to png$/i }));
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /keep original format/i })).not.toBeChecked();
+    await waitFor(() => expect(within(jobRows()[0] as HTMLElement).getByText('a.png')).toBeInTheDocument());
+    await waitFor(() => expect(within(jobRows()[1] as HTMLElement).getByText('b.png')).toBeInTheDocument());
+  });
+
+  it('does not show the mixed-format prompt when only one of the dropped types is actually keepable', async () => {
+    render(<ImageCompressor />);
+    const png = new File([PNG_SIGNATURE], 'photo.png', { type: 'image/png' });
+    const bmp = new File([PNG_SIGNATURE], 'photo.bmp', { type: 'image/bmp' });
+
+    dropFiles([png, bmp]);
+
+    await waitFor(() => expect(jobRows().length).toBe(2));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it('does not re-prompt for a mix once "Keep original format" is already on', async () => {
+    render(<ImageCompressor />);
+    fireEvent.click(screen.getByRole('checkbox', { name: /^keep original format$/i }));
+    const png = new File([PNG_SIGNATURE], 'a.png', { type: 'image/png' });
+    const jpeg = new File([PNG_SIGNATURE], 'b.jpg', { type: 'image/jpeg' });
+
+    dropFiles([png, jpeg]);
+
+    await waitFor(() => expect(jobRows().length).toBe(2));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
   it('warns when converting a transparent image to JPEG', async () => {
     render(<ImageCompressor />);
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
@@ -342,6 +425,10 @@ describe('<ImageCompressor />', () => {
         },
       })) as unknown as typeof HTMLCanvasElement.prototype.getContext
     );
+    // Explicit JPEG selection marks the format as user-chosen, so the PNG upload below doesn't
+    // auto-adopt PNG as the output format — this test needs an actual PNG-to-JPEG conversion
+    // to exercise the alpha-loss warning.
+    fireEvent.click(screen.getByRole('button', { name: /^jpeg/i }));
     const transparentPng = new File([PNG_SIGNATURE], 'icon.png', { type: 'image/png' });
 
     dropFiles([transparentPng]);
@@ -362,6 +449,9 @@ describe('<ImageCompressor />', () => {
 
   it('shows a quality slider next to the preview for JPEG but not for lossless PNG output', async () => {
     render(<ImageCompressor />);
+    // Explicit JPEG selection marks the format as user-chosen, so the PNG upload below doesn't
+    // auto-adopt PNG (and its lossless-by-default mode) as the output format.
+    fireEvent.click(screen.getByRole('button', { name: /^jpeg/i }));
     const file = new File([PNG_SIGNATURE], 'photo.png', { type: 'image/png' });
     dropFiles([file]);
     await waitFor(() => expect(screen.getByTestId('selected-job-stats')).toBeInTheDocument());
@@ -395,8 +485,8 @@ describe('<ImageCompressor />', () => {
     fireEvent.click(screen.getByRole('button', { name: /remove a\.png/i }));
 
     expect(jobRows().length).toBe(1);
-    expect(screen.queryByText('a.jpg')).not.toBeInTheDocument();
-    expect(within(jobRows()[0] as HTMLElement).getByText('b.jpg')).toBeInTheDocument();
+    expect(screen.queryByText('a.png')).not.toBeInTheDocument();
+    expect(within(jobRows()[0] as HTMLElement).getByText('b.png')).toBeInTheDocument();
   });
 
   it('clears every image and resets settings when Clear is pressed', async () => {
@@ -442,7 +532,7 @@ describe('<ImageCompressor />', () => {
     await waitFor(() => expect(screen.getByTestId('selected-job-stats')).toHaveTextContent(/smaller|larger|no change/i));
 
     // Switching to b.png shows *its* own (still blank) Max dimension, not a.png's '100'.
-    fireEvent.click(within(jobRows()[1] as HTMLElement).getByRole('button', { name: /^b\.jpg/i }));
+    fireEvent.click(within(jobRows()[1] as HTMLElement).getByRole('button', { name: /^b\.png/i }));
     await waitFor(() => expect(screen.getByLabelText(/maximum dimension in pixels for b\.png/i)).toBeInTheDocument());
     expect((screen.getByLabelText(/maximum dimension in pixels for b\.png/i) as HTMLInputElement).value).toBe('');
   });

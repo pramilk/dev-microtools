@@ -1,6 +1,32 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/preact';
+import { createFakeWorkerClass } from '../../test/fakeWorker';
+import { handleImageCompressRequest } from '../workers/imageCompress.worker';
 import ImageFormatConverter from './ImageFormatConverter';
+
+// jsdom has no real Worker; this runs the same request-handling logic the real
+// imageCompress.worker.ts uses (Oxipng/image-q), synchronously — matching how
+// ImageCompressor.test.tsx exercises the same shared worker.
+vi.mock('../workers/imageCompress.worker?worker', () => ({
+  default: createFakeWorkerClass(handleImageCompressRequest),
+}));
+
+// Real @jsquash/oxipng loads and runs actual WebAssembly, which is unnecessary weight and
+// risk for a unit test — this stands in for it, shrinking the buffer by one byte so the
+// "the optimizer ran and helped" branch is exercised deterministically.
+vi.mock('@jsquash/oxipng', () => ({
+  optimise: vi.fn(async (buffer: ArrayBuffer) => buffer.slice(0, Math.max(1, buffer.byteLength - 1))),
+}));
+
+// Real image-q runs a genuine quantization algorithm — deterministic but unnecessary work
+// for a component test, which only needs to know the quantizer was (or wasn't) invoked.
+const { quantizeSpy } = vi.hoisted(() => ({
+  quantizeSpy: vi.fn(async (image: { data: Uint8ClampedArray; width: number; height: number }) => image),
+}));
+vi.mock('../lib/tools/imageCompress', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/tools/imageCompress')>();
+  return { ...actual, quantizePngPixels: quantizeSpy };
+});
 
 const PNG_SIGNATURE = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
 
@@ -8,6 +34,19 @@ class FakeImageBitmap {
   width = 64;
   height = 32;
   close() {}
+}
+
+// jsdom doesn't implement the `ImageData` constructor at all — only real browsers do — so
+// the PNG-lossy path's `new ImageData(...)` call needs a stand-in, matching ImageCompressor.
+class FakeImageData {
+  data: Uint8ClampedArray;
+  width: number;
+  height: number;
+  constructor(data: Uint8ClampedArray, width: number, height: number) {
+    this.data = data;
+    this.width = width;
+    this.height = height;
+  }
 }
 
 function makeFakeContext(opaque = true) {
@@ -21,8 +60,9 @@ function makeFakeContext(opaque = true) {
     getImageData(_x: number, _y: number, width: number, height: number) {
       const data = new Uint8ClampedArray(width * height * 4).fill(255);
       if (!opaque) data[3] = 0; // first pixel fully transparent
-      return { data };
+      return { data, width, height };
     },
+    putImageData() {},
   };
 }
 
@@ -31,6 +71,7 @@ function stubCanvasAndDecode({ opaque = true, decodeFails = false } = {}) {
     'createImageBitmap',
     vi.fn(() => (decodeFails ? Promise.reject(new Error('bad image')) : Promise.resolve(new FakeImageBitmap())))
   );
+  vi.stubGlobal('ImageData', FakeImageData);
 
   const proto = HTMLCanvasElement.prototype;
   vi.spyOn(proto, 'getContext').mockImplementation((() => makeFakeContext(opaque)) as unknown as typeof HTMLCanvasElement.prototype.getContext);
@@ -258,7 +299,7 @@ describe('<ImageFormatConverter />', () => {
     expect(jobRows().length).toBe(30);
   });
 
-  it('returns the original bytes unchanged converting PNG to PNG, instead of re-encoding through canvas', async () => {
+  it('skips the canvas and runs only the Oxipng pass converting PNG to PNG, instead of fully re-encoding', async () => {
     stubCanvasAndDecode();
     render(<ImageFormatConverter />);
     const original = new Uint8Array(500).fill(9);
@@ -268,9 +309,12 @@ describe('<ImageFormatConverter />', () => {
     dropFiles([file]);
 
     await waitFor(() => expect(jobRows().length).toBe(1));
-    await waitFor(() => expect(within(jobRows()[0] as HTMLElement).getByText(/no change/i)).toBeInTheDocument());
-    // The canvas mock's toBlob always returns a fixed 16-byte blob — if the identity
-    // shortcut weren't taken, the badge above would read "smaller" instead of "no change".
+    // The mocked Oxipng pass shrinks the buffer by one byte, so the result is a (very
+    // slightly) smaller file — but the canvas mock's toBlob always returns a fixed 16-byte
+    // blob, so if the identity shortcut weren't taken and a full re-encode ran instead, the
+    // badge would read "smaller" too, just by a much larger margin. The real signal here is
+    // that toBlob (the canvas path) was never invoked at all.
+    await waitFor(() => expect(within(jobRows()[0] as HTMLElement).getByText(/smaller/i)).toBeInTheDocument());
     expect(HTMLCanvasElement.prototype.toBlob).not.toHaveBeenCalled();
   });
 
@@ -278,5 +322,60 @@ describe('<ImageFormatConverter />', () => {
     stubCanvasAndDecode();
     render(<ImageFormatConverter />);
     expect(screen.queryByRole('button', { name: /copy link/i })).not.toBeInTheDocument();
+  });
+
+  it('only shows the PNG compression mode toggle when PNG is the selected target format', async () => {
+    stubCanvasAndDecode();
+    render(<ImageFormatConverter />);
+    // PNG is the default target format, so the toggle is already visible on first render.
+    expect(screen.getByRole('group', { name: /png compression mode/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^jpeg$/i }));
+    expect(screen.queryByRole('group', { name: /png compression mode/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^png$/i }));
+    expect(screen.getByRole('group', { name: /png compression mode/i })).toBeInTheDocument();
+  });
+
+  it('defaults PNG to lossless (no quantizer call, but still runs the lossless optimizer), and switching to Lossy mode quantizes', async () => {
+    stubCanvasAndDecode();
+    render(<ImageFormatConverter />);
+    const file = new File([PNG_SIGNATURE], 'photo.jpg', { type: 'image/jpeg' });
+    dropFiles([file]);
+
+    await waitFor(() => expect(jobRows().length).toBe(1));
+    await waitFor(() => expect(within(jobRows()[0] as HTMLElement).getByText(/smaller|larger|no change/i)).toBeInTheDocument());
+    expect(quantizeSpy).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /^lossy \(smaller\)$/i }));
+
+    await waitFor(() => expect(quantizeSpy).toHaveBeenCalled());
+    await waitFor(() => expect(within(jobRows()[0] as HTMLElement).getByText(/smaller|larger|no change/i)).toBeInTheDocument());
+  });
+
+  it('shows a "Colors" label instead of "Quality" once PNG Lossy mode is on', async () => {
+    stubCanvasAndDecode();
+    render(<ImageFormatConverter />);
+    const file = new File([PNG_SIGNATURE], 'photo.jpg', { type: 'image/jpeg' });
+    dropFiles([file]);
+    await waitFor(() => expect(screen.getByTestId('selected-job-stats')).toBeInTheDocument());
+    expect(screen.queryByLabelText(/^quality$/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^lossy \(smaller\)$/i }));
+
+    await waitFor(() => expect(screen.getByLabelText(/^quality$/i)).toBeInTheDocument());
+    expect(screen.getByText(/^colors \(~\d+\)$/i)).toBeInTheDocument();
+  });
+
+  it('resets PNG mode back to lossless when Clear is pressed', async () => {
+    stubCanvasAndDecode();
+    render(<ImageFormatConverter />);
+    fireEvent.click(screen.getByRole('button', { name: /^lossy \(smaller\)$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^load example$/i }));
+    await waitFor(() => expect(jobRows().length).toBe(1));
+
+    fireEvent.click(screen.getByRole('button', { name: /^clear$/i }));
+
+    expect(screen.getByRole('button', { name: /^lossless$/i })).toHaveAttribute('aria-pressed', 'true');
   });
 });

@@ -15,6 +15,7 @@ import {
   MAX_ICO_DIMENSION,
   type TargetFormat,
 } from '../lib/tools/imageFormatConvert';
+import { qualityToColorCount, type PngMode, type RgbaImageData } from '../lib/tools/imageCompress';
 import { canvasHasTransparency } from './shared/canvasTransparency';
 import { formatBytes } from './shared/formatBytes';
 import { SavingsBadge } from './shared/SavingsBadge';
@@ -26,6 +27,9 @@ import { ImageJobList, type ImageJobRowProps } from './shared/ImageJobList';
 import { BatchSavingsBanner } from './shared/BatchSavingsBanner';
 import { downloadUrl } from './shared/downloadUrl';
 import { downloadZip, uniqueZipName } from './shared/downloadZip';
+import { useWorkerTask } from './shared/useWorkerTask';
+import ImageCompressWorker from '../workers/imageCompress.worker?worker';
+import type { ImageCompressWorkerRequest, ImageCompressWorkerResult } from '../workers/imageCompress.worker';
 
 // Deliberately no ShareLinkButton — the input is a binary image from the visitor's disk,
 // which can't (and shouldn't) be encoded into a URL. The target format alone is not worth
@@ -42,6 +46,16 @@ interface ConvertedResult {
 
 type ImageJob = ImageJobBase<ConvertedResult>;
 
+/** The PNG-specific optimization passes, run in a Web Worker — the same worker Image
+ *  Compressor and Image Cropper already share (see `imageCompress.worker.ts`), injected
+ *  rather than imported directly so `convertImage` doesn't hard-code which worker instance
+ *  it talks to, matching this codebase's dependency-inversion convention for logic
+ *  functions (CLAUDE.md's OOP/SOLID section). */
+interface PngWorkerClient {
+  optimize: (buffer: ArrayBuffer) => Promise<ArrayBuffer>;
+  quantize: (image: RgbaImageData, quality: number) => Promise<RgbaImageData>;
+}
+
 /**
  * Decodes and re-encodes an image through an off-screen canvas — inherently DOM-bound
  * (`createImageBitmap`, `<canvas>`), so like Image Compressor and QR Code Generator's own
@@ -49,7 +63,13 @@ type ImageJob = ImageJobBase<ConvertedResult>;
  * output goes through the canvas's own `toBlob`; BMP and ICO are encoded by the hand-rolled
  * functions in `lib/tools/imageFormatConvert.ts` from the canvas's raw pixel data.
  */
-async function convertImage(file: File, format: TargetFormat, quality: number): Promise<{ blob: Blob; width: number; height: number; transparencyLost: boolean }> {
+async function convertImage(
+  file: File,
+  format: TargetFormat,
+  quality: number,
+  pngMode: PngMode,
+  pngWorker: PngWorkerClient
+): Promise<{ blob: Blob; width: number; height: number; transparencyLost: boolean }> {
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file);
@@ -64,10 +84,18 @@ async function convertImage(file: File, format: TargetFormat, quality: number): 
   // RGBA pixel data with its own fixed compression, never a palette or the smarter filter
   // choices a tool like pngcrush/optipng made on the original), and can never shrink or
   // change them, since neither format has a quality knob. Returning the original bytes
-  // untouched is strictly better. JPEG/WebP are excluded — picking the same lossy format is
-  // a deliberate request to recompress at a possibly different quality.
-  if (file.type === format && format !== 'image/x-icon' && !LOSSY_TARGET_FORMATS.has(format)) {
+  // untouched is strictly better — except PNG's own Oxipng pass below, which is a real,
+  // separate optimization on top of whatever encoder produced the original bytes, so it's
+  // still worth running here. JPEG/WebP are excluded — picking the same lossy format is a
+  // deliberate request to recompress at a possibly different quality. PNG Lossy mode is also
+  // excluded: quantization needs real pixel access, so it always goes through the canvas
+  // path below even when the input is already PNG.
+  if (file.type === format && format !== 'image/x-icon' && !LOSSY_TARGET_FORMATS.has(format) && !(format === 'image/png' && pngMode === 'lossy')) {
     bitmap.close();
+    if (format === 'image/png') {
+      const optimized = await pngWorker.optimize(await file.arrayBuffer());
+      if (optimized.byteLength < file.size) return { blob: new Blob([optimized], { type: 'image/png' }), width, height, transparencyLost: false };
+    }
     return { blob: file, width, height, transparencyLost: false };
   }
 
@@ -102,8 +130,26 @@ async function convertImage(file: File, format: TargetFormat, quality: number): 
     return { blob: new Blob([buffer], { type: 'image/x-icon' }), width, height, transparencyLost: false };
   }
 
+  if (format === 'image/png' && pngMode === 'lossy') {
+    // Quantization changes pixel values before the encoder ever sees them — it must happen
+    // here, on the canvas, since the browser's canvas PNG encoder itself has no lossy mode.
+    const imageData = context.getImageData(0, 0, width, height);
+    const quantized = await pngWorker.quantize(imageData, quality);
+    context.putImageData(new ImageData(quantized.data, quantized.width, quantized.height), 0, 0);
+  }
+
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, format, LOSSY_TARGET_FORMATS.has(format) ? quality : undefined));
   if (!blob) throw new Error('Conversion failed — try a different format.');
+
+  if (format === 'image/png') {
+    // The canvas encoder above only does a generic deflate pass — Oxipng (WASM) finds real
+    // extra savings on top with no pixel changes, so it's always worth trying, and only kept
+    // if it actually helped.
+    const optimized = await pngWorker.optimize(await blob.arrayBuffer());
+    const optimizedBlob = new Blob([optimized], { type: 'image/png' });
+    if (optimizedBlob.size < blob.size) return { blob: optimizedBlob, width, height, transparencyLost };
+  }
+
   return { blob, width, height, transparencyLost };
 }
 
@@ -151,6 +197,11 @@ export default function ImageFormatConverter() {
     createJob: (base) => ({ ...base, status: 'processing', result: null, error: null }),
   });
   const [format, setFormat] = useState<TargetFormat>('image/png');
+  /** PNG's compression mode — only relevant when `format === 'image/png'`. Defaults to
+   *  lossless, matching this tool's original PNG behavior; switching to lossy is opt-in.
+   *  The lossless Oxipng pass itself always runs for PNG output regardless of this — see
+   *  `convertImage`. This is the PNG analogue of the Quality slider JPEG/WebP already have. */
+  const [pngMode, setPngMode] = useState<PngMode>('lossless');
   const [quality, setQuality] = useState(DEFAULT_QUALITY);
   // The slider tracks the pointer instantly; the actual (decode + canvas re-encode) work only
   // runs against this settled value, 200ms after dragging stops — matching Image Compressor.
@@ -161,12 +212,35 @@ export default function ImageFormatConverter() {
    *  job while this one stays dismissed. */
   const [dismissedTransparencyJobId, setDismissedTransparencyJobId] = useState<string | null>(null);
 
+  const pngWorkerTask = useWorkerTask<ImageCompressWorkerRequest, ImageCompressWorkerResult>(() => new ImageCompressWorker());
+  /** Same worker as Image Compressor's PNG passes — see that file's `PngWorkerClient`
+   *  comment for why the graceful-degradation fallback is preserved across the worker
+   *  boundary here too. */
+  const pngWorker: PngWorkerClient = {
+    optimize: (buffer) =>
+      pngWorkerTask.run({ kind: 'optimizePng', buffer }).then(
+        (result) => (result.kind === 'optimizePng' ? result.buffer : buffer),
+        (error: unknown) => {
+          console.warn('PNG lossless optimization pass failed, keeping the canvas-encoded PNG as-is.', error);
+          return buffer;
+        }
+      ),
+    quantize: (image, quality) =>
+      pngWorkerTask.run({ kind: 'quantizePng', image, quality }).then(
+        (result) => (result.kind === 'quantizePng' ? result.image : image),
+        (error: unknown) => {
+          console.warn('PNG lossy quantization failed, keeping the un-quantized pixels.', error);
+          return image;
+        }
+      ),
+  };
+
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuality(quality), 200);
     return () => window.clearTimeout(timer);
   }, [quality]);
 
-  const runJob = (job: ImageJob, fmt: TargetFormat, q: number) => {
+  const runJob = (job: ImageJob, fmt: TargetFormat, q: number, mode: PngMode) => {
     const seq = batch.startJob(job.id);
 
     const validation = validateImageFile(job.file);
@@ -175,7 +249,7 @@ export default function ImageFormatConverter() {
       return;
     }
 
-    void convertImage(job.file, fmt, q)
+    void convertImage(job.file, fmt, q, mode, pngWorker)
       .then(({ blob, width, height, transparencyLost }) => {
         if (!batch.isCurrentSeq(job.id, seq)) return;
         const url = URL.createObjectURL(blob);
@@ -191,14 +265,15 @@ export default function ImageFormatConverter() {
 
   useEffect(() => {
     // Re-runs every image whenever the batch's membership changes (files added/removed) or
-    // the batch-wide format/quality changes.
-    batch.jobs.forEach((job) => runJob(job, format, debouncedQuality));
+    // the batch-wide format/quality/PNG mode changes.
+    batch.jobs.forEach((job) => runJob(job, format, debouncedQuality, pngMode));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobIds, format, debouncedQuality]);
+  }, [jobIds, format, debouncedQuality, pngMode]);
 
   const clearAll = () => {
     batch.clearAll();
     setDismissedTransparencyJobId(null);
+    setPngMode('lossless');
     setFormat('image/png');
     setQuality(DEFAULT_QUALITY);
     setDebouncedQuality(DEFAULT_QUALITY);
@@ -288,6 +363,29 @@ export default function ImageFormatConverter() {
             </button>
           ))}
         </div>
+
+        {format === 'image/png' && (
+          <div class="seg" role="group" aria-label="PNG compression mode">
+            <button
+              type="button"
+              class="seg__btn"
+              aria-pressed={pngMode === 'lossless'}
+              onClick={() => setPngMode('lossless')}
+              title="No pixel is ever changed — the safe default. The PNG is still run through an extra lossless optimization pass for a smaller file."
+            >
+              Lossless
+            </button>
+            <button
+              type="button"
+              class="seg__btn"
+              aria-pressed={pngMode === 'lossy'}
+              onClick={() => setPngMode('lossy')}
+              title="Reduces the image to a smaller color palette for a much smaller file — a real, visible quality trade-off."
+            >
+              Lossy (smaller)
+            </button>
+          </div>
+        )}
 
         <span class="tool-bar__spacer" />
         <button type="button" class="btn" onClick={loadExample} title="Generate a sample image to try the tool with">
@@ -382,20 +480,31 @@ export default function ImageFormatConverter() {
                     </span>
                   )}
                 </p>
-                {LOSSY_TARGET_FORMATS.has(format) && (
-                  <label class="control control--inline" title="70-85% is usually visually indistinguishable from the original while cutting file size dramatically.">
-                    <span class="field__hint">Quality ({Math.round(quality * 100)}%)</span>
-                    <input
-                      type="range"
-                      min="1"
-                      max="100"
-                      value={Math.round(quality * 100)}
-                      aria-label="Quality"
-                      onInput={(event) => setQuality(Number((event.target as HTMLInputElement).value) / 100)}
-                    />
-                    <span class="control__hint">Recommended: 70–85%</span>
-                  </label>
-                )}
+                {(() => {
+                  const isPngLossy = format === 'image/png' && pngMode === 'lossy';
+                  if (!LOSSY_TARGET_FORMATS.has(format) && !isPngLossy) return null;
+                  return (
+                    <label
+                      class="control control--inline"
+                      title={
+                        isPngLossy
+                          ? 'Fewer colors means a smaller file but more visible banding, especially in gradients and photos. Sharp-edged graphics (icons, screenshots with flat UI) tolerate a low color count far better than photos do.'
+                          : '70-85% is usually visually indistinguishable from the original while cutting file size dramatically.'
+                      }
+                    >
+                      <span class="field__hint">{isPngLossy ? `Colors (~${qualityToColorCount(quality)})` : `Quality (${Math.round(quality * 100)}%)`}</span>
+                      <input
+                        type="range"
+                        min="1"
+                        max="100"
+                        value={Math.round(quality * 100)}
+                        aria-label="Quality"
+                        onInput={(event) => setQuality(Number((event.target as HTMLInputElement).value) / 100)}
+                      />
+                      {!isPngLossy && <span class="control__hint">Recommended: 70–85%</span>}
+                    </label>
+                  );
+                })()}
               </div>
               <p class="field__hint">
                 Original: {formatBytes(selectedJob.file.size)} · {formatShortLabel(selectedJob.file.type)}

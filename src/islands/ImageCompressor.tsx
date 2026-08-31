@@ -187,6 +187,11 @@ const effectiveFormat = (file: File, fallback: OutputFormat, keepOriginal: boole
 /** A format-button or "Keep original format" change waiting on user confirmation, since either can re-compress and rename every image already in the batch. Holds which one is pending so the banner can phrase itself correctly and `confirmPendingAction` knows which state to commit. */
 type PendingAction = { kind: 'format'; value: OutputFormat } | { kind: 'keepOriginal'; value: boolean };
 
+/** Raised right after a file drop/selection that mixed two or more *keepable* formats (JPEG/PNG/WebP) together, since that's the one case where "convert everything to the batch format" and "keep each one's own format" genuinely disagree — the user should pick, not have one silently assumed. Not raised for a mix that includes only one keepable format (e.g. PNG + BMP), since BMP has no "own format" this tool can encode either way. */
+interface MixedFormatNotice {
+  types: OutputFormat[];
+}
+
 export default function ImageCompressor() {
   const batch = useImageJobBatch<CompressedResult, ImageJob>({
     maxFiles: MAX_BATCH_FILES,
@@ -200,6 +205,7 @@ export default function ImageCompressor() {
   /** When on, an uploaded file that's already JPEG, WebP, or PNG keeps its own format instead of converting to `format` above — anything else still falls back to `format`. */
   const [keepOriginalFormat, setKeepOriginalFormat] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [mixedFormatNotice, setMixedFormatNotice] = useState<MixedFormatNotice | null>(null);
   const [quality, setQuality] = useState(DEFAULT_QUALITY);
   // The slider itself is bound to `quality` so dragging always tracks the pointer instantly;
   // the actual (expensive: decode + canvas encode + WASM Oxipng for PNG) recompression only
@@ -211,6 +217,12 @@ export default function ImageCompressor() {
   // Typed `number` (the browser's setTimeout return type) rather than `ReturnType<typeof
   // setTimeout>`, which resolves to Node's `Timeout` here because @types/node is in scope.
   const maxDimensionTimersRef = useRef<Map<string, number>>(new Map());
+  /** Tracks whether the user has ever explicitly interacted with output-format controls
+   *  (a format button, the Keep-original-format checkbox, or a mixed-format banner choice).
+   *  `handleFilesSelected`'s first-upload auto-adopt only fires while this is still false —
+   *  once the user has picked a format themselves, a later upload should never silently
+   *  override that choice. Reset on Clear, along with the format itself. */
+  const formatTouchedRef = useRef(false);
 
   const pngWorkerTask = useWorkerTask<ImageCompressWorkerRequest, ImageCompressWorkerResult>(() => new ImageCompressWorker());
   /** Preserves `optimizePngLosslessly`/`quantizePngPixels`'s own graceful-degradation
@@ -312,18 +324,70 @@ export default function ImageCompressor() {
     setPngMode('lossless');
     setKeepOriginalFormat(false);
     setPendingAction(null);
+    setMixedFormatNotice(null);
     setQuality(DEFAULT_QUALITY);
     setDebouncedQuality(DEFAULT_QUALITY);
     maxDimensionTimersRef.current.forEach((timer) => window.clearTimeout(timer));
     maxDimensionTimersRef.current.clear();
+    formatTouchedRef.current = false;
   };
 
   const loadExample = () => {
     void generateSampleImageFile(format).then((file) => batch.addFiles([file]));
   };
 
+  /**
+   * Wraps `batch.addFiles` with two pieces of format-inference this tool didn't have before:
+   * dropping a batch's very first file(s) adopts their own format as the default output
+   * format (so a dropped PNG compresses to PNG, not silently to the JPEG default), and
+   * dropping a mix of two-or-more *keepable* formats (JPEG/PNG/WebP) together raises a
+   * confirmation banner instead of silently picking one, since "convert everything to one
+   * format" and "keep each file's own format" are both reasonable and genuinely disagree here.
+   * `batch.jobs` read below is this render's pre-add snapshot — `addFiles`'s `setJobs` call
+   * hasn't committed yet, so it correctly reflects "what was in the batch before this drop".
+   */
+  const handleFilesSelected = (files: File[]) => {
+    const wasEmpty = batch.jobs.length === 0;
+    const accepted = batch.addFiles(files);
+    if (accepted.length === 0) return;
+
+    const allTypes = new Set([...batch.jobs, ...accepted].map((job) => job.file.type));
+    const keepableTypesPresent = Array.from(allTypes).filter((type): type is OutputFormat => (OUTPUT_FORMATS as readonly string[]).includes(type));
+
+    if (keepableTypesPresent.length >= 2 && !keepOriginalFormat) {
+      setPendingAction(null);
+      setMixedFormatNotice({ types: keepableTypesPresent });
+      return;
+    }
+
+    setMixedFormatNotice(null);
+
+    if (!formatTouchedRef.current && wasEmpty && allTypes.size === 1) {
+      const [onlyType] = allTypes;
+      if ((OUTPUT_FORMATS as readonly string[]).includes(onlyType) && onlyType !== format) {
+        setFormat(onlyType as OutputFormat);
+      }
+    }
+  };
+
+  /** Resolves the mixed-format banner by locking every image to its own format instead of a shared one — same end state as ticking "Keep original format", just arrived at from the upload-time prompt instead of the toolbar checkbox. */
+  const keepEachFormat = () => {
+    formatTouchedRef.current = true;
+    setKeepOriginalFormat(true);
+    setMixedFormatNotice(null);
+  };
+
+  /** Resolves the mixed-format banner by unifying the batch on one of the formats actually present, rather than leaving it on whatever `format` happened to default to. */
+  const convertAllTo = (next: OutputFormat) => {
+    formatTouchedRef.current = true;
+    setFormat(next);
+    setMixedFormatNotice(null);
+  };
+
   /** Switching output format, or toggling "Keep original format", re-compresses (and can rename) every image already in the batch — worth confirming once there's something to lose, rather than silently converting files a user only meant to preview. Held as pending rather than applied via `window.confirm`, so the prompt is an in-page banner matching the rest of the UI instead of a jarring native browser dialog. */
   const requestFormatChange = (next: OutputFormat) => {
+    formatTouchedRef.current = true;
+    setMixedFormatNotice(null);
     if (next === format) return;
     if (batch.jobs.length === 0) {
       setFormat(next);
@@ -333,6 +397,8 @@ export default function ImageCompressor() {
   };
 
   const requestKeepOriginalFormatChange = (next: boolean) => {
+    formatTouchedRef.current = true;
+    setMixedFormatNotice(null);
     if (batch.jobs.length === 0) {
       setKeepOriginalFormat(next);
       return;
@@ -530,8 +596,35 @@ export default function ImageCompressor() {
         </p>
       )}
 
+      {mixedFormatNotice && (
+        <p class="msg msg--warning" role="alertdialog" aria-label="Confirm output format for mixed file types">
+          <span class="msg__icon" aria-hidden="true">
+            !
+          </span>
+          <span class="msg__body">
+            <>
+              You added images in different formats ({mixedFormatNotice.types.map((t) => OUTPUT_FORMAT_LABELS[t]).join(', ')}). Keep each
+              image in its own format, or convert them all to one?
+            </>
+            <span class="msg__actions">
+              <button type="button" class="btn btn--primary" onClick={keepEachFormat}>
+                Keep original formats
+              </button>
+              {mixedFormatNotice.types.map((t) => (
+                <button key={t} type="button" class="btn" onClick={() => convertAllTo(t)}>
+                  Convert all to {OUTPUT_FORMAT_LABELS[t]}
+                </button>
+              ))}
+              <button type="button" class="btn" onClick={() => setMixedFormatNotice(null)}>
+                Not now
+              </button>
+            </span>
+          </span>
+        </p>
+      )}
+
       <MultiFileDropzone
-        onFilesSelected={batch.addFiles}
+        onFilesSelected={handleFilesSelected}
         roomRemaining={Math.max(0, MAX_BATCH_FILES - batch.jobs.length)}
         maxFiles={MAX_BATCH_FILES}
         chooseLabel="Choose images to compress"
