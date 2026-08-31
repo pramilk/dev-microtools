@@ -36,6 +36,8 @@ import DuplicateLineRemover from '../islands/DuplicateLineRemover';
 import TokenCounter from '../islands/TokenCounter';
 import RobotsTxtGenerator from '../islands/RobotsTxtGenerator';
 import BundleSizeChecker from '../islands/BundleSizeChecker';
+import LoremIpsumGenerator from '../islands/LoremIpsumGenerator';
+import SlugGenerator from '../islands/SlugGenerator';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -81,6 +83,8 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'llm-token-counter': TokenCounter,
   'robots-txt-generator': RobotsTxtGenerator,
   'bundle-size-checker': BundleSizeChecker,
+  'lorem-ipsum-generator': LoremIpsumGenerator,
+  'slug-generator': SlugGenerator,
 };
 
 /**

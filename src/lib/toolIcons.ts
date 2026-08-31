@@ -47,6 +47,8 @@ export const TOOL_ICONS: Record<string, string> = {
   'llm-token-counter': 'TOK',
   'robots-txt-generator': 'BOT',
   'bundle-size-checker': 'PKG',
+  'lorem-ipsum-generator': 'LOR',
+  'slug-generator': 'SLG',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

@@ -35,6 +35,8 @@ import DuplicateLineRemover from '../islands/DuplicateLineRemover';
 import TokenCounter from '../islands/TokenCounter';
 import RobotsTxtGenerator from '../islands/RobotsTxtGenerator';
 import BundleSizeChecker from '../islands/BundleSizeChecker';
+import LoremIpsumGenerator from '../islands/LoremIpsumGenerator';
+import SlugGenerator from '../islands/SlugGenerator';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -95,3 +97,5 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'llm-token-counter' && <TokenCounter client:load />}
 {slug === 'robots-txt-generator' && <RobotsTxtGenerator client:load />}
 {slug === 'bundle-size-checker' && <BundleSizeChecker client:load />}
+{slug === 'lorem-ipsum-generator' && <LoremIpsumGenerator client:load />}
+{slug === 'slug-generator' && <SlugGenerator client:load />}

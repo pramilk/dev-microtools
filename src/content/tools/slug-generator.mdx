@@ -1,0 +1,58 @@
+---
+title: Slug Generator
+headline: URL Slug Generator
+description: Turn a title or heading into a clean, URL-friendly slug — choose the separator, casing, and an optional max length. Runs in your browser. Free.
+summary: Turn a title into a clean, URL-friendly slug — separator, casing and length options.
+category: Generate
+order: 38
+updated: 2026-08-31
+whatIsIt: >-
+  A slug is the readable part of a URL that identifies one specific page — the
+  `10-best-javascript-frameworks` in `/blog/10-best-javascript-frameworks`. It needs to be
+  lowercase, free of spaces and punctuation, and safe for every browser and server to handle
+  without escaping. Typing one out by hand from a title means manually replacing spaces,
+  stripping punctuation, and remembering to drop accents — easy to get inconsistent across a
+  site. This tool does that conversion for you: paste a title or heading, and it strips
+  accents, substitutes a few common symbols with words, and replaces everything else with a
+  single separator, live as you type.
+useCases:
+  - Turning a blog post or article title into the slug used in its URL.
+  - Generating a consistent file or folder name from a document title, free of spaces and special characters.
+  - Building a URL-safe identifier from a product name or category label for an e-commerce site.
+  - Converting a heading into an anchor-safe ID for in-page navigation or a table of contents.
+howTo:
+  - Paste or type the title or text you want to convert.
+  - Choose a separator — hyphen or underscore. Hyphens are the SEO convention for URLs; underscores are more common for filenames and code identifiers.
+  - Turn off "Lowercase" if you need to preserve the original casing.
+  - Optionally set a max length so the slug never exceeds a limit your system enforces — it truncates on a word boundary, never mid-word.
+  - Copy the result, or copy a link that restores this exact text and settings.
+example:
+  label: A typical blog post title.
+  input: '10 Best JavaScript Frameworks to Learn in 2026!'
+  output: '10-best-javascript-frameworks-to-learn-in-2026'
+  note: The exclamation mark and every other symbol is dropped, and the whole string is lowercased and hyphen-joined.
+faq:
+  - q: Why does my slug come out empty?
+    a: This happens when nothing in the input survives slugifying — most commonly because the text is entirely in a script this tool doesn't transliterate into Latin letters, like Chinese, Japanese, Arabic, or Cyrillic. Accented Latin letters (é, ñ, ü) are converted to their plain equivalent, but non-Latin scripts have no plain-ASCII equivalent to convert to, so the tool reports the problem instead of silently returning nothing.
+  - q: Should I use a hyphen or an underscore?
+    a: Hyphen, for anything URL-facing — Google has stated it treats hyphens as word separators in a URL but generally does not split words on underscores, which can hurt how a page is indexed for the words in its slug. Underscores remain a common convention for filenames, code identifiers, or systems where hyphens have another meaning.
+  - q: What happens to accented and special characters?
+    a: 'Accented Latin letters are converted to their unaccented equivalent (é → e, ñ → n, ü → u) via Unicode normalization, not simply dropped. A few common symbols are converted to words instead of removed outright — "&" becomes "and", "@" becomes "at", "%" becomes "percent" — since dropping them silently can accidentally merge two unrelated words together.'
+  - q: Why does the max length sometimes produce a shorter slug than I set?
+    a: Truncation always stops at a word boundary rather than cutting a word in half, so the result is the longest whole-word prefix that fits within the limit — which is very often a few characters short of the exact number you entered. A slug ending mid-word (like `javascript-framewo`) is harder to read and looks broken in a URL.
+  - q: Is this the same as what my CMS or static site generator does automatically?
+    a: Usually close, but not guaranteed identical — most platforms use their own slugify logic with their own edge-case decisions (whether "&" becomes "and" or is dropped, whether numbers are kept, how they handle a title that's entirely non-Latin). If your slug needs to exactly match one specific platform's behavior, use this as a starting point and verify against that platform for edge cases.
+related:
+  - case-converter
+  - word-counter
+  - url-encode-decode
+  - duplicate-line-remover
+---
+
+## Why truncation stops at a word boundary
+
+A slug cut off mid-word — `10-best-javascript-framewo` instead of
+`10-best-javascript-frameworks` — reads as broken rather than intentional, and looks worse
+in a URL bar or a shared link than a slightly shorter, complete one. When a max length is
+set, this tool always backs up to the last full word that fits, so the result is a clean
+prefix of the full slug rather than a cut string.
