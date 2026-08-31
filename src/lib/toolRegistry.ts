@@ -35,6 +35,7 @@ import CaseConverter from '../islands/CaseConverter';
 import DuplicateLineRemover from '../islands/DuplicateLineRemover';
 import TokenCounter from '../islands/TokenCounter';
 import RobotsTxtGenerator from '../islands/RobotsTxtGenerator';
+import BundleSizeChecker from '../islands/BundleSizeChecker';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -79,6 +80,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'duplicate-line-remover': DuplicateLineRemover,
   'llm-token-counter': TokenCounter,
   'robots-txt-generator': RobotsTxtGenerator,
+  'bundle-size-checker': BundleSizeChecker,
 };
 
 /**

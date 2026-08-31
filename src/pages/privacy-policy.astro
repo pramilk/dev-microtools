@@ -17,26 +17,41 @@ const updated = '22 August 2026';
     <div class="prose">
       <h2>The short version</h2>
       <p>
-        Anything you type or paste into a tool on this site stays in your browser. It is
-        never transmitted to us or to anyone else, and we could not read it if we wanted
-        to. Separately, like most websites, we collect basic anonymous traffic statistics
-        and show advertising — both are described in full below.
+        Anything you type or paste into a tool on this site stays in your browser and is
+        never sent to us. A couple of tools can make a real request to a third-party
+        service, but only to a public, non-personal endpoint and only when you explicitly
+        press a button for that purpose — never automatically, and never through any
+        server we run. See "Data you enter into tools" below for exactly which tools and
+        what that sends. Separately, like most websites, we collect basic anonymous traffic
+        statistics and show advertising — both are described in full below.
       </p>
 
       <h2>Data you enter into tools</h2>
       <p>
         Every tool on this site runs as JavaScript inside your own browser. There is no
-        server-side processing, no database, and no logging of tool input. When you paste
-        JSON, a token, a password to hash, or any other content into a tool:
+        server-side processing, no database, and no logging of tool input on our end. When
+        you paste JSON, a token, a password to hash, or any other content into a tool:
       </p>
       <ul>
         <li>It is processed locally by your browser and then discarded when you close or reload the page.</li>
-        <li>It is never sent over the network to this site or any third party.</li>
-        <li>It is never stored, logged, or retained in any form.</li>
+        <li>It is never sent to us, and by default never sent to any third party either.</li>
+        <li>It is never stored, logged, or retained in any form on our end.</li>
       </ul>
       <p>
-        You can verify this independently by opening your browser's developer tools, going
-        to the Network tab, and using any tool on the site.
+        Two tools are the exception, and both make that exception obvious rather than
+        hiding it: cURL Command Builder's "Send request" button fires the request you built
+        directly from your browser to whatever URL you entered, and Bundle Size Checker's
+        "Check size" / "Check all dependencies" buttons send the package name(s) or
+        dependency list you entered to the public npm registry and to esm.sh (which bundles
+        the package) so it can measure the real size. Neither goes through any server we
+        run, and neither fires from just typing — only from pressing that specific button.
+        A package name isn't personal data the way a password or a private document is, so
+        we don't consider this a change to the commitment above, but we would rather say so
+        plainly than have the absolute version of this claim be technically inaccurate.
+      </p>
+      <p>
+        You can verify all of this independently by opening your browser's developer tools,
+        going to the Network tab, and using any tool on the site.
       </p>
 
       <h2>Analytics</h2>
@@ -84,8 +99,10 @@ const updated = '22 August 2026';
       <h2>Changes</h2>
       <p>
         If this policy changes materially, the "last updated" date above will change. The
-        commitment that tool input never leaves your browser is architectural — the site
-        has no server capable of receiving it — and is not something we intend to alter.
+        commitment that we never receive or store what you type is architectural — the
+        site has no server capable of receiving it — and is not something we intend to
+        alter. The two narrow, explicit-action exceptions described above (which send data
+        to a public third-party service, not to us) are documented on each tool's own page.
       </p>
     </div>
   </div>

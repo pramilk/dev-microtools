@@ -1,4 +1,5 @@
 import { type ToolResult, ok, err, messageFrom } from './tools/result';
+import { gzip, gunzip, supportsCompression } from './compression';
 
 /**
  * Above this, a URL becomes unreliable to paste into chat apps, SMS, or older
@@ -21,35 +22,6 @@ const fromBase64Url = (value: string): Uint8Array => {
   for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
   return bytes;
 };
-
-const supportsCompression = (): boolean =>
-  typeof CompressionStream !== 'undefined' && typeof DecompressionStream !== 'undefined';
-
-const toStream = (bytes: Uint8Array): ReadableStream<Uint8Array> =>
-  new ReadableStream({
-    start(controller) {
-      controller.enqueue(bytes);
-      controller.close();
-    },
-  });
-
-// `CompressionStream`/`DecompressionStream`'s DOM types declare `.writable` as
-// `WritableStream<BufferSource>`, which TypeScript won't line up against a plain
-// `ReadableStream<Uint8Array>` for `pipeThrough` without a cast — a known gap in the
-// lib.dom stream typings, not a real type mismatch at runtime.
-type BytesTransform = ReadableWritablePair<Uint8Array<ArrayBuffer>, Uint8Array<ArrayBuffer>>;
-
-async function gzip(bytes: Uint8Array): Promise<Uint8Array> {
-  const stream = toStream(bytes).pipeThrough(new CompressionStream('gzip') as unknown as BytesTransform);
-  const buffer = await new Response(stream).arrayBuffer();
-  return new Uint8Array(buffer);
-}
-
-async function gunzip(bytes: Uint8Array): Promise<Uint8Array> {
-  const stream = toStream(bytes).pipeThrough(new DecompressionStream('gzip') as unknown as BytesTransform);
-  const buffer = await new Response(stream).arrayBuffer();
-  return new Uint8Array(buffer);
-}
 
 /**
  * Packs arbitrary JSON-serialisable state into a compact, URL-safe string, so a

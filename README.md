@@ -4,9 +4,13 @@
 regex tester, Base64, JWT decoder, hashing, diff checker, QR codes, and more) that run
 entirely in your browser.
 
-There is no backend. Every tool is client-side JavaScript — nothing you paste into a tool
-is ever transmitted anywhere. You can verify this yourself: open DevTools → Network while
-using any tool and you'll see no outbound request carrying your input.
+There is no backend. Every tool is client-side JavaScript, and nothing you paste into a
+tool is ever sent to us. Two tools are an explicit exception: cURL Command Builder's "Send
+request" and Bundle Size Checker's "Check size" / "Check all dependencies" fire a real
+request straight from your browser to a third party (the URL you built, or the public npm
+registry/esm.sh) — but only when you press that specific button, never on page load or
+keystroke, and never through any server of ours. Every other tool never makes a network
+request at all. You can verify this yourself: open DevTools → Network while using any tool.
 
 ## Tools
 
@@ -40,6 +44,7 @@ using any tool and you'll see no outbound request carrying your input.
 | [Cron Expression Explainer](https://devmicrotools.com/cron-expression-explainer/) | Web & Network | Explain a cron expression in plain English and see its next run times. |
 | [CIDR / Subnet Calculator](https://devmicrotools.com/cidr-subnet-calculator/) | Web & Network | Calculate network address, broadcast address, host range and mask from a CIDR block. |
 | [URL Parser](https://devmicrotools.com/url-parser/) | Web & Network | Decompose a URL into its parts and edit its query parameters live. |
+| [Bundle Size Checker](https://devmicrotools.com/bundle-size-checker/) | Web & Network | Check an npm package's real minified + gzipped size, or check every dependency in a package.json at once. |
 | [Image ↔ Base64 Converter](https://devmicrotools.com/image-base64-converter/) | Images | Convert an image to base64 for inlining in CSS/HTML, or decode base64 back into an image. |
 | [Image Compressor](https://devmicrotools.com/image-compressor/) | Images | Compress JPEG, PNG, or WebP images in your browser — batch multiple files, compare before/after, download as a zip. |
 | [SVG Optimizer](https://devmicrotools.com/svg-optimizer/) | Images | Strip comments, metadata, and editor cruft from SVG markup — tune precision, compare before/after, download. |

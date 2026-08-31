@@ -1,0 +1,88 @@
+---
+title: Bundle Size Checker
+headline: npm Bundle Size Checker — Minified & Gzipped Package Size
+description: Check an npm package's real minified + gzipped size and ESM/tree-shaking support, or paste a package.json to check every dependency at once. Free, no sign-up.
+summary: Check an npm package's real minified + gzipped size, or paste a package.json to size every dependency at once.
+category: Web & Network
+order: 36
+updated: 2026-08-30
+whatIsIt: >-
+  Every npm package you install adds weight to whatever you ship to a browser, but the
+  number on the package's own README rarely says how much — "71.5 kB" of source is not the
+  same as what a bundler actually sends over the wire after tree-shaking, minification and
+  compression. This tool answers that directly: give it a package name (optionally pinned to
+  a version or range, and optionally scoped to just a few named imports) and it bundles that
+  package for real using esm.sh, re-minifies the result with the same Terser this site's own
+  HTML/CSS/JS Minifier uses so every package is measured the same way, and reports the
+  minified and gzipped byte counts, estimated download time on a few connection speeds, ESM
+  and tree-shaking support, and a breakdown of which direct dependency contributes the most.
+  A second mode goes further than a single-package checker like bundlephobia can: paste or
+  upload an entire package.json and it checks every listed dependency at once, resolving each
+  version range against the real registry, and shows a sortable table with a running total —
+  so you can see the actual weight of everything in a project, not one package at a time.
+useCases:
+  - Deciding between two competing libraries for a feature by comparing their real gzipped weight before committing to one.
+  - Checking whether switching a named import to a smaller, single-purpose alternative (or just importing fewer exports) actually shrinks the shipped bundle.
+  - Auditing an existing project's package.json to find which dependencies are quietly the heaviest contributors to bundle size.
+  - Verifying that a package ships a real ESM entry point and a side-effect-free package.json before relying on your bundler to tree-shake it.
+  - Sanity-checking a new dependency's size before adding it to a size-sensitive app, without installing it or running a local build first.
+howTo:
+  - Switch to "Single package" and enter a package name, optionally with a version or range like "react@18" or "date-fns@^3".
+  - Optionally list specific named imports (e.g. "debounce, throttle") to measure the cost of only those exports instead of the whole package.
+  - Press "Check size" to fetch, bundle and measure it — this is the one action that makes a network request.
+  - Read the minified and gzipped size, ESM/tree-shaking support, direct dependency count, and estimated download times.
+  - Open "Compare across major versions" to see the latest release of each earlier major version sized the same way, with the byte difference from what you just checked.
+  - Switch to "package.json" to paste or drop a whole package.json instead, optionally include devDependencies, and press "Check all dependencies" for sortable tables with a running total each.
+example:
+  label: Checking a single popular package's real shipped size.
+  input: 'date-fns'
+  output: |-
+    date-fns@latest — minified and gzipped size, ESM support, and dependency breakdown
+  note: >-
+    Numbers are measured live against the current published version at the moment you press
+    "Check size," so the exact byte counts you see will differ from any number printed here —
+    package publishers update packages constantly, which is exactly why a static number on a
+    README goes stale.
+faq:
+  - q: Does this tool send anything I type anywhere?
+    a: "It sends the package name (and, in package.json mode, the dependency names and version ranges you pasted) to the public npm registry and to esm.sh, which bundles the package — never to any server run by this site, and only when you press \"Check size\" / \"Check all dependencies.\" A package name isn't private data the way pasted source code or a password is, so this is the one tool on the site that makes real third-party network requests, the same way this site's cURL Command Builder does when you press \"Send request.\" Nothing happens on page load or on keystroke."
+  - q: How is the size actually measured — is this the same number bundlephobia would show?
+    a: It should be close but won't always match exactly. This tool fetches the package bundled into a single file by esm.sh, re-minifies it with Terser, then gzips the result with your browser's native compression — a fixed, consistent pipeline applied identically to every package. bundlephobia uses its own bundler and minifier on its own servers, so the two can differ by a few percent depending on how each bundler handles a given package's exports.
+  - q: What does the "named imports" field do?
+    a: 'It measures the cost of importing only the exports you list — e.g. entering "debounce" for lodash — using esm.sh''s tree-shaking support instead of the whole package. This mirrors what your own bundler would ship if you wrote `import { debounce } from ''lodash''` and tree-shaking worked correctly. Results depend on how the package itself is published: some packages shrink substantially, a CommonJS-only package fails outright with a clear error, and some ES module packages that route every export through one shared internal file show the same size as checking the whole package, because there is genuinely nothing left to shake — that is a property of the package, not a limitation of this tool.'
+  - q: Why does checking a whole package.json take a while, and why is there a Cancel button?
+    a: Each dependency needs its own registry lookup, its own bundle fetch from esm.sh, and its own minify+gzip pass — real work, not a lookup table. To avoid hammering two free public services at once, at most five dependencies are checked in parallel, so a large package.json can take a noticeable amount of time. Cancel stops queuing new dependencies; ones already in flight still finish, and everything not yet started is marked cancelled rather than left stuck.
+  - q: Why does the "dependency breakdown" say its numbers can add up to more than the total?
+    a: Each direct dependency is measured as its own standalone bundle, the same way the package itself is measured. If two dependencies both depend on a third package, that shared package's code is counted once in each of their standalone sizes — a real bundler would only ship it once, deduplicated, so the breakdown is a guide to relative weight, not an exact accounting that sums to the headline number.
+  - q: Why doesn't this generate a live size badge for my README, the way bundlephobia does?
+    a: A live badge has to be an image rendered fresh on every request by a server, so it always reflects the current published version — this site has no backend to do that. The "Copyable summary" line gives you a plain-text snapshot of what you just measured instead; it won't update itself if the package is republished, which a generated badge would.
+  - q: Why did checking a version range like "^2" resolve to a version I didn't expect?
+    a: 'This tool resolves the range against every version actually published to the registry the same way `npm install` would, favoring the highest matching non-prerelease version. It supports the ranges that show up in practice — exact versions, `^`/`~`, x-ranges like "1.2.x", plain comparators, and hyphen ranges — but an unusual combination it can''t parse falls back to reporting an error rather than silently guessing, so check the resolved version shown in the results if the range was more than a plain caret or tilde.'
+  - q: What does "Compare across major versions" actually check?
+    a: It finds the latest non-prerelease release of each earlier major version (up to six, most recent first), measures each one the same way as the package you just checked, and shows the byte difference from that result. It's a real fetch-and-bundle per major version shown, not an estimate, so opening this panel is the one thing on this page that can noticeably add to the number of requests made.
+  - q: Why are devDependencies shown in a separate table from dependencies?
+    a: They answer different questions. dependencies ship to whoever installs your package or app; devDependencies are only needed to build or test it and never reach an end user's bundle. Summing them into one "total" would overstate what your app actually ships, so checking "Include devDependencies" adds a second table and total instead of mixing the two lists together.
+related:
+  - curl-command-builder
+  - html-css-js-minifier
+  - url-parser
+---
+
+## Why this measures differently than a package's own README
+
+A package's README often quotes its unpacked size from npm, or a minified-only size with
+no compression — both overstate what actually reaches a browser. Gzip (or Brotli, which
+most CDNs and servers also apply automatically) typically shrinks JavaScript by 60-80%
+because of how much repetition minified code contains, so the gzipped number here is
+almost always the one that matters for a real page load budget.
+
+## What powers this tool
+
+Bundling happens on [esm.sh](https://esm.sh), a public CDN that converts npm packages to
+ES modules on the fly — this tool fetches its output directly from your browser, the same
+way a `<script type="module">` import from esm.sh would. The result is re-minified with
+[Terser](https://terser.org) (BSD-2-Clause), the same library powering this site's
+[HTML/CSS/JS Minifier](/html-css-js-minifier/), so every package is measured with one
+consistent methodology rather than trusting whatever minification each CDN applied on its
+own. Gzip size comes from your browser's native compression API — no bundler or brotli
+library ships to your browser just to check a package's size.

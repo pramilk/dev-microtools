@@ -34,6 +34,7 @@ import CaseConverter from '../islands/CaseConverter';
 import DuplicateLineRemover from '../islands/DuplicateLineRemover';
 import TokenCounter from '../islands/TokenCounter';
 import RobotsTxtGenerator from '../islands/RobotsTxtGenerator';
+import BundleSizeChecker from '../islands/BundleSizeChecker';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -93,3 +94,4 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'duplicate-line-remover' && <DuplicateLineRemover client:load />}
 {slug === 'llm-token-counter' && <TokenCounter client:load />}
 {slug === 'robots-txt-generator' && <RobotsTxtGenerator client:load />}
+{slug === 'bundle-size-checker' && <BundleSizeChecker client:load />}

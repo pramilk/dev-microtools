@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/preact';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/preact';
 import { ErrorMessage } from './ErrorMessage';
 
 describe('<ErrorMessage />', () => {
@@ -45,5 +45,18 @@ describe('<ErrorMessage />', () => {
 
     expect(screen.getAllByRole('alert')).toHaveLength(1);
     expect(screen.getByRole('alert')).toHaveTextContent('Second problem');
+  });
+
+  it('shows no retry control when onRetry is not passed', () => {
+    render(<ErrorMessage message="Network request failed" />);
+    expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
+  });
+
+  it('shows a retry control that calls onRetry when clicked', () => {
+    const onRetry = vi.fn();
+    render(<ErrorMessage message="Network request failed" onRetry={onRetry} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+    expect(onRetry).toHaveBeenCalledOnce();
   });
 });

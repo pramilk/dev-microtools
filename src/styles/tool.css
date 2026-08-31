@@ -283,6 +283,23 @@
   font-family: var(--font-mono);
 }
 
+.msg__retry {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.msg__retry:hover {
+  opacity: 0.8;
+}
+
 .msg--error {
   background: var(--danger-subtle);
   border-color: var(--danger-border);

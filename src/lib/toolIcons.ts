@@ -46,6 +46,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'duplicate-line-remover': 'DUP',
   'llm-token-counter': 'TOK',
   'robots-txt-generator': 'BOT',
+  'bundle-size-checker': 'PKG',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';
