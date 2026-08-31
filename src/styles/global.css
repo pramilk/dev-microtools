@@ -24,7 +24,12 @@
 
   --text: #0f151c;
   --text-muted: #57636f;
-  --text-subtle: #7c8794;
+  /* Darkened from #7c8794 — that value read as "subtle" but only cleared ~3.6:1
+     against white (below WCAG AA's 4.5:1 for normal text) once real content
+     (eyebrow labels, field hints, empty-state placeholders) used it, not just
+     decorative borders. #63707c clears 4.5:1 against every surface it renders
+     text on, including the darker --surface-2. */
+  --text-subtle: #63707c;
 
   /* Accent — deep teal-cyan: technical without being the default framework blue */
   --accent: #0b6e80;
