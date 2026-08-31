@@ -1,16 +1,16 @@
 ---
-title: JSON, YAML & CSV Converter
-headline: JSON, YAML & CSV Converter
-description: Convert between JSON, YAML and CSV, with quoted-field CSV parsing and configurable delimiters. Runs in your browser. Free, no sign-up required.
-summary: Convert data between JSON, YAML and CSV in either direction.
+title: JSON, YAML, CSV & XML Converter
+headline: JSON, YAML, CSV & XML Converter
+description: Convert between JSON, YAML, CSV and XML, with quoted-field CSV parsing and configurable delimiters. Runs in your browser. Free, no sign-up required.
+summary: Convert data between JSON, YAML, CSV and XML in either direction.
 category: Convert
 order: 17
-updated: 2026-08-23
+updated: 2026-08-30
 whatIsIt: >-
-  JSON, YAML and CSV are the three formats most config files, API responses and exported
+  JSON, YAML, CSV and XML are the formats most config files, API responses and exported
   spreadsheets show up in, and moving data between them by hand is tedious and error-prone —
   especially CSV, whose quoting rules for a value containing a comma or a line break are easy
-  to get wrong manually. This tool converts between all three in either direction: pick a
+  to get wrong manually. This tool converts between all four in either direction: pick a
   "From" and "To" format, paste or type the data, and get a correctly formatted result
   immediately, including proper RFC 4180 quoting for CSV and correct type handling for JSON
   and YAML.
@@ -18,6 +18,7 @@ useCases:
   - Turning a CSV export from a spreadsheet into JSON to paste into an API request or a test fixture.
   - Converting a YAML config file (Kubernetes, Docker Compose, GitHub Actions) to JSON to feed into a tool that only accepts JSON.
   - Converting a JSON array of records into a CSV to open in a spreadsheet.
+  - Converting an XML API response or SOAP payload into JSON to work with in JavaScript.
   - Reformatting between YAML and JSON to work around a tool that only supports one of the two.
 howTo:
   - Paste your data, drop a file onto the input box, or click "Load example" to see a working sample.
@@ -42,6 +43,10 @@ faq:
     a: Converting to CSV needs the array's contents to be uniform — either every element is a flat object (which becomes a row, with the union of every object's keys as the header), or every element is itself an array (which becomes a row of raw cells). An array mixing objects, arrays, and plain values like strings has no single sensible row shape, so it's rejected with an explanation rather than guessed at.
   - q: Does this handle quoted CSV fields with embedded commas or line breaks?
     a: Yes — CSV parsing follows RFC 4180's quoting rules, including a doubled `""` as an escaped quote inside a quoted field, and a quoted field that itself contains the delimiter or a newline. Malformed CSV, like an unterminated quote, is reported clearly rather than silently misreading the rest of the file.
+  - q: How are XML attributes and repeated tags represented in JSON/YAML/CSV?
+    a: 'There''s no universal standard for this, so the tool uses one explicit, documented convention. An attribute becomes an object key prefixed with `@` (`<a id="1">` becomes `{"@id": "1"}`). Element text alongside attributes or child elements goes under a `#text` key. Repeated sibling tags, like several `<item>` elements in a row, collapse into a JSON array under that tag name — a single occurrence stays a plain value rather than a one-element array. Converting the other way round applies the same rules in reverse, so a document that started as XML round-trips back to the same XML.'
+  - q: What happens to a JSON key that isn't a valid XML tag name (spaces, symbols, a leading digit)?
+    a: It's sanitised rather than rejected — invalid characters become `_`, and a name that doesn't start with a letter or underscore gets one prefixed, so every key produces valid XML. Because XML also requires exactly one root element, a JSON array or an object with more than one top-level key gets wrapped in a `<root>` element (a top-level array becomes repeated `<item>` children of it); an object with exactly one top-level key uses that key as the root tag instead, which is what lets a document converted from XML convert cleanly back to it.
   - q: How reliable is the automatic format detection?
     a: 'It''s a convenience default, not a guarantee — it looks for clear structural signals (JSON''s braces, YAML''s "key:" lines or "---" markers, CSV''s delimiter-separated header row) and only switches the "From" format when it finds one it''s confident about; otherwise it leaves your current selection alone rather than guessing. It only runs on a drop or a paste into an empty box, never on ordinary typing, and you can always override it with the "From" selector.'
   - q: Is there a size limit?
@@ -53,7 +58,7 @@ related:
   - xml-formatter
 ---
 
-## Why YAML uses a real parser, but CSV doesn't
+## Why YAML uses a real parser, but CSV and XML don't
 
 YAML's grammar is genuinely complex — block and flow styles, anchors and aliases,
 multi-line scalars, implicit typing — the kind of thing where a hand-rolled parser produces
@@ -61,4 +66,6 @@ subtle, silent misreadings rather than a clear failure. This tool uses the small
 well-established [`js-yaml`](https://github.com/nodeca/js-yaml) library (MIT licensed) for
 that reason. CSV's grammar, by contrast, is simple
 enough (fields, a delimiter, and one quoting rule) to implement directly and test
-exhaustively, so it doesn't carry that same dependency risk.
+exhaustively, so it doesn't carry that same dependency risk. XML parsing and serialising use
+the browser's built-in `DOMParser`/`XMLSerializer` — no dependency needed at all, since every
+browser already ships a spec-compliant XML parser.

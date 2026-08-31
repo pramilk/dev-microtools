@@ -75,6 +75,10 @@ describe('detectFormat', () => {
     expect(detectFormat('name;role\nAda;Engineer\n')).toBe('csv');
   });
 
+  it('detects an XML document', () => {
+    expect(detectFormat('<root><a>1</a></root>')).toBe('xml');
+  });
+
   it('returns null for a single line with no structural markers', () => {
     expect(detectFormat('just some text')).toBeNull();
   });
@@ -166,6 +170,38 @@ describe('convertDataFormat', () => {
     const result = await convertDataFormat(csv, 'csv', 'json');
     expect(result.ok).toBe(true);
     if (result.ok) expect(JSON.parse(result.value)).toHaveLength(5000);
+  });
+
+  it('converts XML to JSON', async () => {
+    const result = await convertDataFormat('<root><name>Ada</name><active>true</active></root>', 'xml', 'json');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(JSON.parse(result.value)).toEqual({ root: { name: 'Ada', active: 'true' } });
+  });
+
+  it('converts JSON to XML', async () => {
+    const result = await convertDataFormat('{"root":{"name":"Ada"}}', 'json', 'xml');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toBe('<root>\n  <name>Ada</name>\n</root>');
+  });
+
+  it('round-trips XML with repeated sibling tags through YAML and back', async () => {
+    const xml = '<people><person>Ada</person><person>Grace</person></people>';
+    const toYaml = await convertDataFormat(xml, 'xml', 'yaml');
+    expect(toYaml.ok).toBe(true);
+    if (!toYaml.ok) return;
+    expect(toYaml.value).toContain('- Ada');
+
+    const backToXml = await convertDataFormat(toYaml.value, 'yaml', 'xml');
+    expect(backToXml.ok).toBe(true);
+    if (backToXml.ok) {
+      expect(backToXml.value).toBe('<people>\n  <person>Ada</person>\n  <person>Grace</person>\n</people>');
+    }
+  });
+
+  it('rejects malformed XML with a clear message', async () => {
+    const result = await convertDataFormat('<root><a>1</a>', 'xml', 'json');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/invalid xml/i);
   });
 
   it('rejects malformed JSON with a clear message', async () => {

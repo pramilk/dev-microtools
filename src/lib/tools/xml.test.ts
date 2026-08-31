@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatXml, minifyXml, validateXml, xmlToJson, MAX_INPUT_LENGTH } from './xml';
+import { formatXml, minifyXml, validateXml, xmlToJson, jsonValueToXml, MAX_INPUT_LENGTH } from './xml';
 
 describe('DOMParser environment sanity', () => {
   it('is available in this test environment', () => {
@@ -275,5 +275,71 @@ describe('xmlToJson', () => {
   it('rejects input over the size limit', () => {
     const huge = `<root>${'a'.repeat(MAX_INPUT_LENGTH + 1)}</root>`;
     expect(xmlToJson(huge)).toEqual({ ok: false, error: expect.stringMatching(/too large/i) });
+  });
+});
+
+describe('jsonValueToXml', () => {
+  it('uses a single-key object as the root tag', () => {
+    expect(jsonValueToXml({ root: { a: '1' } })).toEqual({ ok: true, value: '<root>\n  <a>1</a>\n</root>' });
+  });
+
+  it('round-trips through xmlToJson for a simple document', () => {
+    const original = '<root><a>1</a><b>2</b></root>';
+    const parsed = xmlToJson(original);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(jsonValueToXml(parsed.value)).toEqual({ ok: true, value: '<root>\n  <a>1</a>\n  <b>2</b>\n</root>' });
+  });
+
+  it('round-trips repeated sibling tags back into an array', () => {
+    const parsed = xmlToJson('<root><item>1</item><item>2</item><item>3</item></root>');
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(jsonValueToXml(parsed.value)).toEqual({
+        ok: true,
+        value: '<root>\n  <item>1</item>\n  <item>2</item>\n  <item>3</item>\n</root>',
+      });
+    }
+  });
+
+  it('round-trips an @attribute back onto the element', () => {
+    const parsed = xmlToJson('<root><a id="1">1</a></root>');
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(jsonValueToXml(parsed.value)).toEqual({ ok: true, value: '<root>\n  <a id="1">1</a>\n</root>' });
+    }
+  });
+
+  it('wraps a top-level array in a <root> of repeated <item> elements', () => {
+    expect(jsonValueToXml([{ name: 'Ada' }, { name: 'Grace' }])).toEqual({
+      ok: true,
+      value: '<root>\n  <item>\n    <name>Ada</name>\n  </item>\n  <item>\n    <name>Grace</name>\n  </item>\n</root>',
+    });
+  });
+
+  it('wraps a multi-key object in <root>', () => {
+    expect(jsonValueToXml({ a: '1', b: '2' })).toEqual({ ok: true, value: '<root>\n  <a>1</a>\n  <b>2</b>\n</root>' });
+  });
+
+  it('wraps a bare primitive in <root>', () => {
+    expect(jsonValueToXml('hello')).toEqual({ ok: true, value: '<root>hello</root>' });
+  });
+
+  it('self-closes an element for a null value', () => {
+    expect(jsonValueToXml({ root: { a: null } })).toEqual({ ok: true, value: '<root>\n  <a/>\n</root>' });
+  });
+
+  it('sanitises an invalid XML name from a JSON key', () => {
+    expect(jsonValueToXml({ 'my key!': '1' })).toEqual({ ok: true, value: '<my_key_>1</my_key_>' });
+  });
+
+  it('escapes special characters in text content', () => {
+    expect(jsonValueToXml({ root: { a: '<b> & "c"' } })).toEqual({
+      ok: true,
+      value: '<root>\n  <a>&lt;b&gt; &amp; "c"</a>\n</root>',
+    });
+  });
+
+  it('respects a custom indent size', () => {
+    expect(jsonValueToXml({ root: { a: '1' } }, 4)).toEqual({ ok: true, value: '<root>\n    <a>1</a>\n</root>' });
   });
 });

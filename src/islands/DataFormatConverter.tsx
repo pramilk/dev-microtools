@@ -17,10 +17,16 @@ const SAMPLE: Record<DataFormat, string> = {
   json: '[\n  { "name": "Ada", "role": "Engineer" },\n  { "name": "Grace", "role": "Admiral" }\n]',
   yaml: '- name: Ada\n  role: Engineer\n- name: Grace\n  role: Admiral\n',
   csv: 'name,role\nAda,Engineer\nGrace,Admiral',
+  xml: '<people>\n  <person>\n    <name>Ada</name>\n    <role>Engineer</role>\n  </person>\n  <person>\n    <name>Grace</name>\n    <role>Admiral</role>\n  </person>\n</people>',
 };
 
-const EXTENSIONS: Record<DataFormat, string> = { json: 'json', yaml: 'yaml', csv: 'csv' };
-const MIME_TYPES: Record<DataFormat, string> = { json: 'application/json', yaml: 'text/yaml', csv: 'text/csv' };
+const EXTENSIONS: Record<DataFormat, string> = { json: 'json', yaml: 'yaml', csv: 'csv', xml: 'xml' };
+const MIME_TYPES: Record<DataFormat, string> = {
+  json: 'application/json',
+  yaml: 'text/yaml',
+  csv: 'text/csv',
+  xml: 'application/xml',
+};
 
 interface ShareState {
   input: string;

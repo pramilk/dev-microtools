@@ -1,13 +1,15 @@
 import { type ToolResult, ok, err, messageFrom } from './result';
+import { xmlToJson, jsonValueToXml } from './xml';
 
-export type DataFormat = 'json' | 'yaml' | 'csv';
+export type DataFormat = 'json' | 'yaml' | 'csv' | 'xml';
 
-export const DATA_FORMATS: DataFormat[] = ['json', 'yaml', 'csv'];
+export const DATA_FORMATS: DataFormat[] = ['json', 'yaml', 'csv', 'xml'];
 
 export const DATA_FORMAT_LABELS: Record<DataFormat, string> = {
   json: 'JSON',
   yaml: 'YAML',
   csv: 'CSV',
+  xml: 'XML',
 };
 
 /**
@@ -193,6 +195,8 @@ async function parseValue(input: string, format: DataFormat, options: DataFormat
     }
   }
 
+  if (format === 'xml') return xmlToJson(input);
+
   const rows = parseCsv(input, options.delimiter);
   if (!rows.ok) return rows;
   return ok(csvRowsToValue(rows.value, options.hasHeader));
@@ -215,6 +219,8 @@ async function stringifyValue(value: unknown, format: DataFormat, options: DataF
       return err(messageFrom(error, 'Could not serialise as YAML.'));
     }
   }
+
+  if (format === 'xml') return jsonValueToXml(value);
 
   const rows = valueToCsvRows(value);
   if (!rows.ok) return rows;
@@ -239,6 +245,8 @@ export function detectFormat(text: string): DataFormat | null {
       // Falls through — starts like JSON but isn't valid; could still be YAML flow syntax.
     }
   }
+
+  if (trimmed.startsWith('<')) return 'xml';
 
   const firstLine = trimmed.split(/\r?\n/, 1)[0]!;
 

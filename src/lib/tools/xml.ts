@@ -264,3 +264,85 @@ export function xmlToJson(input: string): ToolResult<unknown> {
   const root = parsed.value.documentElement;
   return ok({ [root.tagName]: elementToJsonValue(root) });
 }
+
+// -------------------------------------------------------------- JSON value -> XML
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/**
+ * A JS object key can be anything; an XML name can't (no spaces, can't start with a
+ * digit, only a limited character set). Invalid characters become `_` and a name that
+ * doesn't start with a letter or underscore is prefixed with one, so every key produces
+ * *some* valid tag/attribute name rather than emitting unparseable XML.
+ */
+function toXmlName(key: string): string {
+  const cleaned = key.replace(/[^A-Za-z0-9_.-]/g, '_');
+  return /^[A-Za-z_]/.test(cleaned) ? cleaned : `_${cleaned}`;
+}
+
+function escapeXmlText(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * Builds one or more sibling `<tagName>` lines for `value`, following the same
+ * `@attr` / `#text` convention as {@link elementToJsonValue}, in reverse. An array
+ * value becomes repeated sibling elements (mirroring how {@link elementToJsonValue}
+ * collapses repeated siblings into an array), not a single element wrapping the array.
+ */
+function valueToXmlLines(tagName: string, value: unknown, depth: number, indentSize: number): string[] {
+  if (Array.isArray(value)) return value.flatMap((item) => valueToXmlLines(tagName, item, depth, indentSize));
+  return [elementFromValue(tagName, value, depth, indentSize)];
+}
+
+function elementFromValue(tagName: string, value: unknown, depth: number, indentSize: number): string {
+  const indent = ' '.repeat(depth * indentSize);
+  const name = toXmlName(tagName);
+
+  if (value === null || value === undefined) return `${indent}<${name}/>`;
+
+  if (!isPlainObject(value)) {
+    const text = escapeXmlText(String(value));
+    return text === '' ? `${indent}<${name}/>` : `${indent}<${name}>${text}</${name}>`;
+  }
+
+  const attrEntries = Object.entries(value).filter(([key]) => key.startsWith('@'));
+  const childEntries = Object.entries(value).filter(([key]) => key !== '#text' && !key.startsWith('@'));
+  const text = value['#text'];
+  const hasText = text !== undefined && text !== null && String(text) !== '';
+
+  const attrsStr = attrEntries
+    .map(([key, attrValue]) => ` ${toXmlName(key.slice(1))}="${escapeAttrValue(String(attrValue))}"`)
+    .join('');
+
+  const childLines = childEntries.flatMap(([key, childValue]) => valueToXmlLines(key, childValue, depth + 1, indentSize));
+
+  if (childLines.length === 0 && !hasText) return `${indent}<${name}${attrsStr}/>`;
+  if (childLines.length === 0) return `${indent}<${name}${attrsStr}>${escapeXmlText(String(text))}</${name}>`;
+
+  const textLine = hasText ? `${' '.repeat((depth + 1) * indentSize)}${escapeXmlText(String(text))}` : null;
+  const inner = [textLine, ...childLines].filter((line): line is string => line !== null).join('\n');
+  return `${indent}<${name}${attrsStr}>\n${inner}\n${indent}</${name}>`;
+}
+
+/**
+ * Converts a plain JS value (typically parsed from JSON, YAML or CSV) to XML — the
+ * inverse of {@link xmlToJson}. XML requires exactly one root element, so:
+ *  - an object with exactly one key, whose value isn't itself an array, uses that key as
+ *    the root tag (round-tripping cleanly with `xmlToJson`'s output shape);
+ *  - anything else (an array, a multi-key object, or a plain string/number/boolean) is
+ *    wrapped in a `<root>` element, with a top-level array's items becoming repeated
+ *    `<item>` children.
+ */
+export function jsonValueToXml(value: unknown, indentSize: number = DEFAULT_INDENT_SIZE): ToolResult<string> {
+  const entries = isPlainObject(value) ? Object.entries(value) : [];
+
+  if (entries.length === 1 && !Array.isArray(entries[0]![1])) {
+    const [key, content] = entries[0]!;
+    return ok(elementFromValue(key, content, 0, indentSize));
+  }
+
+  const rootContent = Array.isArray(value) ? { item: value } : value;
+  return ok(elementFromValue('root', rootContent, 0, indentSize));
+}
