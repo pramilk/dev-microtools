@@ -1,0 +1,111 @@
+---
+title: Meta Tag & Open Graph Generator
+headline: Meta Tag & Open Graph Generator for SEO and Social Previews
+description: Generate title, description, canonical, Open Graph and Twitter Card meta tags with a live search and social-card preview. Free, runs entirely in your browser.
+summary: Build SEO, Open Graph and Twitter Card meta tags for a page, with a live search-result and social-card preview.
+category: Generate
+order: 40
+updated: 2026-09-01
+whatIsIt: >-
+  Every page needs the same dozen or so tags in its `<head>` before it can show up properly
+  anywhere: a title and description for search engines, a canonical link so duplicate URLs
+  don't split your ranking, Open Graph tags so Facebook, LinkedIn and Slack render a real
+  card instead of a bare link, and Twitter Card tags for the same reason on X. They're not
+  hard to write individually, but there are a lot of them, the property names are easy to
+  mix up (`property` on Open Graph tags, `name` on Twitter's — swap them and the tag is
+  silently ignored), and the two most common mistakes — a relative image URL that crawlers
+  never resolve, and a title or description too long to fit — are invisible until you paste
+  the link somewhere and see a broken or truncated card. This tool builds the whole block
+  from a form, validates the parts that can be validated (URLs, hex colors, handles), and
+  shows a live approximation of both the Google search result and the social card before you
+  ship anything.
+useCases:
+  - Shipping a new page and wanting the whole SEO/OG/Twitter head block written correctly the first time, instead of copy-pasting last page's tags and half-updating them.
+  - Debugging why a shared link shows no image or the wrong title — building the tags from scratch here and comparing against what the page currently serves.
+  - Checking whether a title or description is going to get truncated in search results before it ships, rather than finding out after it's indexed.
+  - Writing per-page Open Graph tags for a static site or a CMS template where there's no existing tool that does it for you.
+  - Producing a quick reference block to hand to a developer implementing the head tags in a framework or CMS that doesn't template them by hand.
+howTo:
+  - Enter the page title and meta description — the counters under each field show how close you are to where search engines typically truncate.
+  - Add the canonical URL — the page's own permanent address. This drives both `rel=canonical` and `og:url`.
+  - Add an absolute image URL and alt text. Crawlers building a social card do not resolve relative paths, so this has to be a full `https://` address.
+  - Set the Open Graph type, locale, site name and theme color as they apply to this page.
+  - Pick a Twitter Card layout and fill in the site/creator handles — the leading `@` is added automatically if you leave it off.
+  - Set the robots directives if this page should be excluded from search results or from link-following.
+  - Check the warnings under the output and the two previews, then copy or download the block into the page's `<head>`.
+example:
+  label: A product page with a title, image and Twitter card.
+  input: 'Title "Acme Widgets — Buy Premium Widgets Online", canonical https://example.com/widgets, image https://devmicrotools.com/og-image.png, type Product, Twitter handle @acme.'
+  output: |-
+    <title>Acme Widgets — Buy Premium Widgets Online</title>
+    <meta name="description" content="Shop the full Acme Widgets catalogue. Free shipping over $50, and a 30-day return window on every order." />
+    <link rel="canonical" href="https://example.com/widgets" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#0ea5e9" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="product" />
+    <meta property="og:title" content="Acme Widgets — Buy Premium Widgets Online" />
+    <meta property="og:description" content="Shop the full Acme Widgets catalogue. Free shipping over $50, and a 30-day return window on every order." />
+    <meta property="og:url" content="https://example.com/widgets" />
+    <meta property="og:site_name" content="Acme" />
+    <meta property="og:image" content="https://devmicrotools.com/og-image.png" />
+    <meta property="og:image:alt" content="DevMicroTools — sample social preview image" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Acme Widgets — Buy Premium Widgets Online" />
+    <meta name="twitter:description" content="Shop the full Acme Widgets catalogue. Free shipping over $50, and a 30-day return window on every order." />
+    <meta name="twitter:image" content="https://devmicrotools.com/og-image.png" />
+    <meta name="twitter:site" content="@acme" />
+  note: >-
+    Press "Load example" to build exactly this. Notice the image URL is absolute and the
+    Twitter handle got its `@` added automatically — both fixes this tool applies so the
+    output works the first time it's shared.
+faq:
+  - q: What's the difference between Open Graph tags and Twitter Card tags?
+    a: Open Graph (`og:*`, using the `property` attribute) is the standard Facebook created and most platforms — LinkedIn, Slack, Discord, WhatsApp — now read it for their link previews. Twitter/X has its own separate `twitter:*` tags (using `name`, not `property`) and mostly ignores Open Graph, falling back to it only for a handful of fields. A page that wants a good preview everywhere needs both sets, which is why this tool writes both from the same title, description and image rather than making you fill them in twice.
+  - q: Why does the image need to be an absolute URL?
+    a: A crawler building a social card fetches the image directly — it does not load your page in a browser first, so it has no base URL to resolve a relative path like `/og/image.png` against. Without the scheme and domain, the fetch fails silently and the platform falls back to no image at all. This tool validates the image field as a full URL for exactly this reason and refuses to generate a broken one.
+  - q: Does a canonical URL actually affect my Google ranking?
+    a: Indirectly, yes. `rel=canonical` tells search engines which URL is the "real" one when the same content is reachable at more than one address — with and without a trailing slash, with a tracking parameter, over `http` versus `https`. Without it, engines may split ranking signals across the duplicates instead of consolidating them onto one page. It doesn't boost ranking on its own, but skipping it on a site with any URL variants is a common, easy-to-avoid mistake.
+  - q: What does noindex actually do, and when should I use it?
+    a: '"noindex" in the robots meta tag tells search engines not to include this specific page in results at all — stronger than `robots.txt`, which only asks a crawler not to *fetch* a page (the page can still get indexed from other signals if it is not fetched but is linked to). Reach for it on pages that genuinely should not appear in search — an internal admin page, a thank-you page after checkout, a duplicate print-friendly view — never on a real page you want found; this tool warns loudly when it is set, since it is easy to leave switched on after testing.'
+  - q: My title and description are within the counter limits — will they definitely not get truncated?
+    a: Not guaranteed — Google measures the rendered pixel width of the title, not a fixed character count, so a title full of wide characters (capital letters, emoji) can truncate a little earlier than the counter suggests, and one full of narrow characters can run a little longer. The 60/160-character figures used here are the widely cited practical guidelines, not an exact cutoff Google publishes, but staying under them is a safe, simple target that covers the large majority of cases.
+  - q: Do I need to fill in every field for this to be useful?
+    a: No — only the title is required to generate anything at all. Every other field is optional, and the warnings under the output tell you what a real crawler will do without it — no description means the search engine picks its own snippet from the page text, no image means link previews show no thumbnail, no canonical URL means `og:url` is simply omitted. Fill in what applies to the page and leave the rest blank.
+  - q: Is anything I type here sent anywhere?
+    a: No — this is pure string generation running in your browser tab, the same as every other tool on this site; nothing is uploaded. The one exception worth knowing about is the image-URL preview — like pasting the same URL into a browser tab, your browser does request that image directly from wherever it's hosted, the same as it would if the tag were live on a real page. Nothing about your title, description or other fields is sent anywhere.
+related:
+  - robots-txt-generator
+  - slug-generator
+  - url-parser
+---
+
+## Why the property/name split trips people up
+
+Open Graph tags use `<meta property="og:title" ...>`; Twitter Card tags use
+`<meta name="twitter:title" ...>`. They look almost identical and are easy to write with the
+wrong attribute out of habit — a `name="og:title"` tag is simply invisible to a crawler
+looking for `property`. This tool always emits the correct attribute for each family, so that
+particular mistake isn't one you can make here even by accident.
+
+## What a crawler actually reads
+
+Search engines and link-preview crawlers do not run your page's JavaScript before reading
+its `<head>` — they fetch the raw HTML once and parse it directly. That means every tag has
+to already be present in the server-rendered response; injecting Open Graph tags with client
+-side JavaScript after the page loads does not work for this purpose, even though the tags
+are visible if you inspect the live DOM in a browser. Static site generators, server-rendered
+frameworks and most CMS templates all handle this correctly by default — the tags this tool
+produces are meant to be written directly into a template's `<head>`, not appended at runtime.
+
+## What powers this tool
+
+Pure string assembly and client-side validation — a small set of URL, hex-color and handle
+checks, and two character counters based on the practical truncation limits search engines
+and social platforms use in practice. No dependency, no network request of its own beyond the
+one exception noted in the FAQ above: loading the image URL you provide so the card preview
+can show it.

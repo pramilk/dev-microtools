@@ -31,6 +31,7 @@ request at all. You can verify this yourself: open DevTools → Network while us
 | [cURL Command Builder](https://devmicrotools.com/curl-command-builder/) | Generate | Turn a method, URL, headers, body and auth into a correctly-escaped curl command. |
 | [Lorem Ipsum Generator](https://devmicrotools.com/lorem-ipsum-generator/) | Generate | Generate Lorem Ipsum placeholder text as paragraphs, sentences or words. |
 | [Slug Generator](https://devmicrotools.com/slug-generator/) | Generate | Turn a title into a clean, URL-friendly slug — separator, casing and length options. |
+| [Meta Tag & Open Graph Generator](https://devmicrotools.com/meta-tag-generator/) | Generate | Build SEO, Open Graph and Twitter Card meta tags for a page, with a live search-result and social-card preview. |
 | [JWT Debugger](https://devmicrotools.com/jwt-decoder/) | Security | Decode, verify and sign JSON Web Tokens without uploading them anywhere. |
 | [Hash Generator](https://devmicrotools.com/hash-generator/) | Security | Compute MD5, SHA-1 and SHA-2 digests, and verify a checksum against them. |
 | [Password Generator](https://devmicrotools.com/password-generator/) | Security | Create strong random passwords with adjustable length and character types. |

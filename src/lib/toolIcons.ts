@@ -50,6 +50,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'lorem-ipsum-generator': 'LOR',
   'slug-generator': 'SLG',
   'invisible-char-inspector': 'ZWS',
+  'meta-tag-generator': 'OG',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

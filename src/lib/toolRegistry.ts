@@ -39,6 +39,7 @@ import BundleSizeChecker from '../islands/BundleSizeChecker';
 import LoremIpsumGenerator from '../islands/LoremIpsumGenerator';
 import SlugGenerator from '../islands/SlugGenerator';
 import InvisibleCharInspector from '../islands/InvisibleCharInspector';
+import MetaTagGenerator from '../islands/MetaTagGenerator';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -87,6 +88,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'lorem-ipsum-generator': LoremIpsumGenerator,
   'slug-generator': SlugGenerator,
   'invisible-char-inspector': InvisibleCharInspector,
+  'meta-tag-generator': MetaTagGenerator,
 };
 
 /**
