@@ -49,6 +49,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'bundle-size-checker': 'PKG',
   'lorem-ipsum-generator': 'LOR',
   'slug-generator': 'SLG',
+  'invisible-char-inspector': 'ZWS',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

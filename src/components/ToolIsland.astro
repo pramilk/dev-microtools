@@ -37,6 +37,7 @@ import RobotsTxtGenerator from '../islands/RobotsTxtGenerator';
 import BundleSizeChecker from '../islands/BundleSizeChecker';
 import LoremIpsumGenerator from '../islands/LoremIpsumGenerator';
 import SlugGenerator from '../islands/SlugGenerator';
+import InvisibleCharInspector from '../islands/InvisibleCharInspector';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -99,3 +100,4 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'bundle-size-checker' && <BundleSizeChecker client:load />}
 {slug === 'lorem-ipsum-generator' && <LoremIpsumGenerator client:load />}
 {slug === 'slug-generator' && <SlugGenerator client:load />}
+{slug === 'invisible-char-inspector' && <InvisibleCharInspector client:load />}

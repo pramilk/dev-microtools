@@ -40,6 +40,7 @@ request at all. You can verify this yourself: open DevTools → Network while us
 | [Word Counter](https://devmicrotools.com/word-counter/) | Text | Count words and characters, convert text case, and find and replace text. |
 | [Duplicate Line Remover](https://devmicrotools.com/duplicate-line-remover/) | Text | Find duplicate lines, sentences, or paragraphs and remove one, some, or all of them. |
 | [Case Converter](https://devmicrotools.com/case-converter/) | Text | Convert text between nine common casing styles, plus a smarter NLP-assisted Sentence case. |
+| [Invisible & Homoglyph Inspector](https://devmicrotools.com/invisible-char-inspector/) | Text | Find zero-width characters, bidi overrides, odd whitespace and Latin-lookalike homoglyphs, then clean them. |
 | [LLM Token Counter](https://devmicrotools.com/llm-token-counter/) | AI | Count tokens in a prompt and estimate the API cost across GPT, Claude and Gemini models. |
 | [robots.txt & llms.txt Generator](https://devmicrotools.com/robots-txt-generator/) | AI | Allow or block AI crawlers by name and generate a matching robots.txt and llms.txt. |
 | [User-Agent Parser](https://devmicrotools.com/user-agent-parser/) | Web & Network | Parse a User-Agent string into browser, OS, rendering engine and device type. |

@@ -1,0 +1,89 @@
+---
+title: Invisible & Homoglyph Inspector
+headline: Invisible Character & Homoglyph Inspector
+description: Find zero-width characters, bidi overrides, odd whitespace, control characters, and Latin-lookalike homoglyphs hidden in text, then strip or replace them.
+summary: Detect hidden zero-width characters, bidi overrides, and spoofing homoglyphs in text, then clean them in your browser.
+category: Text
+order: 39
+updated: 2026-08-31
+whatIsIt: >-
+  An invisible-character and homoglyph inspector scans a block of text character by character
+  and flags anything that isn't what it visually appears to be: zero-width characters that
+  render with no glyph at all, bidirectional-override control characters that can reorder how
+  surrounding text displays, non-standard whitespace that looks like a normal space but silently
+  breaks string comparisons, raw control characters left over from a bad paste, and letters from
+  another script — Cyrillic, Greek, Armenian — that are visually identical to a Latin letter.
+  Each finding is highlighted directly in an annotated preview with its Unicode code point and
+  name, so you can see exactly what's hiding in text before you trust it, paste it into code, or
+  register a domain that contains it. A one-click clean-up strips or normalizes whichever
+  categories you choose, leaving homoglyph replacement as an explicit opt-in, since that's the
+  one category where genuine non-Latin text and an actual spoofing attempt can look identical.
+  Everything runs entirely in your browser; nothing you paste is ever uploaded.
+useCases:
+  - Checking a domain, username, or brand name someone sent you for Cyrillic or Greek homoglyphs before you trust it.
+  - Finding the zero-width characters some sites and AI tools quietly insert as an invisible watermark.
+  - Debugging a string comparison, trim, or CSV import that silently fails because of a non-breaking space or other odd whitespace.
+  - Spotting a right-to-left override hiding a file's real extension behind a fake one — the "Trojan Source" trick.
+howTo:
+  - Paste or type the text you want to inspect, or drop a .txt file onto the box.
+  - Review the findings — a count and colored badge for each category found, plus a note on whether any homoglyphs look like likely spoofing or genuine non-Latin text.
+  - Hover a highlighted character in the annotated preview for its exact Unicode name and code point.
+  - Choose which categories to strip, normalize, or replace under "Clean-up options", then copy the result from "Cleaned text".
+example:
+  label: A spoofed login prompt hiding three different tricks at once.
+  input: "Sign in at p\u0430ypal-support.com to verify your account.\nThe attached file is named invoice\u202Ecod.scr\u202C.pdf\nThere's a non-breaking space right\u00A0here, and a zero-width space\u200B hidden in this sentence."
+  output: |-
+    5 characters flagged: a right-to-left override hiding the real ".scr" extension behind a
+    fake ".pdf" one (2 characters, the override and its terminator), a Cyrillic "a" (U+0430)
+    standing in for the Latin one in "paypal", a non-breaking space, and a zero-width space.
+    With "Homoglyph (replace)" left unchecked (the default), "Clean text" strips the other four
+    and produces: "Sign in at [Cyrillic a]ypal-support.com to verify your account. The attached
+    file is named invoicecod.scr.pdf. There's a non-breaking space right here, and a zero-width
+    space hidden in this sentence." Checking "Homoglyph (replace)" too turns that Cyrillic "a"
+    into a plain ASCII one, producing the real "paypal-support.com".
+faq:
+  - q: Is my text uploaded anywhere when I use this tool?
+    a: No. Every scan and clean-up runs in your browser's own JavaScript engine — nothing you type, paste, or drop as a file is ever sent to a server. You can confirm this yourself by watching your browser's DevTools Network tab while using the tool.
+  - q: Why is "Homoglyph (replace)" off by default?
+    a: Because a Cyrillic or Greek letter that looks like a Latin one isn't automatically a spoofing attempt — it might just be a genuine word in that language that happens to share a letter with the Latin alphabet. The tool flags every occurrence either way and tells you whether the surrounding text reads as mostly ASCII (likely spoofing) or mostly non-Latin script (likely genuine); replacing is a deliberate choice you make after reading that, not an automatic one.
+  - q: What is a "bidi override" and why does it matter?
+    a: Right-to-left and left-to-right override characters tell a renderer to display the following text in the opposite direction, without changing the underlying bytes. Attackers use this to make a file named something like "invoice + RLO + cod.scr" display as "invoicercs.doc" — hiding a dangerous extension behind a harmless-looking one. The same trick, applied to source code, is known as "Trojan Source" — it can make reviewed code display in an order different from how the compiler actually reads it.
+  - q: Does this catch every possible homoglyph?
+    a: No — the homoglyph list here is a curated set of Cyrillic, Greek, Armenian, and fullwidth Latin look-alikes actually seen in real spoofing incidents, not the full Unicode confusables database, which runs to several thousand entries and would need a bundled data file this site doesn't ship. It catches the common cases; it isn't a substitute for your registrar's or browser's own IDN homograph protection.
+  - q: Why does it flag zero-width joiners inside something like a family emoji?
+    a: A zero-width joiner is genuinely invisible on its own — it has no glyph — even when it's doing legitimate work stitching several emoji into one combined sequence. An "invisible character" inspector has no reliable way to tell "meaningful joiner in an emoji sequence" apart from "joiner hidden in a URL to break pattern matching", so it flags both. Review the annotated preview before stripping invisible characters from text that contains emoji or complex scripts like Arabic or Indic ones that legitimately use zero-width joiners for ligatures.
+  - q: Can this tell me if a URL or domain has already been spoofed?
+    a: It tells you what's actually in the text you pasted, character by character, which is the building block for spotting a spoofed domain — but it doesn't fetch or resolve anything itself, in keeping with this site's no-network-calls policy for tools like this. Paste the domain text here to check its characters, then verify the actual destination separately.
+related:
+  - word-counter
+  - duplicate-line-remover
+  - url-parser
+---
+
+## Why homoglyph replacement is opt-in
+
+Every other category this tool finds is safe to strip unconditionally: a zero-width space, a
+bidi override, a stray control character, or a non-breaking space is never something a piece of
+plain text legitimately needs to keep. Homoglyphs are different. The same Cyrillic letter that
+spoofs "paypal.com" is also just an ordinary letter in millions of genuine Russian words, and
+stripping or replacing it in real non-Latin text would corrupt it. That's why the tool always
+tells you which situation you're likely looking at — mostly-ASCII text with a look-alike letter
+mixed in, versus mostly non-Latin text that happens to contain one — and leaves the actual
+decision to replace it as a checkbox you tick, rather than a default.
+
+## What this tool does not do
+
+It isn't a full implementation of Unicode Technical Standard #39 (the formal confusables
+specification), which lists several thousand character pairs across every script Unicode
+covers. The homoglyph table here is a hand-picked subset — the Cyrillic, Greek, Armenian, and
+fullwidth Latin letters actually used in real domain- and brand-spoofing incidents — chosen so
+the tool stays a small, dependency-free script instead of shipping a bundled confusables
+database. It also doesn't fetch, resolve, or verify anything: it only reports what's in the text
+you pasted, not whether a domain built from it actually exists or where it points.
+
+## Why a browser-only tool
+
+Text worth checking for hidden characters is often exactly the text you don't want to hand to a
+third-party server — a suspicious email, a login page's source, a domain you're about to trust.
+Running entirely client-side means there's no version of this tool that could log, retain, or
+leak what you paste into it, because it never leaves your machine.
