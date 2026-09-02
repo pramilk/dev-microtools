@@ -40,6 +40,7 @@ import LoremIpsumGenerator from '../islands/LoremIpsumGenerator';
 import SlugGenerator from '../islands/SlugGenerator';
 import InvisibleCharInspector from '../islands/InvisibleCharInspector';
 import MetaTagGenerator from '../islands/MetaTagGenerator';
+import JsonToTypesConverter from '../islands/JsonToTypesConverter';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -89,6 +90,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'slug-generator': SlugGenerator,
   'invisible-char-inspector': InvisibleCharInspector,
   'meta-tag-generator': MetaTagGenerator,
+  'json-to-types': JsonToTypesConverter,
 };
 
 /**

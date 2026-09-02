@@ -1,0 +1,91 @@
+---
+title: JSON & XML to Types
+headline: JSON & XML to TypeScript, Go, Java, C#, Kotlin, Swift, Rust & Python
+description: Generate TypeScript, Go, Java, C#, Kotlin, Swift, Rust or Python types from a JSON or XML sample, with nested objects and optional fields inferred. Free.
+summary: Turn a JSON or XML sample into TypeScript, Go, Java, C#, Kotlin, Swift, Rust or Python types automatically.
+category: Convert
+order: 41
+updated: 2026-09-01
+whatIsIt: >-
+  Working with an API response, a config file, or a webhook payload usually means writing a
+  matching type by hand before you can use it safely — a TypeScript interface, a Go struct
+  with the right `json` tags, a Java class with Jackson annotations, a C# record, a Kotlin
+  `data class`, a Swift `Codable` struct, a Rust struct with `serde` derives, or a Python
+  `TypedDict`. Doing that by hand for anything beyond a handful of fields is slow and
+  error-prone: nested objects need their own named types, arrays need an element type, and a
+  field that's sometimes missing or sometimes `null` needs to be marked that way rather than
+  silently assumed present. This tool infers all of that directly from a real JSON or XML
+  sample — paste one object, or an array of several (so it can compare them and work out
+  which fields are actually optional), pick a target language, and get ready-to-use type
+  definitions with sensible names for every nested shape.
+useCases:
+  - Turning a JSON response from an API you're integrating with into a TypeScript interface before writing the client code that consumes it.
+  - Generating a Go struct with correct `json` tags, or a Java class with Jackson annotations, to unmarshal a webhook payload or a third-party API response.
+  - Producing a Rust struct with `serde` derives, or a Kotlin `data class` with `kotlinx.serialization`, to deserialize a config file or an HTTP response body.
+  - Creating a Swift `Codable` struct or a Python `TypedDict` to add real types to code that currently works with a JSON document as a loose dictionary.
+  - Converting a legacy SOAP or XML API response straight into modern typed models, without hand-translating the XML shape first.
+  - Comparing several sample records from the same API endpoint to see, from the generated optional fields, which properties aren't always present.
+howTo:
+  - Choose "Input format" — JSON or XML — then paste a document (or, for JSON, an array of similar objects) into the input. Click "Load example" to see a working sample first.
+  - Pick the target language from the dropdown — TypeScript, Go, Java, C#, Kotlin, Swift, Rust, or Python.
+  - Optionally rename the top-level type from the default "Root" to something that fits your codebase.
+  - If you pasted a JSON array of objects, fields that aren't present on every element come out marked optional automatically.
+  - Copy the result, download it as a file, or copy a link that restores this exact input, language and settings.
+example:
+  label: A user record with a nested address, an array of tags, and an array of orders where one field isn't always present.
+  input: '{"id":101,"name":"Ada Lovelace","email":null,"isActive":true,"address":{"city":"London","zip":"SW1A"},"tags":["mathematician","writer"],"orders":[{"id":1,"total":42.5},{"id":2,"total":10,"discount":5}]}'
+  output: |-
+    export interface Address {
+      city: string;
+      zip: string;
+    }
+
+    export interface Order {
+      id: number;
+      total: number;
+      discount?: number;
+    }
+
+    export interface Root {
+      id: number;
+      name: string;
+      email: unknown | null;
+      isActive: boolean;
+      address: Address;
+      tags: string[];
+      orders: Order[];
+    }
+  note: The nested "address" object became its own named Address interface, "orders" became an array of a new Order interface, and "discount" — present on only one of the two sample orders — came out as optional rather than required. Switching the language dropdown regenerates the same shapes in that language's own idiom, right down to Go's pointer-and-omitempty convention, Rust's Option<T>, Java's boxed wrapper types, C#'s nullable ?, Kotlin's null default, and Swift's CodingKeys enum.
+faq:
+  - q: What's the difference between a field being "optional" and being "nullable"?
+    a: They're tracked separately because they mean different things. Optional means the key itself is sometimes missing from the object entirely — this tool only detects that from an array of several sample objects, since a single object can't show that a key is ever absent. Nullable means the key is always present but its value is sometimes JSON `null`. A field can be neither, either, or both, and each language renders the two independently — for example in TypeScript, optional adds `?` after the key name while nullable adds `| null` to the type; languages without a first-class "optional key" concept (Go, Rust, C#, Kotlin, Swift) fold both into one nullable-style marker (a pointer, `Option<T>`, or `?`), since that's the closest native idiom each one has.
+  - q: How does it decide the name for a nested type?
+    a: 'From where it appears in the JSON or XML: a nested object under a field called `address` becomes an `Address` type; an array field called `orders` becomes an array of a new `Order` type (singularized from the field name). Two nested objects with exactly the same set of fields — like a `billing` and `shipping` address with identical shapes — are recognized as the same shape and share one generated type rather than producing a duplicate.'
+  - q: Why does a field that's always `null` come out as `unknown` (or `interface{}`, `Any`, `serde_json::Value`, `JsonNode`, `JsonElement`, `AnyCodable`)?
+    a: Because a single JSON `null` carries no information about what the real, non-null type would be — there's nothing to infer it from. If you have a sample where that same field holds a real value elsewhere (in another array element, for instance), the tool combines both observations and infers the concrete type, keeping it nullable. The same applies to a field whose values genuinely mix incompatible types (a number in one record, a string in another) in a language without real union types.
+  - q: How are numbers typed in languages without a single universal "number", like TypeScript's?
+    a: A field is inferred as a whole-number type (`int64` in Go, `i64` in Rust, `int` in Python and Swift, `long` in Java, C# and Kotlin) unless any sample value for that field has a decimal point, in which case the whole field becomes a floating-point type (`float64`/`f64`/`float`/`double`) — mixing `10` and `42.5` for the same field produces a float, since a type has to cover every observed value.
+  - q: Why does a mixed-type array produce a real union in TypeScript and Python, but a fallback "any" type elsewhere?
+    a: TypeScript and Python both have first-class union types (`number | string`, `Union[int, str]`), so a mixed array is represented precisely. The other six targets don't have an equivalent without hand-written enum or sealed-class boilerplate specific to the shapes involved, which is beyond what a generic generator can produce safely — so a genuinely mixed type widens to Go's `interface{}`, Rust's `serde_json::Value`, Java's `JsonNode`, C#'s `JsonElement`, Kotlin's `JsonElement`, or Swift's inlined `AnyCodable` helper, rather than guessing at a shape you'd still need to adjust by hand.
+  - q: How does converting from XML work?
+    a: XML is first converted to a plain JSON-like value using this site's documented XML↔JSON convention (the same one the JSON, YAML, CSV & XML Converter uses) — an attribute becomes an `@name` field, text alongside attributes or child elements goes under `#text`, and repeated sibling tags collapse into an array. The document's one root element becomes the outer generated type's single field, so `<person><name>Ada</name></person>` produces a `Root` type containing a `person` field of a new `Person` type, rather than naming the outer type `Person` directly.
+  - q: Is the generated code guaranteed to compile or run as-is?
+    a: It's meant as a strong, correctly-typed starting point, not a guarantee. Rust needs the `serde` crate (and `serde_json` too, if a mixed-type field appears); Java needs Jackson's `jackson-databind`; Kotlin needs `kotlinx-serialization-json`; C# and Swift use only their standard libraries (`System.Text.Json`, `Foundation`); Python's `NotRequired` needs Python 3.11 or newer (or `typing_extensions` on older versions). The shapes and field names come directly from your sample, so the more representative and varied your sample is, the more accurate the optional/nullable inference will be.
+  - q: Does this handle deeply nested or very large input?
+    a: Yes, within reason — nesting up to 300 levels deep and JSON input up to two million characters (XML is bounded by the same converter used elsewhere on this site), both generous limits for anything a person would paste in by hand. Beyond that it reports the limit clearly rather than freezing the tab, since everything runs synchronously in your browser with no server to offload to.
+related:
+  - json-formatter
+  - data-format-converter
+  - jwt-decoder
+  - llm-token-counter
+---
+
+## Why optionality only shows up from an array of samples
+
+A single JSON object can't tell you which of its keys are ever *missing* — every key
+present in one object is, as far as that one sample goes, required. This tool only marks a
+field optional when it compares more than one sample and finds the key present on some but
+not others, which is why pasting an array of a few real records (rather than just one)
+produces a noticeably more accurate — and more honestly incomplete — set of types than a
+single example ever could. XML input doesn't have this option, since a single XML document
+has exactly one root element to infer from.

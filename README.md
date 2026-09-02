@@ -21,6 +21,7 @@ request at all. You can verify this yourself: open DevTools → Network while us
 | [Timestamp Converter](https://devmicrotools.com/timestamp-converter/) | Convert | Convert Unix epoch timestamps to dates and back, with a live current time. |
 | [Color Converter](https://devmicrotools.com/color-converter/) | Convert | Convert between HEX, RGB, HSL and OKLCH, with WCAG contrast checking. |
 | [JSON, YAML, CSV & XML Converter](https://devmicrotools.com/data-format-converter/) | Convert | Convert data between JSON, YAML, CSV and XML in either direction. |
+| [JSON & XML to Types](https://devmicrotools.com/json-to-types/) | Convert | Turn a JSON or XML sample into TypeScript, Go, Java, C#, Kotlin, Swift, Rust or Python type definitions, with nested objects and optional fields inferred. |
 | [JSON Formatter](https://devmicrotools.com/json-formatter/) | Format | Beautify, minify, validate and repair broken JSON entirely in your browser. |
 | [SQL Formatter](https://devmicrotools.com/sql-formatter/) | Format | Beautify a SQL query with consistent indentation and keyword casing. |
 | [HTML / CSS / JS Minifier](https://devmicrotools.com/html-css-js-minifier/) | Format | Shrink HTML, CSS or JavaScript by stripping comments and unnecessary whitespace. |

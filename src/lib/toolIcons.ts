@@ -51,6 +51,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'slug-generator': 'SLG',
   'invisible-char-inspector': 'ZWS',
   'meta-tag-generator': 'OG',
+  'json-to-types': 'T<>',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';
