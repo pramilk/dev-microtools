@@ -25,7 +25,7 @@ const cp = (codePoint: number): string => String.fromCodePoint(codePoint);
 
 const SAMPLE =
   `Sign in at p${cp(0x0430)}ypal-support.com to verify your account.\n` +
-  `The attached file is named invoice${cp(0x202e)}cod.scr${cp(0x202c)}.pdf\n` +
+  `The attached file is named invoice${cp(0x202e)}fdp.scr${cp(0x202c)}\n` +
   `There's a non-breaking space right${cp(0x00a0)}here, and a zero-width space${cp(0x200b)} hidden in this sentence.`;
 
 const CLEAN_VERB: Record<CharCategory, string> = {

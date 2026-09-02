@@ -31,16 +31,18 @@ howTo:
   - Choose which categories to strip, normalize, or replace under "Clean-up options", then copy the result from "Cleaned text".
 example:
   label: A spoofed login prompt hiding three different tricks at once.
-  input: "Sign in at p\u0430ypal-support.com to verify your account.\nThe attached file is named invoice\u202Ecod.scr\u202C.pdf\nThere's a non-breaking space right\u00A0here, and a zero-width space\u200B hidden in this sentence."
+  input: "Sign in at p\u0430ypal-support.com to verify your account.\nThe attached file is named invoice\u202Efdp.scr\u202C\nThere's a non-breaking space right\u00A0here, and a zero-width space\u200B hidden in this sentence."
   output: |-
     5 characters flagged: a right-to-left override hiding the real ".scr" extension behind a
-    fake ".pdf" one (2 characters, the override and its terminator), a Cyrillic "a" (U+0430)
-    standing in for the Latin one in "paypal", a non-breaking space, and a zero-width space.
-    With "Homoglyph (replace)" left unchecked (the default), "Clean text" strips the other four
-    and produces: "Sign in at [Cyrillic a]ypal-support.com to verify your account. The attached
-    file is named invoicecod.scr.pdf. There's a non-breaking space right here, and a zero-width
-    space hidden in this sentence." Checking "Homoglyph (replace)" too turns that Cyrillic "a"
-    into a plain ASCII one, producing the real "paypal-support.com".
+    fake ".pdf" one (2 characters, the override and its terminator) \u2014 a bidi-aware renderer
+    displays the raw "invoicefdp.scr" as "invoicercs.pdf", making an executable look like a
+    harmless PDF \u2014 plus a Cyrillic "a" (U+0430) standing in for the Latin one in "paypal", a
+    non-breaking space, and a zero-width space. With "Homoglyph (replace)" left unchecked (the
+    default), "Clean text" strips the other four and produces: "Sign in at [Cyrillic
+    a]ypal-support.com to verify your account. The attached file is named invoicefdp.scr.
+    There's a non-breaking space right here, and a zero-width space hidden in this sentence." \u2014
+    revealing the true, undisguised ".scr" filename. Checking "Homoglyph (replace)" too turns
+    that Cyrillic "a" into a plain ASCII one, producing the real "paypal-support.com".
 faq:
   - q: Is my text uploaded anywhere when I use this tool?
     a: No. Every scan and clean-up runs in your browser's own JavaScript engine — nothing you type, paste, or drop as a file is ever sent to a server. You can confirm this yourself by watching your browser's DevTools Network tab while using the tool.
