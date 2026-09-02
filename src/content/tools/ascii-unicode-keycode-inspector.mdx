@@ -1,0 +1,81 @@
+---
+title: ASCII, Unicode & Keycode Inspector
+headline: ASCII Table, Unicode Lookup & Keycode Inspector
+description: Look up any ASCII or Unicode character by code, hex, or name, and inspect a live keyboard event's key, code, keyCode and modifiers as you press it.
+summary: Browse the ASCII table, look up any Unicode character's code point and encoding, and see live keydown events.
+category: Web & Network
+order: 48
+updated: 2026-09-02
+whatIsIt: >-
+  This page is two small reference tools in one, because they answer the same underlying
+  question from two directions: "what does this character or keypress actually mean to a
+  computer?" The ASCII table half lists all 128 standard ASCII characters — decimal, hex,
+  octal and binary code points, the literal character, and its formal name — searchable by
+  typing a character, a code in any of those bases, or a name fragment. The same search box
+  also accepts any Unicode character at all — paste an emoji, an accented letter, or a
+  character from another script, and its code point, UTF-8 and UTF-16 byte encoding,
+  general category and script appear immediately, computed directly from properties the
+  browser's own engine already knows rather than a downloaded name database (which is also
+  why non-ASCII characters show no formal name — see the FAQ). The keycode inspector half is
+  live: click the capture box and press any key, and it shows exactly what a browser's
+  `KeyboardEvent` reports for that press — `key`, `code`, the deprecated but still
+  widely-checked `keyCode`/`which`, the key's `location` (standard, left/right, or numpad),
+  active modifiers, and whether it's an auto-repeat. All three pieces exist for the same
+  audience: developers writing keyboard shortcuts, parsing legacy protocols or file formats
+  that reference control characters, debugging mojibake or encoding mismatches, or
+  double-checking exactly what a "weird" keypress or character actually is.
+useCases:
+  - Deciding which JavaScript event property to check when wiring up a keyboard shortcut, and confirming what it actually equals for the exact key combination you care about.
+  - Looking up the decimal or hex code for a control character (like line feed, tab, or escape) when working with a binary protocol, escape sequence, or legacy file format.
+  - Debugging a "keypress doesn't work in this browser" bug by comparing key, code and keyCode side by side for the same physical key.
+  - Converting between decimal, hexadecimal, octal and binary representations of a character code without doing the arithmetic by hand.
+  - Checking the UTF-8 byte length or exact code point of an emoji or accented letter before it goes into a byte-limited field, a URL, or a hand-rolled parser.
+howTo:
+  - 'To inspect a keypress: click the capture box, then press any key (or combination, like Ctrl+Shift+A) — the box shows key, code, keyCode, which, location, modifiers and repeat immediately.'
+  - Check the history table below the capture box to compare several keypresses at once, most recent first.
+  - 'To look up an ASCII character: type it directly, its decimal or hex code (65 or 0x41), or a name fragment (tab, escape) into the search box.'
+  - 'To look up any other Unicode character: paste it directly into the search box, or enter its code point as decimal or hex (128512, 0x1F600, or U+1F600) — its encoding, category and script appear above the table.'
+  - Use the preset chips above the search box for a few commonly-looked-up characters, or copy a single row's full details with its row button.
+example:
+  label: Looking up the letter A.
+  input: '65'
+  output: |-
+    Dec 65   Hex 41   Oct 101   Bin 01000001
+    Char A — Latin Capital Letter A
+  note: The same row is found by typing "A", "65", "0x41", or "U+0041" — whichever form you already have on hand.
+faq:
+  - q: Why does the table stop at 127 instead of going to 255 — and what about Unicode?
+    a: True ASCII is a 7-bit standard defined only up to 127. What's often called "extended ASCII" (128-255) is not one standard — it depends entirely on the code page in use (Latin-1, Windows-1252, DOS/OEM, and others all disagree on that range), so a single 128-255 table would just be presenting one vendor's encoding as if it were universal. The searchable *table* therefore sticks to unambiguous 0-127, but the search box itself isn't limited to it — paste any Unicode character or enter any valid code point and its details appear separately, above the table.
+  - q: Why doesn't a non-ASCII character show its name?
+    a: The official Unicode name for every one of the roughly 150,000 assigned characters lives only in a multi-megabyte names database, and downloading that for every visitor — most of whom only need the ASCII table — would break this site's performance budget. Category and script, by contrast, come from Unicode property checks already built into the browser's own JavaScript engine, so those are shown for free with no download at all.
+  - q: 'Why does a keypress show both `keyCode` and `key` — aren''t they redundant?'
+    a: '`keyCode` (and its twin `which`) is a numeric, layout-dependent legacy property that MDN and the W3C both mark deprecated — modern code should prefer `key` (the character or named value the key produces, respecting layout and modifiers) and `code` (the fixed physical key position, independent of layout). This tool shows all of them together specifically so you can see how they diverge for a given key, since plenty of code you''ll encounter — and interview questions about it — still reference the old properties.'
+  - q: What's the difference between `key` and `code`?
+    a: '`key` reflects what the key actually produces given the current keyboard layout and modifiers — pressing the key left of "1" on a US layout reports `` ` ``, but a different character on other layouts. `code` reports the physical key position itself ("Backquote") and never changes with layout or Shift state. Use `code` for layout-independent shortcuts (like WASD game controls) and `key` when you care what character was actually typed.'
+  - q: Why do some keypresses get blocked from doing their normal thing (like Tab moving focus)?
+    a: The capture box intentionally suppresses a small set of keys — Tab, Space, the arrow keys, Backspace, and paging keys — that would otherwise move focus or scroll the page away from the box before you can read the result. Browser- or OS-level shortcuts (Ctrl+T, F11, and similar) can't be intercepted by any web page at all, capture box or not.
+  - q: Does this tool send my keystrokes or pasted characters anywhere?
+    a: No. Every part of this tool runs entirely in your browser — the keycode inspector reads properties directly off the DOM's own KeyboardEvent object, the ASCII table is a static local lookup, and the Unicode category/script detection uses the JavaScript engine's own built-in Unicode support. Nothing is transmitted anywhere.
+related:
+  - invisible-char-inspector
+  - base-encode-decode
+  - user-agent-parser
+  - cron-expression-explainer
+---
+
+## Reading `location`
+
+`location` distinguishes physically different keys that report the same `key`/`code` family —
+`0` is the standard single-instance key, `1`/`2` mark the left or right key of a pair (like
+Shift or Ctrl), and `3` marks the numeric keypad. It's easy to miss because most keys only
+ever report `0`, so it only shows up once you press Left Shift versus Right Shift, or `7` on
+the top row versus `7` on the numpad, side by side.
+
+## Where category and script come from
+
+A character's general category (letter, mark, number, punctuation, symbol, separator, or
+control) and script (Latin, Greek, Han, and so on) aren't looked up in a table this page
+downloads — they're read with a regular expression using Unicode property escapes, like
+`/\p{Script=Greek}/u`, a feature built directly into the JavaScript engine every modern
+browser already ships. That's what makes it possible to identify any of the roughly 150,000
+assigned Unicode characters without adding a single byte to this page's download.

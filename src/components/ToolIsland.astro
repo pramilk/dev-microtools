@@ -45,6 +45,7 @@ import BrowserFingerprintInspector from '../islands/BrowserFingerprintInspector'
 import FaviconGenerator from '../islands/FaviconGenerator';
 import DockerRunComposeConverter from '../islands/DockerRunComposeConverter';
 import BarcodeGenerator from '../islands/BarcodeGenerator';
+import AsciiTableKeycodeInspector from '../islands/AsciiTableKeycodeInspector';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -115,3 +116,4 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'favicon-generator' && <FaviconGenerator client:load />}
 {slug === 'docker-run-compose-converter' && <DockerRunComposeConverter client:load />}
 {slug === 'barcode-generator' && <BarcodeGenerator client:load />}
+{slug === 'ascii-unicode-keycode-inspector' && <AsciiTableKeycodeInspector client:load />}

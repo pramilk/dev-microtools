@@ -46,6 +46,7 @@ import BrowserFingerprintInspector from '../islands/BrowserFingerprintInspector'
 import FaviconGenerator from '../islands/FaviconGenerator';
 import DockerRunComposeConverter from '../islands/DockerRunComposeConverter';
 import BarcodeGenerator from '../islands/BarcodeGenerator';
+import AsciiTableKeycodeInspector from '../islands/AsciiTableKeycodeInspector';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -101,6 +102,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'favicon-generator': FaviconGenerator,
   'docker-run-compose-converter': DockerRunComposeConverter,
   'barcode-generator': BarcodeGenerator,
+  'ascii-unicode-keycode-inspector': AsciiTableKeycodeInspector,
 };
 
 /**

@@ -57,6 +57,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'favicon-generator': 'FAV',
   'docker-run-compose-converter': 'DKR',
   'barcode-generator': '|||',
+  'ascii-unicode-keycode-inspector': 'ASC',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';
