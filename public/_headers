@@ -1,0 +1,19 @@
+# Cloudflare Workers static-assets / Pages header convention (same directory as _redirects).
+# Applies to every route on the site — see CLAUDE.md's "site must be fast" / no-backend
+# rules for context: this is a fully static, client-side-only site, so these headers are
+# about hardening the browser sandbox around the tools, not protecting a server.
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=(), usb=(), interest-cohort=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  # script-src/style-src need 'unsafe-inline': the theme-toggle/sidebar scripts use Astro's
+  # `is:inline` (no build-time nonce to attach), and many islands set inline `style="..."`
+  # for values computed at runtime (e.g. QR/color-picker previews) — both would break under
+  # a strict CSP without a nonce/hash pipeline, which is a larger follow-up, not this pass.
+  # connect-src allows any https: origin because two tools are *supposed* to reach arbitrary
+  # user-specified endpoints (Curl Command Builder sends to whatever URL the user types; the
+  # npm Package Size tool queries the npm registry/esm.sh) — locking connect-src to 'self'
+  # would break both by design, not as an oversight.
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'

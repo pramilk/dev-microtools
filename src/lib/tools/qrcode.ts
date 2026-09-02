@@ -1,4 +1,5 @@
 import { type ToolResult, ok, err, messageFrom } from './result';
+import { parseColor, rgbToHex } from './color';
 
 export const QR_ERROR_CORRECTION_LEVELS = ['L', 'M', 'Q', 'H'] as const;
 export type QrErrorCorrectionLevel = (typeof QR_ERROR_CORRECTION_LEVELS)[number];
@@ -76,6 +77,18 @@ function escapeXmlText(value: string): string {
     .replace(/'/g, '&apos;');
 }
 
+/**
+ * Normalizes a possibly-untrusted color string (e.g. restored from a share-link, which is
+ * attacker-controlled `JSON.parse`d data) to a safe `#rrggbb[aa]` value before it's
+ * interpolated into an SVG attribute below. Anything that isn't a real color — including an
+ * attribute-breakout payload like `red" onmouseover="..."` — falls back instead of reaching
+ * the markup, since `matrixToSvg`'s output is inserted via `dangerouslySetInnerHTML`.
+ */
+function safeSvgColor(value: string, fallback: string): string {
+  const parsed = parseColor(value);
+  return parsed.ok ? rgbToHex(parsed.value) : fallback;
+}
+
 function captionHeightFor(cellSize: number, captionText: string): number {
   return captionText.trim() !== '' ? Math.round(cellSize * 3.4) : 0;
 }
@@ -117,7 +130,9 @@ export function matrixToSvg(
     caption?: QrCaptionOptions;
   } = {}
 ): string {
-  const { cellSize = 8, darkColor = '#000000', lightColor = '#ffffff', logo, caption } = options;
+  const { cellSize = 8, logo, caption } = options;
+  const darkColor = safeSvgColor(options.darkColor ?? '#000000', '#000000');
+  const lightColor = safeSvgColor(options.lightColor ?? '#ffffff', '#ffffff');
   const size = matrix.moduleCount * cellSize;
 
   let path = '';
@@ -149,11 +164,12 @@ export function matrixToSvg(
   let captionMarkup = '';
   if (captionText !== '') {
     const fontSize = Math.round(cellSize * 1.7);
+    const captionColor = caption?.color !== undefined ? safeSvgColor(caption.color, darkColor) : darkColor;
     captionMarkup =
       `<rect x="0" y="${size}" width="${size}" height="${captionHeight}" fill="${lightColor}"/>` +
       `<text x="${size / 2}" y="${size + captionHeight / 2}" text-anchor="middle" dominant-baseline="central" ` +
       `font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="${fontSize}" font-weight="600" ` +
-      `fill="${caption?.color ?? darkColor}">${escapeXmlText(captionText)}</text>`;
+      `fill="${captionColor}">${escapeXmlText(captionText)}</text>`;
   }
 
   return (

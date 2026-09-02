@@ -337,6 +337,12 @@ describe('barcodeToSvg', () => {
     expect(svg).toContain('fill="#123456"');
   });
 
+  it('falls back to the default colour for an invalid/malicious colour string', () => {
+    const svg = barcodeToSvg(pattern, { darkColor: 'red" onmouseover="alert(1)' });
+    expect(svg).not.toContain('onmouseover');
+    expect(svg).toContain('fill="#000000"');
+  });
+
   it('grows total width with a larger module width', () => {
     const narrow = barcodeSvgDimensions(pattern, { moduleWidth: 1 });
     const wide = barcodeSvgDimensions(pattern, { moduleWidth: 4 });

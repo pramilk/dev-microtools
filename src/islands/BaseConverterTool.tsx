@@ -359,6 +359,11 @@ export default function BaseConverterTool() {
               aria-invalid={error !== null}
               onInput={(event) => setInput((event.target as HTMLTextAreaElement).value)}
             />
+            {format === 'base32' && (
+              <span class="field__hint">
+                If this is a TOTP/2FA secret, don't copy a share link for it — the text above is included in the URL.
+              </span>
+            )}
           </div>
 
           {previewDataUrl ? (

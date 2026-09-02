@@ -23,6 +23,7 @@ import {
   type PaymentProvider,
 } from '../lib/tools/qrcode';
 import { encodeFileToBase64 } from '../lib/tools/base64';
+import { parseColor, rgbToHex } from '../lib/tools/color';
 import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { ShareLinkButton } from './shared/ShareLinkButton';
@@ -94,6 +95,18 @@ const MAX_LOGO_BYTES = 1_000_000;
 const LOGO_SIZE_RATIO = 0.22;
 const DEFAULT_DARK = '#000000';
 const DEFAULT_LIGHT = '#ffffff';
+
+/**
+ * Normalizes a color restored from a share link (attacker-controlled `JSON.parse`d data) to
+ * a safe hex value before it reaches state. Without this, an invalid value could flow into
+ * the `style={`background:${lightColor}`}` preview below unescaped — falling back to the
+ * default here closes that off regardless of what a crafted `#s=...` link contains.
+ */
+function safeShareColor(value: string | undefined, fallback: string): string {
+  if (value === undefined) return fallback;
+  const parsed = parseColor(value);
+  return parsed.ok ? rgbToHex(parsed.value) : fallback;
+}
 
 // Simple, self-drawn glyphs — one per content type, reused both as the content-type
 // picker's icons and as ready-made "logo" presets, so there's no dependency on any
@@ -284,8 +297,8 @@ export default function QrCodeGenerator() {
       const v = restored.value;
       setContentType(v.contentType ?? 'text');
       setLevel(v.level ?? 'M');
-      setDarkColor(v.darkColor ?? DEFAULT_DARK);
-      setLightColor(v.lightColor ?? DEFAULT_LIGHT);
+      setDarkColor(safeShareColor(v.darkColor, DEFAULT_DARK));
+      setLightColor(safeShareColor(v.lightColor, DEFAULT_LIGHT));
       setCaption(v.caption ?? '');
       setText(v.text ?? '');
       setWifiSsid(v.wifiSsid ?? '');

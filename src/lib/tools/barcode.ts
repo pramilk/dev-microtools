@@ -1,4 +1,5 @@
 import { type ToolResult, ok, err } from './result';
+import { parseColor, rgbToHex } from './color';
 
 export const BARCODE_SYMBOLOGIES = ['code128b', 'code39', 'ean13', 'upca'] as const;
 export type BarcodeSymbology = (typeof BARCODE_SYMBOLOGIES)[number];
@@ -330,6 +331,17 @@ function escapeXmlText(value: string): string {
 }
 
 /**
+ * Normalizes a possibly-untrusted color string to a safe `#rrggbb[aa]` value before it's
+ * interpolated into an SVG attribute below — `barcodeToSvg`'s output is inserted via
+ * `dangerouslySetInnerHTML`, so anything that isn't a real color falls back rather than
+ * risking an attribute-breakout payload reaching the markup (same hardening as `qrcode.ts`).
+ */
+function safeSvgColor(value: string, fallback: string): string {
+  const parsed = parseColor(value);
+  return parsed.ok ? rgbToHex(parsed.value) : fallback;
+}
+
+/**
  * The pixel dimensions `barcodeToSvg` will render at for the same pattern/options — callers
  * that rasterize the SVG onto a canvas (PNG export) need this to size the canvas correctly.
  */
@@ -369,7 +381,9 @@ export function barcodeToSvg(
     lightColor?: string;
   } = {}
 ): string {
-  const { moduleWidth = 2, barHeight = 80, showText = true, darkColor = '#000000', lightColor = '#ffffff' } = options;
+  const { moduleWidth = 2, barHeight = 80, showText = true } = options;
+  const darkColor = safeSvgColor(options.darkColor ?? '#000000', '#000000');
+  const lightColor = safeSvgColor(options.lightColor ?? '#ffffff', '#ffffff');
   const quietZone = moduleWidth * 10;
   const { width, height } = barcodeSvgDimensions(pattern, { moduleWidth, barHeight, showText });
 

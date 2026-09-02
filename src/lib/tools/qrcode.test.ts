@@ -144,10 +144,18 @@ describe('matrixToSvg', () => {
   });
 
   it('uses a custom caption colour, falling back to the dark colour', () => {
+    // Colours are normalized to full 6-digit hex (a defense against attribute-injection
+    // via a share-link-restored colour) — #f00/#111 come back as #ff0000/#111111.
     const withColor = matrixToSvg(flatMatrix, { cellSize: 10, darkColor: '#111', caption: { text: 'Hi', color: '#f00' } });
-    expect(withColor).toContain('fill="#f00">Hi');
+    expect(withColor).toContain('fill="#ff0000">Hi');
     const withoutColor = matrixToSvg(flatMatrix, { cellSize: 10, darkColor: '#111', caption: { text: 'Hi' } });
-    expect(withoutColor).toContain('fill="#111">Hi');
+    expect(withoutColor).toContain('fill="#111111">Hi');
+  });
+
+  it('falls back to the default colour for an invalid/malicious colour string', () => {
+    const svg = matrixToSvg(flatMatrix, { cellSize: 10, darkColor: 'red" onmouseover="alert(1)' });
+    expect(svg).not.toContain('onmouseover');
+    expect(svg).toContain('fill="#000000"');
   });
 });
 

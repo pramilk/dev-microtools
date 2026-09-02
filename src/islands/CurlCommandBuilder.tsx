@@ -63,7 +63,10 @@ const SAMPLE_BODY = '{"name":"Ada Lovelace","role":"engineer"}';
 interface ShareState {
   method: HttpMethod;
   url: string;
-  headers: CurlHeader[];
+  // Headers are deliberately excluded from the shared state — they routinely carry secrets
+  // like `Authorization: Bearer <token>` or an API key (same reasoning as the authUser/
+  // authPass fields below), and there's no reliable way to tell a secret header value from
+  // a benign one, so none of them go into a shareable URL.
   bodyType: BodyType;
   body: string;
   insecure: boolean;
@@ -103,7 +106,6 @@ export default function CurlCommandBuilder() {
       const state = restored.value;
       setMethod(state.method);
       setUrl(state.url);
-      setHeaders(state.headers);
       setBodyType(state.bodyType);
       setBody(state.body);
       setInsecure(state.insecure);
@@ -308,7 +310,6 @@ export default function CurlCommandBuilder() {
           getState={(): ShareState => ({
             method,
             url,
-            headers,
             bodyType,
             body,
             insecure,
