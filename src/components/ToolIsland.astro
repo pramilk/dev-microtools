@@ -41,6 +41,7 @@ import InvisibleCharInspector from '../islands/InvisibleCharInspector';
 import MetaTagGenerator from '../islands/MetaTagGenerator';
 import JsonToTypesConverter from '../islands/JsonToTypesConverter';
 import MarkdownPreviewer from '../islands/MarkdownPreviewer';
+import BrowserFingerprintInspector from '../islands/BrowserFingerprintInspector';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -107,3 +108,4 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'meta-tag-generator' && <MetaTagGenerator client:load />}
 {slug === 'json-to-types' && <JsonToTypesConverter client:load />}
 {slug === 'markdown-previewer' && <MarkdownPreviewer client:load />}
+{slug === 'browser-fingerprint-inspector' && <BrowserFingerprintInspector client:load />}

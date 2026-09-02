@@ -42,6 +42,7 @@ import InvisibleCharInspector from '../islands/InvisibleCharInspector';
 import MetaTagGenerator from '../islands/MetaTagGenerator';
 import JsonToTypesConverter from '../islands/JsonToTypesConverter';
 import MarkdownPreviewer from '../islands/MarkdownPreviewer';
+import BrowserFingerprintInspector from '../islands/BrowserFingerprintInspector';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -93,6 +94,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'meta-tag-generator': MetaTagGenerator,
   'json-to-types': JsonToTypesConverter,
   'markdown-previewer': MarkdownPreviewer,
+  'browser-fingerprint-inspector': BrowserFingerprintInspector,
 };
 
 /**

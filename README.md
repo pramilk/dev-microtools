@@ -51,6 +51,7 @@ request at all. You can verify this yourself: open DevTools → Network while us
 | [CIDR / Subnet Calculator](https://devmicrotools.com/cidr-subnet-calculator/) | Web & Network | Calculate network address, broadcast address, host range and mask from a CIDR block. |
 | [URL Parser](https://devmicrotools.com/url-parser/) | Web & Network | Decompose a URL into its parts and edit its query parameters live. |
 | [Bundle Size Checker](https://devmicrotools.com/bundle-size-checker/) | Web & Network | Check an npm package's real minified + gzipped size, or check every dependency in a package.json at once. |
+| [Browser Fingerprint Inspector](https://devmicrotools.com/browser-fingerprint-inspector/) | Web & Network | See what your browser's JavaScript reveals (fonts, canvas/WebGL, permissions, timezone) and what the server already saw on the request (IP, geo, headers). |
 | [Image ↔ Base64 Converter](https://devmicrotools.com/image-base64-converter/) | Images | Convert an image to base64 for inlining in CSS/HTML, or decode base64 back into an image. |
 | [Image Compressor](https://devmicrotools.com/image-compressor/) | Images | Compress JPEG, PNG, or WebP images in your browser — batch multiple files, compare before/after, download as a zip. |
 | [SVG Optimizer](https://devmicrotools.com/svg-optimizer/) | Images | Strip comments, metadata, and editor cruft from SVG markup — tune precision, compare before/after, download. |

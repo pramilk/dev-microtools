@@ -22,15 +22,21 @@ const updated = '22 August 2026';
         service, but only to a public, non-personal endpoint and only when you explicitly
         press a button for that purpose — never automatically, and never through any
         server we run. See "Data you enter into tools" below for exactly which tools and
-        what that sends. Separately, like most websites, we collect basic anonymous traffic
-        statistics and show advertising — both are described in full below.
+        what that sends. Separately, one tool — Browser Fingerprint Inspector — shows you
+        request metadata (your IP address and the headers your browser sends) that our own
+        server already receives on any ordinary page load, on this or any other site; see
+        "Data your request already sends us" below for what that means in practice.
+        Separately again, like most websites, we collect basic anonymous traffic statistics
+        and show advertising — both are described in full below.
       </p>
 
       <h2>Data you enter into tools</h2>
       <p>
-        Every tool on this site runs as JavaScript inside your own browser. There is no
-        server-side processing, no database, and no logging of tool input on our end. When
-        you paste JSON, a token, a password to hash, or any other content into a tool:
+        Every tool's own logic runs as JavaScript inside your own browser. There is no
+        server-side processing, database, or logging of what you type or paste into a
+        tool — see "Data your request already sends us" below for the one exception on the
+        site, which is unrelated to tool input. When you paste JSON, a token, a password to
+        hash, or any other content into a tool:
       </p>
       <ul>
         <li>It is processed locally by your browser and then discarded when you close or reload the page.</li>
@@ -52,6 +58,23 @@ const updated = '22 August 2026';
       <p>
         You can verify all of this independently by opening your browser's developer tools,
         going to the Network tab, and using any tool on the site.
+      </p>
+
+      <h2>Data your request already sends us</h2>
+      <p>
+        This is a different category from the tool input above, and only one tool involves
+        it: Browser Fingerprint Inspector's "Network request" section. Loading any web
+        page — this one included — sends your IP address and a set of standard headers
+        (like your browser's User-Agent and language) to whichever server hosts it, purely
+        as part of how HTTP works. That is true of every site you visit, not something
+        specific to this one. What is specific to this one tool is that we show it back to
+        you: a small Cloudflare Worker reads that information off the request for that one
+        page and writes it into the page's own HTML before it reaches your browser, so you
+        can see exactly what any server — including ours — already sees. This makes no
+        additional request beyond the one that was already loading the page, and nothing
+        from it is logged, stored, or retained anywhere on our end; reload the page and the
+        server has forgotten it just as it would for any other page view. Every other tool
+        and every other page on this site never triggers this at all.
       </p>
 
       <h2>Analytics</h2>
@@ -99,10 +122,13 @@ const updated = '22 August 2026';
       <h2>Changes</h2>
       <p>
         If this policy changes materially, the "last updated" date above will change. The
-        commitment that we never receive or store what you type is architectural — the
-        site has no server capable of receiving it — and is not something we intend to
-        alter. The two narrow, explicit-action exceptions described above (which send data
-        to a public third-party service, not to us) are documented on each tool's own page.
+        commitment that we never receive or store what you type into a tool is architectural
+        for every tool but one, and is not something we intend to alter. The exceptions
+        described above are all documented on each tool's own page: two are narrow,
+        explicit-action requests that send data you provide to a public third-party service,
+        not to us; the third is Browser Fingerprint Inspector's "Network request" section,
+        which sends nothing anywhere but simply shows you request metadata our own server
+        already receives on any page load, on this site or any other.
       </p>
     </div>
   </div>

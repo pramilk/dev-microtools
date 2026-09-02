@@ -53,6 +53,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'meta-tag-generator': 'OG',
   'json-to-types': 'T<>',
   'markdown-previewer': 'MD',
+  'browser-fingerprint-inspector': 'FP',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

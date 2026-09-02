@@ -1,0 +1,121 @@
+---
+title: Browser Fingerprint Inspector
+headline: Browser Fingerprint Inspector — See What Sites Can Read About You
+description: See what a site can learn about you — from your browser's own JavaScript (fonts, canvas/WebGL, timezone) to what its server already sees (IP, headers).
+summary: Shows what your browser reveals via JavaScript, plus what the server already sees — IP, headers, fonts, and more.
+category: Web & Network
+order: 43
+updated: 2026-09-01
+whatIsIt: >-
+  A browser fingerprint is the combination of dozens of small, individually harmless-looking
+  signals a website can read about a visitor without asking permission — some read by
+  JavaScript running in your browser (screen resolution, installed fonts, timezone, CPU core
+  count, battery status, installed plugins, whether an ad blocker is active, whether you've
+  granted or denied permissions like location or camera access, and subtle rendering
+  differences in how your specific browser and GPU draw text or shapes to a canvas), and some
+  seen by the server itself on the very request that loaded the page, before a single line of
+  that JavaScript ran (your IP address, the approximate location and network operator derived
+  from it, and the raw headers your browser sent). No single signal
+  identifies you, but combined, they often narrow a visitor down to a small group of people
+  with the exact same browser, OS, hardware, network, and settings — sometimes to one person
+  alone — which is why fingerprinting is used both for legitimate fraud prevention and for
+  tracking people across sites without cookies. This tool collects and displays every signal
+  of both kinds, split into two sections — "What your browser reveals" first, then "What the
+  server already saw" — so you can see the actual picture a site would build of you, and which
+  half of it came from where. The browser section happens entirely locally and is never sent
+  anywhere; the server section's one category ("Network request") makes no extra request of
+  its own — it shows you data that was already visible to this site the instant your browser
+  asked for the page, the same way it's visible to every server you visit.
+useCases:
+  - Understanding what a site actually learns about you before you accept its cookie banner or tracking-consent prompt.
+  - Seeing your own IP-derived location, network operator, and the exact headers your browser sends with every request — not just the client-side half of the picture.
+  - Checking whether privacy tools, VPNs, or "anti-fingerprinting" browser settings are actually changing the signals a site can see.
+  - Comparing the same browser's fingerprint across two machines, or before and after changing a privacy setting, to see what moved.
+  - Learning, as a developer, exactly which browser APIs and request headers make up a fingerprint before deciding whether your own site should use or block them.
+howTo:
+  - Open the page — every signal is collected and displayed automatically; nothing needs to be typed or pasted.
+  - Read through "What your browser reveals" (Identity, Display & hardware, Timezone, Privacy signals, Permissions, Rendering fingerprint, Fonts detected) and "What the server already saw" (Network request).
+  - Hover any label for a plain-language explanation of what that signal is and why it matters for fingerprinting.
+  - Click "Rescan" after changing a browser setting, permission, or extension to see whether it actually changed anything — this re-checks every signal in the browser section; the server section reflects the page load itself and needs a full reload to change — and "Copy" to save the full report as text.
+example:
+  label: A typical desktop Chrome result (values vary by machine).
+  input: (No input — every value is read live from your own request and browser.)
+  output: |-
+    -- What your browser reveals --
+    Identity        Chrome on Windows, en-US
+    Display         1920 × 1080, 24-bit color, 1× pixel ratio, 8 CPU cores, battery 87%
+    Timezone        America/New_York, UTC-05:00
+    Privacy         Do Not Track: Not set · Global Privacy Control: Not signaled · Ad blocker: Not detected
+    Permissions     Geolocation: Not yet asked · Camera: Not yet asked · Microphone: Not yet asked
+    Rendering       Canvas hash: a3f9e1... · GPU: NVIDIA GeForce GTX 1080
+    Fonts           14 of 30 tested fonts detected
+
+    -- What the server already saw --
+    Network         IP 203.0.113.42 · New York, NY, US · Comcast Cable (AS7922) · HTTP/3 over TLSv1.3
+  note: Your own result will differ — that's the point. Two visitors with the exact same browser version can still produce different canvas hashes and font lists if their OS, GPU, or installed software differs, and the Network row reflects your own IP and connection.
+faq:
+  - q: Is any of this data sent to a third party, or stored anywhere?
+    a: No, on both counts. The browser-read categories are computed entirely in your browser's own JavaScript engine and never transmitted anywhere — verify it yourself in DevTools' Network tab while pressing "Rescan"; nothing appears. The "Network request" category makes no additional request either — it's data this site's own server already received the instant your browser asked for this page, shown back to you instead of discarded. Nothing is logged or stored on either side; reload the page and it's gone.
+  - q: How is "Network request" different from everything else on this page?
+    a: Every other category is read by JavaScript after the page has already loaded, which is why it needs no server involvement at all. "Network request" is what the server saw *before* that — your IP address and the headers your browser sent to request the page in the first place. A small Cloudflare Worker reads that request and writes the result into the page's own HTML on the way back, which is why it costs no extra round trip, but also why it's only available on the real deployment — it reads as "Not available in this environment" in local development or a cached copy of the page.
+  - q: Why does the canvas fingerprint change between browsers on the same computer?
+    a: Each browser has its own font rasterizer, anti-aliasing settings, and rendering pipeline, so the exact pixels produced by drawing the same text and shapes differ slightly even on identical hardware. That per-browser, per-GPU variation is what makes the resulting hash a useful (and somewhat controversial) fingerprinting signal — it's stable for you across visits, but differs from almost everyone else's.
+  - q: My browser shows "Not exposed" for the unmasked WebGL vendor and renderer — why?
+    a: Firefox blocks these two specific fields by default (behind a privacy setting), and Safari has restricted them in recent versions, precisely because the real GPU model is one of the most identifying single signals a page can read. Seeing "Not exposed" here means that protection is working, not that something is broken.
+  - q: Does a high number of "detected fonts" mean I'm easier to track?
+    a: All else equal, yes — a longer, more unusual list of installed fonts narrows down the group of people who share it. Fresh OS installs with only system-default fonts tend to blend in with millions of other users; a machine with many creative or professional fonts installed stands out more.
+  - q: Can I stop my browser from being fingerprinted?
+    a: You can reduce it — Firefox's "Resist Fingerprinting" mode, Safari's Intelligent Tracking Prevention, and Tor Browser all specifically normalize many of the signals shown here so more visitors look identical — but you can't eliminate fingerprinting entirely while running a real browser with real fonts, a real GPU, and a real screen. Rescanning after enabling one of these settings is a good way to see exactly which signals it actually changes.
+  - q: Why do you show Do Not Track and Global Privacy Control if you say most sites ignore them?
+    a: Because knowing whether your browser is sending either signal at all is still useful — Do Not Track is honored by very few sites and carries no legal weight, but Global Privacy Control is treated as a binding opt-out request under several U.S. state privacy laws (including California's CCPA), so confirming it's actually being sent is worth checking if you rely on it.
+  - q: How accurate is the location shown in "Network request"?
+    a: It's derived from your IP address, not GPS, so it's typically accurate to city level and sometimes considerably less — a mobile carrier's NAT or a corporate network can put you a city or more away from your actual location. Behind a VPN or proxy, it shows the VPN exit server's location, not yours, which is exactly the point of using one.
+  - q: Does checking the "Permissions" section turn on my camera or microphone, or ask me anything?
+    a: No. It calls the Permissions API to read the current status only — granted, denied, or "would prompt if used" — which is a passive status check with no side effects. Only actually calling an API like getUserMedia() or getCurrentPosition() would turn on a device or trigger a real prompt, and this tool never does that.
+  - q: How does the "Ad blocker" check work, and can it be wrong?
+    a: It appends a hidden element named and sized like a typical ad slot (the same "bait element" technique many sites use to nag visitors about disabling their blocker) and checks whether an ad blocker's cosmetic filters hid it. It's a best-effort heuristic, not a certainty — a blocker that works purely by blocking network requests, or one built specifically to evade this exact check, can still show "Not detected" even though it's running.
+related:
+  - user-agent-parser
+  - invisible-char-inspector
+  - hash-generator
+  - cidr-subnet-calculator
+---
+
+## Why no single signal matters, but the combination does
+
+A screen resolution of 1920×1080 is shared by millions of people. So is "Chrome on Windows,"
+or "8 CPU cores." Fingerprinting doesn't rely on any one of these being rare — it relies on
+the intersection of dozens of them. The Electronic Frontier Foundation's long-running
+research into this (Panopticlick, now Cover Your Tracks) is what popularized the idea that
+most browsers are identifiable from ordinary configuration data alone, without cookies or
+any deliberate tracking technology. This tool doesn't compute a uniqueness score, because
+doing that honestly requires a live, constantly-updated dataset of real browser
+configurations that no client-side tool has access to — it shows you the raw signals
+instead, which is the accurate, verifiable part.
+
+## What this tool does not do
+
+It doesn't store, transmit, or compare your fingerprint against anyone else's — there is no
+database behind it, and no history of past scans. It also doesn't attempt to defeat or spoof
+any of these signals; it only reports what your browser and your request currently expose. If
+a value looks wrong or blocked, that's your browser's own privacy protections working as
+intended, not a limitation of this tool.
+
+## Why there's a "Server" section at all
+
+Every other tool on this site runs with zero server involvement, and so does the whole
+"Browser" section above. "Server" — currently just the "Network request" category — is
+different on purpose: it shows the half of a fingerprint that was never available to
+JavaScript in the first place, because the server already saw it before the page existed.
+Rather than pretend that half doesn't exist, a small Cloudflare Worker reads it off the same
+request that was already fetching the page and writes it into that page's own HTML on the way
+back — no separate API call, no extra round trip, nothing that wasn't already happening the
+moment you opened this page. That is also why it's unavailable outside the real deployment:
+local development and cached copies of the page never pass through that Worker.
+
+## A note on the canvas and font checks
+
+Both the canvas fingerprint and the font list are read using ordinary, publicly documented
+browser APIs — the 2D Canvas API's `toDataURL()` and `measureText()`, and WebGL's standard
+parameter queries. Nothing here uses an undocumented or private API; it's the same technique
+any tracking script could already run, made visible instead of invisible.
