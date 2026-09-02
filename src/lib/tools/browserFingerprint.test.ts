@@ -247,23 +247,10 @@ describe('buildFingerprintReport', () => {
       expect(row.caveat).toMatch(/VPN or proxy/);
     });
 
-    it('falls back to the Tor Browser note for Timezone when no server signals are available', () => {
+    it('notes that Tor Browser and similar tools force this to UTC', () => {
       const report = buildFingerprintReport(BASE_RAW, NO_FONTS);
       const row = findCategory(report, 'locale').rows.find((r) => r.label === 'Timezone')!;
       expect(row.caveat).toMatch(/Tor Browser/);
-    });
-
-    it('confirms a match between the browser and IP-based timezone when they agree', () => {
-      const report = buildFingerprintReport(BASE_RAW, NO_FONTS, { ...BASE_SERVER, timezone: BASE_RAW.timeZone });
-      const row = findCategory(report, 'locale').rows.find((r) => r.label === 'Timezone')!;
-      expect(row.caveat).toMatch(/^Matches/);
-    });
-
-    it('flags a mismatch between the browser and IP-based timezone', () => {
-      const report = buildFingerprintReport(BASE_RAW, NO_FONTS, { ...BASE_SERVER, timezone: 'Asia/Tokyo' });
-      const row = findCategory(report, 'locale').rows.find((r) => r.label === 'Timezone')!;
-      expect(row.caveat).toContain('Doesn’t match');
-      expect(row.caveat).toContain('Asia/Tokyo');
     });
   });
 

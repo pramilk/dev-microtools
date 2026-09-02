@@ -187,27 +187,6 @@ function describeWebglField(value: string | null): string {
   return value ?? 'Not exposed by this browser';
 }
 
-/**
- * Cross-checks the browser's own `Intl` timezone against Cloudflare's IP-derived one
- * (when available) — a mismatch is exactly the signal VPN/proxy-detection tools look
- * for, so it's worth surfacing even though it's informational rather than actionable
- * (unlike the mismatch, it's often simply an accurate override, or that the IP-based
- * guess and the real location differ because you've travelled since the IP was assigned
- * to your network).
- */
-function timezoneCaveat(browserTimeZone: string, serverTimeZone: string | null): string {
-  if (browserTimeZone && serverTimeZone) {
-    return browserTimeZone === serverTimeZone
-      ? `Matches the IP-based timezone from your network request (${serverTimeZone}).`
-      : `Doesn’t match the IP-based timezone from your network request (${serverTimeZone}) — could mean a VPN/proxy, a manually changed clock, or that your IP’s registered location is stale.`;
-  }
-  // Not "we can't tell" in general — Cloudflare derives serverTimeZone from the same
-  // kind of IP-geolocation lookup a reverse-IP/GeoIP service would, so the comparison
-  // above does run on the real deployment. This fallback only fires where there's no
-  // live request to derive it from at all (local dev, preview, a cached page).
-  return 'No IP-based timezone to compare against in this environment — that check only runs on the real deployment (see "Network request" below). Tor Browser and similar tools also deliberately force this value to UTC regardless of your real timezone.';
-}
-
 export function describeConnection(
   type: string | null,
   downlinkMbps: number | null,
@@ -464,7 +443,7 @@ export function buildFingerprintReport(
           label: 'Timezone',
           value: raw.timeZone || 'Not reported',
           hint: 'Your IANA timezone name, e.g. "America/New_York" — far more specific than the UTC offset alone.',
-          caveat: timezoneCaveat(raw.timeZone, server?.timezone ?? null),
+          caveat: 'Tor Browser and similar tools deliberately force this to UTC regardless of your real timezone.',
         },
         { label: 'UTC offset', value: formatUtcOffset(raw.timezoneOffsetMinutes), hint: 'Your current offset from UTC, including daylight saving.' },
       ],
