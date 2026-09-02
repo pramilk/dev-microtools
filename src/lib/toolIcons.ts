@@ -54,6 +54,9 @@ export const TOOL_ICONS: Record<string, string> = {
   'json-to-types': 'T<>',
   'markdown-previewer': 'MD',
   'browser-fingerprint-inspector': 'FP',
+  'favicon-generator': 'FAV',
+  'docker-run-compose-converter': 'DKR',
+  'barcode-generator': '|||',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

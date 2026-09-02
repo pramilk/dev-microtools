@@ -43,6 +43,9 @@ import MetaTagGenerator from '../islands/MetaTagGenerator';
 import JsonToTypesConverter from '../islands/JsonToTypesConverter';
 import MarkdownPreviewer from '../islands/MarkdownPreviewer';
 import BrowserFingerprintInspector from '../islands/BrowserFingerprintInspector';
+import FaviconGenerator from '../islands/FaviconGenerator';
+import DockerRunComposeConverter from '../islands/DockerRunComposeConverter';
+import BarcodeGenerator from '../islands/BarcodeGenerator';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -95,6 +98,9 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'json-to-types': JsonToTypesConverter,
   'markdown-previewer': MarkdownPreviewer,
   'browser-fingerprint-inspector': BrowserFingerprintInspector,
+  'favicon-generator': FaviconGenerator,
+  'docker-run-compose-converter': DockerRunComposeConverter,
+  'barcode-generator': BarcodeGenerator,
 };
 
 /**

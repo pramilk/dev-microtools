@@ -1,0 +1,79 @@
+---
+title: Barcode Generator
+headline: Barcode Generator — Code 128, Code 39, EAN-13 & UPC-A
+description: Generate scannable Code 128, Code 39, EAN-13, and UPC-A barcodes entirely in your browser. Correct checksums, downloadable as PNG or SVG. Free, no sign-up.
+summary: Turn text or digits into a real, scannable Code 128, Code 39, EAN-13, or UPC-A barcode.
+category: Generate
+order: 47
+updated: 2026-09-02
+whatIsIt: >-
+  A barcode is a one-dimensional pattern of parallel bars and spaces that encodes data a
+  laser or camera scanner can read in a single pass. This tool builds four of the most
+  widely used linear barcode symbologies — Code 128, Code 39, EAN-13, and UPC-A — entirely
+  in your browser, from their published encoding tables and checksum algorithms, so the
+  result is a real, standards-compliant barcode rather than a picture that merely looks like
+  one. Retail products use EAN-13 and UPC-A, shipping and inventory systems favor Code 128
+  for its ability to encode any printable text compactly, and Code 39 remains common in
+  logistics and ID badges for its simple, self-checking design. Every generated barcode can
+  be downloaded as a crisp SVG for print or a PNG for on-screen use.
+useCases:
+  - Printing a product barcode (EAN-13 or UPC-A) for a small shop, market stall, or homemade goods label.
+  - Generating a Code 128 barcode to encode an order number, serial number, or tracking code for an internal warehouse or inventory system.
+  - Producing a Code 39 barcode for an asset tag, ID badge, or industrial label where a simple, widely-supported symbology is expected.
+  - Testing that a barcode scanner or point-of-sale system correctly reads a specific value before committing to a print run.
+  - Prototyping a packaging or label design that needs a real, scannable placeholder barcode rather than a static image.
+howTo:
+  - Pick a symbology — Code 128 for any text, Code 39 for a simpler uppercase-only charset, or EAN-13/UPC-A for retail product codes.
+  - Type the value to encode. Code 128 and Code 39 accept text; EAN-13 and UPC-A accept digits, with the check digit computed automatically if you leave it off.
+  - The barcode preview updates live as you type, with a clear error shown if the value isn't valid for the chosen symbology.
+  - Download the result as an SVG for print (stays sharp at any size) or a PNG for on-screen use, or copy the SVG markup directly.
+example:
+  label: A Code 128 barcode encoding a short alphanumeric order code.
+  input: 'HELLO-123'
+  output: 'A Code 128 (Subset B) barcode with the correct mod-103 checksum symbol appended automatically.'
+  note: Every character in Code 128 Subset B (space through ~) is supported, so this works equally well for order numbers, serials, or short URLs.
+faq:
+  - q: Which symbology should I use?
+    a: Use EAN-13 or UPC-A only if you're producing an actual retail product code (EAN-13 outside the US/Canada, UPC-A within them) — both require a registered manufacturer prefix to be genuinely unique in the real world. For anything else — internal tracking numbers, asset tags, order codes — Code 128 is the most flexible choice since it encodes any printable ASCII text compactly. Code 39 is a reasonable alternative where a simpler, older, or more universally-supported symbology is specifically required, such as some industrial and ID-badge systems.
+  - q: How is the check digit or checksum calculated?
+    a: EAN-13 and UPC-A use the standard mod-10 algorithm — each of the 12 data digits is multiplied by an alternating weight of 1 and 3, and the check digit is whatever value makes the total a multiple of 10. Code 128 uses a weighted mod-103 checksum over each symbol's encoded value. Code 39 doesn't require a checksum at all (it's self-checking by design), but this tool offers an optional mod-43 check character for readers that expect one. All four are computed automatically — you never need to work them out by hand.
+  - q: Can I enter fewer digits than a full EAN-13 or UPC-A code?
+    a: Yes — enter the 12 data digits for EAN-13 (or 11 for UPC-A) and the check digit is computed and appended automatically. If you enter the full 13 (or 12) digits instead, including your own check digit, the tool validates it and shows a clear error if it doesn't match what the standard checksum algorithm computes.
+  - q: Why did my barcode show an error instead of generating?
+    a: Each symbology only accepts certain input. Code 128 (Subset B) accepts any printable ASCII character; anything else — a tab, a newline, an emoji, most accented letters — is rejected with the specific invalid character named. Code 39 only accepts digits, uppercase letters, space, and - . $ / + % (lowercase is automatically uppercased, not rejected). EAN-13 and UPC-A only accept digits, in specific lengths, and reject a check digit that doesn't match what the standard algorithm computes for the rest of the number.
+  - q: Will this barcode actually scan with a real scanner or phone camera?
+    a: Yes — the bar patterns are built directly from each symbology's published encoding tables and checksum algorithms, the same specifications real scanner hardware and software implement, not an approximation. Print it at a reasonable size (very small prints can lose fine bar-width distinctions) with good contrast, and any standard barcode scanner or barcode-reading phone app should read it correctly.
+  - q: Does generating a barcode here send my data anywhere?
+    a: No. Every symbology is encoded entirely in your browser from this tool's own logic — nothing you type is uploaded, logged, or sent to a server. The downloaded PNG or SVG is produced on an in-page canvas and saved directly from your browser to your device.
+related:
+  - qr-code-generator
+  - uuid-generator
+  - slug-generator
+---
+
+## Choosing a symbology
+
+**Code 128** is the most flexible option here: it encodes any printable ASCII character
+(letters, digits, punctuation, spaces) in a relatively compact pattern, which makes it the
+default choice for anything that isn't a retail product code — order numbers, internal
+tracking IDs, serials, or short alphanumeric strings.
+
+**Code 39** trades some compactness for simplicity: it only supports digits, uppercase
+letters, space, and a handful of punctuation characters, but its self-checking design and
+long history mean it's still widely supported by older or simpler barcode readers,
+particularly in industrial and asset-tagging contexts.
+
+**EAN-13** and **UPC-A** are the standards printed on retail packaging worldwide — EAN-13
+outside the US and Canada, UPC-A within them (UPC-A is, structurally, EAN-13 with an
+implicit leading zero). Both require a manufacturer prefix issued by GS1 to be genuinely
+unique on real retail shelves; this tool generates a correctly-structured, correctly-
+checksummed code from any digits you provide, but doesn't register or validate that prefix
+against a real product database.
+
+## What builds the barcode
+
+Each symbology is implemented directly from its published specification — the Code 128
+symbol table and mod-103 checksum, the Code 39 two-of-five weighted character set, and the
+EAN/UPC L/G/R digit patterns with the standard mod-10 check digit — entirely in this tool's
+own code, with no barcode-rendering library involved. The result is drawn as an SVG for the
+live preview and both the PNG and SVG downloads.

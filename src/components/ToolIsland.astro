@@ -42,6 +42,9 @@ import MetaTagGenerator from '../islands/MetaTagGenerator';
 import JsonToTypesConverter from '../islands/JsonToTypesConverter';
 import MarkdownPreviewer from '../islands/MarkdownPreviewer';
 import BrowserFingerprintInspector from '../islands/BrowserFingerprintInspector';
+import FaviconGenerator from '../islands/FaviconGenerator';
+import DockerRunComposeConverter from '../islands/DockerRunComposeConverter';
+import BarcodeGenerator from '../islands/BarcodeGenerator';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -109,3 +112,6 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'json-to-types' && <JsonToTypesConverter client:load />}
 {slug === 'markdown-previewer' && <MarkdownPreviewer client:load />}
 {slug === 'browser-fingerprint-inspector' && <BrowserFingerprintInspector client:load />}
+{slug === 'favicon-generator' && <FaviconGenerator client:load />}
+{slug === 'docker-run-compose-converter' && <DockerRunComposeConverter client:load />}
+{slug === 'barcode-generator' && <BarcodeGenerator client:load />}

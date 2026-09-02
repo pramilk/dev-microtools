@@ -1,0 +1,101 @@
+---
+title: Docker Run ↔ Compose Converter
+headline: Docker Run ↔ Compose Converter — Convert docker run and Compose
+description: Turn a docker run command into a docker-compose.yml service, or a compose service back into a docker run command — entirely in your browser. Free, no sign-up.
+summary: Convert a docker run command into a compose service, or a compose service back into a docker run command.
+category: Convert
+order: 46
+updated: 2026-09-01
+whatIsIt: >-
+  Docker gives you two equivalent ways to start a container: a `docker run` command full of
+  flags, or a service block in a `docker-compose.yml` file. Teams often have one and need
+  the other — someone hands you a `docker run` one-liner from a README or a Stack Overflow
+  answer and you want it as a proper compose service, or you're staring at an existing
+  compose file and just want to run one service by hand to debug it without touching the
+  file. This tool converts both directions. Paste a `docker run` command — including the
+  common multi-line style with a trailing backslash on each flag — and it parses the
+  recognized flags (`-p`, `-v`, `-e`, `--name`, `--restart`, `--network`, `--entrypoint`,
+  `-it`, and more) into a compose service, with an editable service name. Paste compose YAML
+  back and it does the reverse, building a shell-escaped `docker run` command, with a picker
+  if the file defines more than one service. Neither direction is perfectly lossless — some
+  `docker run` flags have no compose equivalent and some compose fields have no `docker run`
+  equivalent — so anything that couldn't be carried over is called out as a visible warning
+  rather than silently dropped.
+useCases:
+  - Turning a docker run command copied from a README, blog post, or Stack Overflow answer into a proper docker-compose.yml service.
+  - Extracting one service from an existing compose file as a plain docker run command, to test or debug it in isolation.
+  - Reviewing exactly which flags or compose fields didn't survive a conversion, instead of guessing what might be missing.
+  - Learning how a specific docker run flag (like -it, --restart, or -v) maps to its compose YAML equivalent, and vice versa.
+  - Quickly reformatting a compressed single-line docker run command into a readable, one-flag-per-line multi-line command, or the reverse.
+howTo:
+  - Choose a direction with the segmented control at the top — "docker run → compose" or "compose → docker run".
+  - Paste a docker run command (multi-line with trailing backslashes is fine) or a docker-compose.yml file into the input box.
+  - For docker run → compose, optionally edit the generated service name — it defaults to --name, or the image name if that wasn't given.
+  - For compose → docker run, pick which service to convert if the file defines more than one, and toggle multi-line vs single-line output.
+  - Check for any warning below the output listing flags or fields that couldn't be carried over, then copy the result.
+example:
+  label: A common single-container docker run command, converted to a compose service.
+  input: 'docker run -d --name web -p 8080:80 -e NODE_ENV=production -v ./data:/app/data --restart unless-stopped nginx:alpine'
+  output: |-
+    services:
+      web:
+        image: nginx:alpine
+        container_name: web
+        restart: unless-stopped
+        ports:
+          - 8080:80
+        volumes:
+          - ./data:/app/data
+        environment:
+          NODE_ENV: production
+  note: >-
+    Press "Load example" to fill in this exact command in whichever direction is currently
+    selected — it loads the docker run command above when "docker run → compose" is active,
+    or this same compose YAML when "compose → docker run" is active.
+faq:
+  - q: Is this conversion perfectly lossless in both directions?
+    a: "No, and it doesn't pretend to be. A docker run command and a compose service overlap heavily but aren't a perfect match: --rm has no compose field at all, since a compose service isn't meant to remove itself after stopping, and a handful of less common docker run flags (--gpus, --platform, --shm-size, and similar) simply have no representation in this tool. Going the other way, compose fields like build, depends_on, and healthcheck describe things a single docker run command can't express either. Anything that can't be carried over is shown as a visible warning below the output, listing exactly what was dropped, rather than a silent gap you'd only notice later."
+  - q: Why isn't -d / --detach reflected anywhere in the generated compose file?
+    a: Because it doesn't need to be — detached mode isn't a property of a service definition, it's a property of how you start it. The compose equivalent of docker run -d is simply running docker compose up -d, not a field inside the service block. This is different from --rm, which has no compose equivalent at all in either place.
+  - q: Why does docker run --name=web and --name web both work the same way here?
+    a: "Because docker's own CLI accepts both forms for every long flag, and this tool matches that: --name web (space-separated) and --name=web (=-joined) parse identically, the same as they would if you actually ran the command. Short flags like -p only accept the space-separated form, matching real docker behavior."
+  - q: What happens if I paste a flag this tool doesn't recognize?
+    a: It's never silently discarded. An unrecognized flag is listed in a warning below the output so you know exactly what wasn't converted, and the rest of the command still converts normally. A small set of well-known docker run flags this tool doesn't map to compose (like --platform or --hostname) are specifically recognized as "takes a value" so that value isn't mistaken for the image; anything genuinely unknown is assumed to take no value, which can occasionally misread its value as the image on an unusual command.
+  - q: How does the multi-line docker run formatting work?
+    a: The same way this site's own cURL Command Builder formats its output — one flag per line, each line ending in a backslash so a shell treats it as a single continued command. It's purely a formatting choice with a toggle for single-line output too; both produce the exact same command once run.
+  - q: Does this tool send my docker run command or compose file anywhere?
+    a: No. Parsing, conversion, and YAML generation all run as plain JavaScript in your browser tab. Nothing you paste here — including any environment variable values, which can be sensitive — is ever transmitted anywhere.
+  - q: Why does my compose file's ports or volumes entry get dropped with a warning?
+    a: 'Most likely it uses the object ("long syntax") form, like `{ target: 80, published: 8080 }` for ports or `{ type: volume, source: v, target: /v }` for volumes, instead of the short "host:container" string form. Only the short string form converts to a docker run flag here; a long-syntax entry is called out in the warning rather than silently vanishing.'
+  - q: My compose service has more than one network — why does the docker run command only have one --network?
+    a: Because docker run only accepts a single --network flag at container creation time — attaching a running container to additional networks needs a separate docker network connect command afterward, which is outside the scope of a single docker run line. The warning below the output names which network was used and which were dropped.
+related:
+  - curl-command-builder
+  - data-format-converter
+  - json-to-types
+  - cidr-subnet-calculator
+---
+
+## What's recognized
+
+**docker run flags:** `-d`/`--detach`, `--name`, `-p`/`--publish`, `-v`/`--volume`,
+`-e`/`--env`, `--env-file`, `--network`, `--restart`, `-w`/`--workdir`, `--entrypoint`,
+`-u`/`--user`, `--rm`, `-i`/`-t`/`-it`/`--interactive`/`--tty`, `--label`, `-m`/`--memory`,
+`--cpus` — plus the image reference and any command override that follows it. Both short and
+long forms work, and long flags accept either `--flag value` or `--flag=value`.
+
+**Compose fields:** `image`, `container_name`, `restart`, `ports`, `volumes`, `environment`,
+`env_file`, `working_dir`, `entrypoint`, `command`, `user`, `networks`, `labels`, `tty`,
+`stdin_open`, `mem_limit`, `cpus`. `environment` and `labels` accept either compose's mapping
+form (`KEY: value`) or list form (`"KEY=value"`).
+
+## What powers this tool
+
+Parsing a `docker run` command starts with a small POSIX-shell-style tokenizer — it handles
+single quotes, double-quoted escapes, and a trailing backslash as a line continuation, so a
+command formatted one flag per line (the style curl commands on this site use too) parses
+correctly. Compose YAML is parsed and generated with [js-yaml](https://github.com/nodeca/js-yaml),
+the same library behind this site's [Data Format Converter](/data-format-converter/). Every
+value placed into a generated `docker run` command is escaped for a POSIX shell the same way
+this site's [cURL Command Builder](/curl-command-builder/) escapes its own output. Nothing
+about either format is sent anywhere — it's all string parsing and generation in your browser.

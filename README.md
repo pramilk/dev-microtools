@@ -22,6 +22,7 @@ request at all. You can verify this yourself: open DevTools → Network while us
 | [Color Converter](https://devmicrotools.com/color-converter/) | Convert | Convert between HEX, RGB, HSL and OKLCH, with WCAG contrast checking. |
 | [JSON, YAML, CSV & XML Converter](https://devmicrotools.com/data-format-converter/) | Convert | Convert data between JSON, YAML, CSV and XML in either direction. |
 | [JSON & XML to Types](https://devmicrotools.com/json-to-types/) | Convert | Turn a JSON or XML sample into TypeScript, Go, Java, C#, Kotlin, Swift, Rust or Python type definitions, with nested objects and optional fields inferred. |
+| [Docker Run ↔ Compose Converter](https://devmicrotools.com/docker-run-compose-converter/) | Convert | Convert a docker run command into a compose service, or a compose service back into a docker run command. |
 | [JSON Formatter](https://devmicrotools.com/json-formatter/) | Format | Beautify, minify, validate and repair broken JSON entirely in your browser. |
 | [SQL Formatter](https://devmicrotools.com/sql-formatter/) | Format | Beautify a SQL query with consistent indentation and keyword casing. |
 | [HTML / CSS / JS Minifier](https://devmicrotools.com/html-css-js-minifier/) | Format | Shrink HTML, CSS or JavaScript by stripping comments and unnecessary whitespace. |
@@ -34,6 +35,7 @@ request at all. You can verify this yourself: open DevTools → Network while us
 | [Lorem Ipsum Generator](https://devmicrotools.com/lorem-ipsum-generator/) | Generate | Generate Lorem Ipsum placeholder text as paragraphs, sentences or words. |
 | [Slug Generator](https://devmicrotools.com/slug-generator/) | Generate | Turn a title into a clean, URL-friendly slug — separator, casing and length options. |
 | [Meta Tag & Open Graph Generator](https://devmicrotools.com/meta-tag-generator/) | Generate | Build SEO, Open Graph and Twitter Card meta tags for a page, with a live search-result and social-card preview. |
+| [Barcode Generator](https://devmicrotools.com/barcode-generator/) | Generate | Turn text or digits into a real, scannable Code 128, Code 39, EAN-13, or UPC-A barcode. |
 | [JWT Debugger](https://devmicrotools.com/jwt-decoder/) | Security | Decode, verify and sign JSON Web Tokens without uploading them anywhere. |
 | [Hash Generator](https://devmicrotools.com/hash-generator/) | Security | Compute MD5, SHA-1 and SHA-2 digests, and verify a checksum against them. |
 | [Password Generator](https://devmicrotools.com/password-generator/) | Security | Create strong random passwords with adjustable length and character types. |
@@ -57,6 +59,7 @@ request at all. You can verify this yourself: open DevTools → Network while us
 | [SVG Optimizer](https://devmicrotools.com/svg-optimizer/) | Images | Strip comments, metadata, and editor cruft from SVG markup — tune precision, compare before/after, download. |
 | [Image Cropper](https://devmicrotools.com/image-cropper/) | Images | Crop an image to a selected area and resize it to exact pixel dimensions, right in your browser. |
 | [Image Format Converter](https://devmicrotools.com/image-format-converter/) | Images | Convert one or many images between PNG, JPEG, WebP, BMP and ICO — including SVG rasterization — right in your browser. |
+| [Favicon Generator](https://devmicrotools.com/favicon-generator/) | Images | Generate favicon.ico, every standard PNG size, apple-touch-icon, Android/PWA icons and a web manifest — plus the HTML snippet — from one uploaded image. |
 | [CSS Gradient Generator](https://devmicrotools.com/css-gradient-generator/) | CSS | Build linear, radial and conic gradients visually and copy the CSS. |
 | [CSS Box-Shadow Generator](https://devmicrotools.com/css-box-shadow-generator/) | CSS | Build single or layered box-shadows visually and copy the CSS. |
 

@@ -1,0 +1,82 @@
+---
+title: Favicon Generator
+headline: Favicon Generator — favicon.ico, PNGs & manifest from one image
+description: Generate favicon.ico, PNG sizes, apple-touch-icon, Android/PWA icons, a web manifest and HTML — all from one image, right in your browser.
+summary: Generate a full favicon package — favicon.ico, PNG sizes, manifest and HTML snippet — from one uploaded image.
+category: Images
+order: 44
+updated: 2026-09-02
+whatIsIt: >-
+  This tool turns one uploaded image into the complete set of files a website actually needs
+  for its favicon and home-screen icons — the same package real generators like favicon.io
+  and RealFaviconGenerator produce, built entirely in your browser using the Canvas API. If
+  the source image isn't already square, it's automatically center-cropped to the largest
+  centered square before resizing, so a wide logo or rectangular screenshot never comes out
+  squashed. From that square crop, the tool renders every standard size — 16, 32, and 48
+  pixels bundled together into one multi-size favicon.ico, plus standalone
+  favicon-16x16.png and favicon-32x32.png, a 180×180 apple-touch-icon.png for iOS
+  home-screen bookmarks, and 192×192 / 512×512 android-chrome PNGs for Android and
+  installed PWAs. It also generates a ready-to-use site.webmanifest referencing the two
+  Android icons, and the exact HTML `<link>` tags to paste into your page's `<head>` so
+  every browser and platform picks up the right file. Download each file individually or
+  grab the whole package — six images plus the manifest — as one zip.
+useCases:
+  - Building a complete, standards-compliant favicon set for a new site without installing a dedicated icon-generation tool.
+  - Replacing a stale single favicon.ico with the full modern set browsers, iOS, and Android all expect.
+  - Turning a square app logo into the exact PNG sizes an Android/PWA manifest or Apple's home-screen icon requires.
+  - Generating a multi-size favicon.ico from a rectangular banner or screenshot, with the crop handled automatically.
+  - Getting the copy-paste HTML snippet right the first time instead of guessing which link tags and sizes are still needed.
+howTo:
+  - Drop in a source image, or choose one from your device — ideally square and at least 512×512px so smaller sizes stay sharp.
+  - A non-square image is automatically center-cropped to the largest centered square before anything is resized.
+  - Preview the 32×32 and 180×180 renders to confirm the crop and resize look right before downloading.
+  - Download favicon.ico and any individual PNG size on its own, or grab everything — every image plus site.webmanifest — as one zip.
+  - Copy the generated HTML snippet and paste it into your page's `<head>`, then edit the manifest's placeholder app name.
+example:
+  label: A generated 512×512 sample logo, converted into a full favicon package.
+  input: 'A 512×512 PNG circle badge on a gradient background.'
+  output: 'favicon.ico (16/32/48px bundled), favicon-16x16.png, favicon-32x32.png, apple-touch-icon.png (180×180), android-chrome-192x192.png, android-chrome-512x512.png, site.webmanifest, and the matching HTML <link> snippet.'
+  note: Press "Load example" to generate a real sample logo and see the actual package, previews, and HTML snippet for yourself.
+faq:
+  - q: Does this upload my image anywhere?
+    a: No. Decoding, cropping, resizing and PNG/ICO encoding all happen in your browser using the Canvas API — nothing you upload is ever sent to a server, which is true of every tool on this site.
+  - q: Why do I need more than just favicon.ico?
+    a: A single favicon.ico still works for the classic browser tab icon, but iOS home-screen bookmarks look for their own apple-touch-icon size, and Android/PWA install prompts read icon sizes and a name straight from site.webmanifest. Shipping only favicon.ico leaves those platforms falling back to a blurry upscale or a generic placeholder icon instead of your real logo.
+  - q: What happens if my source image isn't square?
+    a: It's automatically center-cropped to the largest square that fits inside it before any resizing happens, so the result is never stretched or squashed. If the crop cuts off something important near the edges, crop the source image to roughly square yourself before uploading, so you control exactly what stays in frame.
+  - q: Why does favicon.ico bundle three different sizes into one file?
+    a: The ICO format has always supported multiple embedded images in one file, and the browser or OS picks whichever size best matches where it's rendering — a small 16px browser tab versus a larger 32px or 48px taskbar/shortcut icon. Bundling 16, 32, and 48px together in one favicon.ico is the standard real-world convention, matching what favicon.io and RealFaviconGenerator both produce.
+  - q: What is site.webmanifest, and do I have to use it?
+    a: It's a small JSON file that tells Android and other platforms your site's name and which icons to use if someone adds it to their home screen or installs it as a PWA. This tool fills in a generic "App" placeholder for the name fields since it has no way to know your real app name — edit those two fields in the downloaded file before deploying it. If you don't need PWA/Android install support, you can skip linking it and just use the favicon.ico and apple-touch-icon files.
+  - q: How large should my source image be?
+    a: Aim for at least 512×512px, ideally as a clean, simple logo or mark — fine detail and thin lines tend to disappear once scaled down to 16×16px. A larger, simpler source image with high contrast against its background will produce a far more legible favicon than a small or highly detailed one.
+  - q: Can I customize the colors used in the icons?
+    a: Not directly in this tool — it resizes and re-encodes your source image exactly as uploaded, without adding any color processing. If you want a different color scheme, edit the source image first (in an image editor, or with this site's Image Cropper for a quick recrop) and re-upload it here.
+related:
+  - image-format-converter
+  - image-cropper
+  - image-compressor
+  - qr-code-generator
+---
+
+## What's in the package
+
+Every favicon package this tool generates follows the same convention real generators like
+favicon.io and RealFaviconGenerator use, so nothing about it looks unfamiliar to a browser,
+an OS, or another developer reading your `<head>`:
+
+- **favicon.ico** — 16×16, 32×32, and 48×48 bundled into one multi-size icon file.
+- **favicon-16x16.png** and **favicon-32x32.png** — the same two smaller sizes as standalone PNGs.
+- **apple-touch-icon.png** — 180×180, used by iOS when a page is added to the home screen.
+- **android-chrome-192x192.png** and **android-chrome-512x512.png** — used by Android's install prompt and any PWA manifest.
+- **site.webmanifest** — a small JSON file referencing the two Android icon sizes.
+
+## Why the center-crop matters
+
+Every size above is square, but plenty of real-world source images — a wide logo lockup, a
+banner, a screenshot — aren't. Resizing a non-square image directly into a square canvas
+would stretch it out of proportion, so this tool always crops to the largest centered square
+first and resizes from that crop. The result stays proportionally correct at every size,
+though it does mean content near the left/right (or top/bottom) edges of a very wide or tall
+source image gets cropped out — for full control over exactly what's kept, start from a
+roughly square source image.
