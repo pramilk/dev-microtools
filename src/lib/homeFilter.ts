@@ -61,6 +61,15 @@ export function initHomeFilter(): void {
 
   if (isMacPlatform(navigator)) searchKbd && (searchKbd.textContent = '⌘ K');
 
+  // Lets `/?q=...` (and the `/search?q=...` redirect in public/_redirects, which Google
+  // probes for automatically when looking for a site's search feature) land on a
+  // pre-filtered homepage instead of a generic one.
+  const query = new URLSearchParams(window.location.search).get('q');
+  if (query) {
+    searchInput.value = query;
+    applyHomeFilter();
+  }
+
   searchInput.addEventListener('input', applyHomeFilter);
 
   clearButton?.addEventListener('click', () => {

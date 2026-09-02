@@ -13,3 +13,10 @@
 /base32-encode-decode/  /base-encode-decode/?format=base32   301
 /base58-encode-decode   /base-encode-decode/?format=base58   301
 /base58-encode-decode/  /base-encode-decode/?format=base58   301
+
+# There is no server-side search — the homepage has a client-side tool filter instead
+# (src/lib/homeFilter.ts). Google still probes "/search?q=..." against most homepages
+# looking for a Sitelinks Search Box, which was 404ing here. Cloudflare passes the
+# incoming query string through to the destination by default, so ?q=test survives as
+# /?q=test, and homeFilter.ts reads that on load to pre-fill and apply the filter.
+/search   /   301

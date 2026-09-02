@@ -19,6 +19,14 @@ const schema = [
     name: SITE.name,
     url: SITE.url,
     description: SITE.description,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${SITE.url}/?q={search_term_str}`,
+      },
+      'query-input': 'required name=search_term_str',
+    },
   },
   {
     '@context': 'https://schema.org',

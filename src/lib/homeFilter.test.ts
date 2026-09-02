@@ -68,6 +68,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   document.body.innerHTML = '';
+  window.history.pushState(null, '', '/');
 });
 
 describe('applyHomeFilter — no-op guards', () => {
@@ -224,6 +225,24 @@ describe('initHomeFilter — clear button', () => {
   it('does nothing if the search input is missing', () => {
     document.body.innerHTML = '<button data-home-search-clear></button><div data-home-category-filter></div>';
     expect(() => initHomeFilter()).not.toThrow();
+  });
+});
+
+describe('initHomeFilter — ?q= prefill', () => {
+  it('pre-fills and applies the filter from a ?q= query param', () => {
+    window.history.pushState(null, '', '/?q=formatter');
+    initHomeFilter();
+
+    expect(search().value).toBe('formatter');
+    expect(visibleNames()).toEqual(['json formatter', 'sql formatter']);
+  });
+
+  it('leaves the search box empty when there is no ?q= param', () => {
+    window.history.pushState(null, '', '/');
+    initHomeFilter();
+
+    expect(search().value).toBe('');
+    expect(visibleNames()).toHaveLength(TOOLS.length);
   });
 });
 
