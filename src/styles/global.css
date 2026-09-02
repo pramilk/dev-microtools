@@ -382,6 +382,32 @@ main {
   line-height: 1.5;
 }
 
+/* `display: block` plus its own overflow-x lets a wide table scroll internally on a
+   narrow viewport without a wrapper element — MDX-rendered Markdown tables have no
+   markup to add one around. */
+.prose table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  max-width: 100%;
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.prose th,
+.prose td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.prose th {
+  background: var(--surface-2);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
 /* -------------------------------------------------------------- surfaces */
 
 .card {

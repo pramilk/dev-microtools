@@ -52,6 +52,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'invisible-char-inspector': 'ZWS',
   'meta-tag-generator': 'OG',
   'json-to-types': 'T<>',
+  'markdown-previewer': 'MD',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

@@ -41,6 +41,7 @@ import SlugGenerator from '../islands/SlugGenerator';
 import InvisibleCharInspector from '../islands/InvisibleCharInspector';
 import MetaTagGenerator from '../islands/MetaTagGenerator';
 import JsonToTypesConverter from '../islands/JsonToTypesConverter';
+import MarkdownPreviewer from '../islands/MarkdownPreviewer';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -91,6 +92,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'invisible-char-inspector': InvisibleCharInspector,
   'meta-tag-generator': MetaTagGenerator,
   'json-to-types': JsonToTypesConverter,
+  'markdown-previewer': MarkdownPreviewer,
 };
 
 /**

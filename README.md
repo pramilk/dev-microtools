@@ -26,6 +26,7 @@ request at all. You can verify this yourself: open DevTools → Network while us
 | [SQL Formatter](https://devmicrotools.com/sql-formatter/) | Format | Beautify a SQL query with consistent indentation and keyword casing. |
 | [HTML / CSS / JS Minifier](https://devmicrotools.com/html-css-js-minifier/) | Format | Shrink HTML, CSS or JavaScript by stripping comments and unnecessary whitespace. |
 | [XML Formatter](https://devmicrotools.com/xml-formatter/) | Format | Pretty-print, minify, validate, or convert XML to JSON — all in the browser. |
+| [Markdown Previewer](https://devmicrotools.com/markdown-previewer/) | Format | Live-preview Markdown as HTML, or convert HTML back into Markdown, right in your browser. |
 | [UUID Generator](https://devmicrotools.com/uuid-generator/) | Generate | Generate v4 or time-ordered v7 UUIDs in bulk, and inspect existing ones. |
 | [QR Code Generator](https://devmicrotools.com/qr-code-generator/) | Generate | Turn text or a URL into a scannable QR code — download as PNG or SVG. |
 | [Fake Data Generator](https://devmicrotools.com/fake-data-generator/) | Generate | Generate realistic fake names, emails, addresses and more as JSON or CSV. |

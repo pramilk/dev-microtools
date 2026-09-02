@@ -66,23 +66,39 @@ import { SITE } from '../lib/site';
 
       <h2>Open source components</h2>
       <p>
-        Almost everything here uses native browser APIs. Thirteen third-party libraries are
-        included: <code>diff</code> (BSD-3-Clause) powers the diff checker,
-        <code>blueimp-md5</code> and <code>spark-md5</code> (both MIT) provide MD5, which
-        the Web Crypto API deliberately does not support, <code>qrcode-generator</code>
-        (MIT) powers the QR code generator, <code>js-yaml</code> (MIT) powers YAML parsing
-        in the data format converter, <code>sql-formatter</code> (MIT) powers the SQL
-        formatter, <code>terser</code> (BSD-2-Clause) powers JavaScript minification,
-        <code>bcryptjs</code> (BSD-3-Clause) powers the bcrypt generator/checker,
-        <code>svgo</code> (MIT) powers the SVG optimizer, <code>@jsquash/oxipng</code>
-        (Apache-2.0) and <code>fflate</code> (MIT) power the image compressor's extra
-        lossless PNG pass and zip download, <code>compromise</code> (MIT) powers Word
-        Counter's Sentence case proper-noun detection, loaded only if you click that button,
-        and <code>gpt-tokenizer</code> (MIT) provides OpenAI's published token vocabularies
-        for the LLM token counter, fetched the first time you count against an OpenAI model.
-        Every tool's page links the specific library it uses. All thirteen licences permit
-        commercial use.
+        Almost everything here uses native browser APIs. Eighteen third-party libraries are
+        included for the specific jobs the browser has no built-in for — every tool's own
+        page also links the library it uses. All eighteen licences permit commercial use.
       </p>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Library</th>
+            <th scope="col">Licence</th>
+            <th scope="col">Used in</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><a href="https://github.com/kpdecker/jsdiff" target="_blank" rel="noopener noreferrer"><code>diff</code></a></td><td>BSD-3-Clause</td><td>Diff Checker</td></tr>
+          <tr><td><a href="https://github.com/blueimp/JavaScript-MD5" target="_blank" rel="noopener noreferrer"><code>blueimp-md5</code></a></td><td>MIT</td><td>Hash Generator (text MD5, since the Web Crypto API deliberately omits it)</td></tr>
+          <tr><td><a href="https://github.com/satazor/js-spark-md5" target="_blank" rel="noopener noreferrer"><code>spark-md5</code></a></td><td>MIT</td><td>Hash Generator (file MD5)</td></tr>
+          <tr><td><a href="https://github.com/kazuhikoarase/qrcode-generator" target="_blank" rel="noopener noreferrer"><code>qrcode-generator</code></a></td><td>MIT</td><td>QR Code Generator</td></tr>
+          <tr><td><a href="https://github.com/nodeca/js-yaml" target="_blank" rel="noopener noreferrer"><code>js-yaml</code></a></td><td>MIT</td><td>JSON, YAML, CSV &amp; XML Converter (YAML)</td></tr>
+          <tr><td><a href="https://github.com/sql-formatter-org/sql-formatter" target="_blank" rel="noopener noreferrer"><code>sql-formatter</code></a></td><td>MIT</td><td>SQL Formatter</td></tr>
+          <tr><td><a href="https://github.com/terser/terser" target="_blank" rel="noopener noreferrer"><code>terser</code></a></td><td>BSD-2-Clause</td><td>HTML / CSS / JS Minifier (JavaScript)</td></tr>
+          <tr><td><a href="https://github.com/dcodeIO/bcrypt.js" target="_blank" rel="noopener noreferrer"><code>bcryptjs</code></a></td><td>BSD-3-Clause</td><td>Bcrypt Generator/Checker</td></tr>
+          <tr><td><a href="https://github.com/svg/svgo" target="_blank" rel="noopener noreferrer"><code>svgo</code></a></td><td>MIT</td><td>SVG Optimizer</td></tr>
+          <tr><td><a href="https://github.com/jamsinclair/jSquash/tree/main/packages/oxipng" target="_blank" rel="noopener noreferrer"><code>@jsquash/oxipng</code></a></td><td>Apache-2.0</td><td>Image Compressor (extra lossless PNG pass)</td></tr>
+          <tr><td><a href="https://github.com/101arrowz/fflate" target="_blank" rel="noopener noreferrer"><code>fflate</code></a></td><td>MIT</td><td>Image Compressor (zip download of a batch)</td></tr>
+          <tr><td><a href="https://github.com/ibezkrovnyi/image-quantization/tree/main/packages/image-q" target="_blank" rel="noopener noreferrer"><code>image-q</code></a></td><td>MIT</td><td>Image Compressor, Image Cropper, Image Format Converter (lossy PNG mode)</td></tr>
+          <tr><td><a href="https://github.com/spencermountain/compromise" target="_blank" rel="noopener noreferrer"><code>compromise</code></a></td><td>MIT</td><td>Word Counter (Sentence case proper-noun detection, loaded only on click)</td></tr>
+          <tr><td><a href="https://github.com/niieani/gpt-tokenizer" target="_blank" rel="noopener noreferrer"><code>gpt-tokenizer</code></a></td><td>MIT</td><td>LLM Token Counter (OpenAI's published token vocabularies)</td></tr>
+          <tr><td><a href="https://github.com/markedjs/marked" target="_blank" rel="noopener noreferrer"><code>marked</code></a></td><td>MIT</td><td>Markdown Previewer (Markdown → HTML)</td></tr>
+          <tr><td><a href="https://github.com/cure53/DOMPurify" target="_blank" rel="noopener noreferrer"><code>DOMPurify</code></a></td><td>MPL-2.0 or Apache-2.0</td><td>Markdown Previewer (sanitizes the rendered HTML)</td></tr>
+          <tr><td><a href="https://github.com/mixmark-io/turndown" target="_blank" rel="noopener noreferrer"><code>turndown</code></a></td><td>MIT</td><td>Markdown Previewer (HTML → Markdown)</td></tr>
+          <tr><td><a href="https://github.com/domchristie/turndown-plugin-gfm" target="_blank" rel="noopener noreferrer"><code>turndown-plugin-gfm</code></a></td><td>MIT</td><td>Markdown Previewer (GFM tables, strikethrough, task lists)</td></tr>
+        </tbody>
+      </table>
       <p>
         The site itself is open source (MIT licensed) — read the code powering any tool, or
         the privacy claims above, on <a href={SITE.repoUrl}>GitHub</a>.
