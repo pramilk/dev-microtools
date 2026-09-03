@@ -159,7 +159,26 @@ export function describeHardwareConcurrency(cores: number | null): string {
 }
 
 export function describeDeviceMemory(gb: number | null): string {
-  return gb === null ? 'Not reported (Chromium-only API)' : `~${gb} GB (rounded, capped at 8 by the browser)`;
+  if (gb === null) return 'Not reported (Chromium-only API)';
+  // The spec buckets real RAM into {0.25, 0.5, 1, 2, 4, 8}, with 8 as the max a
+  // compliant browser should ever report — so only claim the cap when the value
+  // actually reflects it, rather than asserting a ceiling the number just broke.
+  return gb <= 8 ? `~${gb} GB (rounded, capped at 8 by the browser)` : `~${gb} GB (rounded to a power of two by the browser)`;
+}
+
+/**
+ * navigator.platform is a legacy API, independent of the User-Agent string: Chromium
+ * and Firefox have both reported "Win32" on 64-bit Windows since the 32-bit era, for
+ * compatibility with old sites that hardcoded the check — it is not a reliable signal
+ * either way. The User-Agent string usually settles it: "Win64; x64" or "WOW64" mark a
+ * genuinely 64-bit Windows installation.
+ */
+export function describePlatformCaveat(platform: string, userAgent: string): string | undefined {
+  if (platform !== 'Win32') return undefined;
+  const is64BitWindows = /Win64;\s*x64|WOW64/.test(userAgent);
+  return is64BitWindows
+    ? '"Win32" here does not mean 32-bit Windows — Chromium and Firefox report this on 64-bit Windows too, for compatibility with old sites. The User-Agent string above ("Win64; x64") confirms this is actually 64-bit Windows.'
+    : '"Win32" is a legacy label Windows browsers report regardless of the OS’s actual bitness — it is not a reliable 32-bit vs. 64-bit indicator on its own, and the User-Agent string above does not carry a "Win64"/"WOW64" marker either.';
 }
 
 export function describeTouchSupport(maxTouchPoints: number): string {
@@ -398,7 +417,12 @@ export function buildFingerprintReport(
       label: 'Identity',
       rows: [
         { label: 'User-Agent', value: raw.userAgent, hint: 'Sent with every request; identifies your browser, engine, and OS.' },
-        { label: 'Platform', value: raw.platform || 'Not reported', hint: 'The OS family your browser reports itself as running on.' },
+        {
+          label: 'Platform',
+          value: raw.platform || 'Not reported',
+          hint: 'The OS family your browser reports itself as running on.',
+          caveat: describePlatformCaveat(raw.platform, raw.userAgent),
+        },
         { label: 'Language', value: raw.language, hint: 'Your browser’s primary UI language, sent as part of every request.' },
         { label: 'Languages', value: raw.languages.length > 0 ? raw.languages.join(', ') : 'Not reported', hint: 'Your full ordered language preference list.' },
         { label: 'Cookies enabled', value: yesNo(raw.cookieEnabled), hint: 'Whether this browser accepts cookies at all, readable by any page.' },

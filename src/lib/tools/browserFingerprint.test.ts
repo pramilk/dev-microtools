@@ -4,6 +4,7 @@ import {
   describeGlobalPrivacyControl,
   describeHardwareConcurrency,
   describeDeviceMemory,
+  describePlatformCaveat,
   describeTouchSupport,
   describePlugins,
   describeBattery,
@@ -119,8 +120,34 @@ describe('describeDeviceMemory', () => {
   it('formats a reported value', () => {
     expect(describeDeviceMemory(8)).toContain('8 GB');
   });
+  it('claims the spec cap only when the value actually respects it', () => {
+    expect(describeDeviceMemory(8)).toContain('capped at 8');
+    expect(describeDeviceMemory(4)).toContain('capped at 8');
+  });
+  it('does not claim a cap at 8 when the browser reports above it', () => {
+    const description = describeDeviceMemory(16);
+    expect(description).toContain('16 GB');
+    expect(description).not.toContain('capped at 8');
+  });
   it('reports unavailable for null', () => {
     expect(describeDeviceMemory(null)).toContain('Not reported');
+  });
+});
+
+describe('describePlatformCaveat', () => {
+  const WIN64_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36';
+
+  it('flags Win32 as unreliable when the UA confirms 64-bit Windows', () => {
+    const caveat = describePlatformCaveat('Win32', WIN64_UA);
+    expect(caveat).toContain('64-bit Windows');
+  });
+  it('still flags Win32 as unreliable when the UA has no 64-bit marker', () => {
+    const caveat = describePlatformCaveat('Win32', 'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36');
+    expect(caveat).toContain('legacy label');
+  });
+  it('is undefined for non-Windows platforms', () => {
+    expect(describePlatformCaveat('MacIntel', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15)')).toBeUndefined();
+    expect(describePlatformCaveat('Linux x86_64', 'Mozilla/5.0 (X11; Linux x86_64)')).toBeUndefined();
   });
 });
 
