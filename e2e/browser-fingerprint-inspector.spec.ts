@@ -7,7 +7,7 @@ test.describe('Browser Fingerprint Inspector', () => {
     const tool = widget(page);
 
     await expect(tool.getByText('Identity')).toBeVisible();
-    await expect(tool.getByText('User-Agent')).toBeVisible();
+    await expect(tool.getByText('User-Agent', { exact: true })).toBeVisible();
     await expect(tool.getByText('Rendering fingerprint')).toBeVisible();
     await expect(tool.getByText(/signals collected across 8 categories/i)).toBeVisible();
     // The injecting Worker only runs on the real Cloudflare deployment, not this local
