@@ -64,6 +64,7 @@ request at all. You can verify this yourself: open DevTools → Network while us
 | [Image Cropper](https://devmicrotools.com/image-cropper/) | Images | Crop an image to a selected area and resize it to exact pixel dimensions, right in your browser. |
 | [Image Format Converter](https://devmicrotools.com/image-format-converter/) | Images | Convert one or many images between PNG, JPEG, WebP, BMP and ICO — including SVG rasterization — right in your browser. |
 | [Favicon Generator](https://devmicrotools.com/favicon-generator/) | Images | Generate favicon.ico, every standard PNG size, apple-touch-icon, Android/PWA icons and a web manifest — plus the HTML snippet — from one uploaded image. |
+| [Background Remover](https://devmicrotools.com/background-remover/) | Images | Remove a photo's background with an on-device AI model (u2netp via onnxruntime-web/WASM) — no upload, runs entirely in your browser. |
 | [CSS Gradient Generator](https://devmicrotools.com/css-gradient-generator/) | CSS | Build linear, radial and conic gradients visually and copy the CSS. |
 | [CSS Box-Shadow Generator](https://devmicrotools.com/css-box-shadow-generator/) | CSS | Build single or layered box-shadows visually and copy the CSS. |
 

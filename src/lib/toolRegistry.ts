@@ -50,6 +50,7 @@ import AsciiTableKeycodeInspector from '../islands/AsciiTableKeycodeInspector';
 import CspBuilder from '../islands/CspBuilder';
 import JsonLdGenerator from '../islands/JsonLdGenerator';
 import SecurityTxtGenerator from '../islands/SecurityTxtGenerator';
+import BackgroundRemover from '../islands/BackgroundRemover';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -109,6 +110,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'csp-header-builder': CspBuilder,
   'json-ld-generator': JsonLdGenerator,
   'security-txt-generator': SecurityTxtGenerator,
+  'background-remover': BackgroundRemover,
 };
 
 /**

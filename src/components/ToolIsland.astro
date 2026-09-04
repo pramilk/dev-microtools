@@ -49,6 +49,7 @@ import AsciiTableKeycodeInspector from '../islands/AsciiTableKeycodeInspector';
 import CspBuilder from '../islands/CspBuilder';
 import JsonLdGenerator from '../islands/JsonLdGenerator';
 import SecurityTxtGenerator from '../islands/SecurityTxtGenerator';
+import BackgroundRemover from '../islands/BackgroundRemover';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -123,3 +124,4 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'csp-header-builder' && <CspBuilder client:load />}
 {slug === 'json-ld-generator' && <JsonLdGenerator client:load />}
 {slug === 'security-txt-generator' && <SecurityTxtGenerator client:load />}
+{slug === 'background-remover' && <BackgroundRemover client:load />}

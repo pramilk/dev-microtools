@@ -20,3 +20,19 @@
   # Analytics' beacon script (loaded in BaseLayout.astro when SITE.cloudflareAnalyticsToken
   # is set) — without it the browser blocks the beacon and analytics silently stop recording.
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
+
+# Background Remover is the one page on the site that runs WebAssembly (onnxruntime-web, for
+# its in-browser AI model) — WASM instantiation needs 'wasm-unsafe-eval' in script-src, a
+# narrow keyword that permits WebAssembly.compile/instantiate specifically without opening up
+# 'unsafe-eval's full arbitrary-string-eval surface. Scoped to this one route (a full
+# override, not a merge — Cloudflare's _headers doesn't merge same-named headers across
+# matching sections) rather than added to the site-wide policy above, since no other tool
+# needs it. Everything else in the policy is identical to the default above; keep the two in
+# sync if the shared policy ever changes.
+/background-remover/
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=(), usb=(), interest-cohort=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'

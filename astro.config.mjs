@@ -65,8 +65,12 @@ export default defineConfig({
        * dependency optimizer doesn't handle that shape correctly (it's meant for plain JS
        * packages) — the package's own docs call out excluding it instead, letting Vite's
        * native asset pipeline resolve the `.wasm` file directly.
+       *
+       * `onnxruntime-web` (Background Remover) ships its own Emscripten-generated WASM
+       * loader with `import.meta.url`-relative asset references — the same shape esbuild's
+       * optimizer mishandles, so it's excluded for the same reason.
        */
-      exclude: ['@jsquash/oxipng'],
+      exclude: ['@jsquash/oxipng', 'onnxruntime-web'],
     },
     worker: {
       // Every worker in src/workers/ dynamically import()s its own heavy dependency

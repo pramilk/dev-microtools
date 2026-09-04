@@ -61,6 +61,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'csp-header-builder': 'CSP',
   'json-ld-generator': 'LD',
   'security-txt-generator': 'SEC',
+  'background-remover': 'BG',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

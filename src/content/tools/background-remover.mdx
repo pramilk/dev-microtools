@@ -1,0 +1,90 @@
+---
+title: Background Remover
+headline: Background Remover — cut out photo backgrounds with AI
+description: Remove the background from a photo entirely in your browser using an on-device AI model. No upload, no account, no watermark. Free.
+summary: Cut a photo's background out using an AI model that runs entirely in your browser — no upload required.
+category: Images
+order: 52
+updated: 2026-09-04
+whatIsIt: >-
+  This tool removes the background from a photo using a small AI segmentation model
+  (u2netp) that runs entirely inside your browser via WebAssembly — the same category of
+  model that powers most "AI background remover" web apps, except nothing here is ever sent
+  to a server. Drop in a photo and the model finds the main subject and builds a transparency
+  mask around it. From there you can keep the cut-out area transparent, fill it with a solid
+  color or a two-color gradient (in any of eight directions), or drop in a different image as
+  a replacement background — and freely drag, resize and rotate the cutout on top of it to
+  place it exactly where you want. Export as PNG, JPEG, or WebP, with the same
+  quality/compression controls as this site's Image Compressor, so the final file is small as
+  well as clean. The very first image processed on a given device downloads the model and its
+  WebAssembly runtime (roughly 18 MB combined); the browser caches both, so every image after
+  that runs fast with no further download. Because everything happens on-device, this works
+  offline once that first download finishes, and a photo never leaves your machine.
+useCases:
+  - Cutting a product photo's background out for a marketplace listing or an e-commerce catalog.
+  - Compositing a subject onto a different photo — a new backdrop for a portrait, or a product shot moved onto a lifestyle scene — with full control over its position, size and angle.
+  - Swapping a photo's background for a solid color or a brand-colored gradient to match a product-listing or marketing style.
+  - Preparing a transparent PNG logo or graphic from a photo of a printed or physical version.
+  - Removing a distracting background from a screenshot or photo before pasting it into a document.
+howTo:
+  - Drop a photo in, or choose one from your device.
+  - Wait a few seconds while the AI model analyzes the image (longer the first time, while the model downloads).
+  - Choose what replaces the background — transparent, a solid color, a gradient, or another image.
+  - For a replacement image, drag the cutout to position it, its corner handle to resize it, and its top handle to rotate it.
+  - Once the result is opaque, pick an output format and quality.
+  - Drag the before/after slider to check the result against a checkerboard transparency background, then download the finished file.
+example:
+  label: A real, public-domain sample photo with its background removed.
+  input: 'A public-domain photo of a cat on a wall (via Wikimedia Commons).'
+  output: 'The same photo as a PNG with everything outside the cat made transparent.'
+  note: Press "Load example" to try the actual bundled sample photo and see the real cutout for yourself.
+faq:
+  - q: Does this upload my photo anywhere?
+    a: No. The AI model and its WebAssembly runtime download once to your browser, then every image you process runs locally on your own device with no network request carrying the image itself. This is true of every tool on this site, not just this one.
+  - q: Why does the first image take longer than the rest?
+    a: The first run on a given device downloads the segmentation model and the WebAssembly runtime that executes it — about 18 MB combined. Your browser caches both after that, so every image processed afterward (even after closing and reopening the tab) skips the download and runs noticeably faster.
+  - q: How good is the cutout compared to a paid background remover?
+    a: This uses u2netp, a small, fast segmentation model well-suited to running in a browser — it does a solid job on a clear subject against a reasonably distinct background (product photos, portraits, most everyday photos), but it isn't going to match a specialized paid service on fine detail like individual strands of hair or fur, or a subject that blends closely into its background. For everyday cutouts it's free and instant; for professional retouching work, a dedicated paid tool will still edge it out on the hardest cases.
+  - q: Can I remove the background from more than one photo?
+    a: Yes — process as many as you like, one at a time. Only the very first one pays the model-download cost; every photo after that reuses the already-downloaded model for the rest of your visit.
+  - q: What file formats does this accept, and what does it output?
+    a: It accepts any common raster format your browser can decode — JPEG, PNG, WebP, BMP. Output stays PNG-only while the background is Transparent, since PNG is the format that actually supports the transparent pixels a cutout needs — once you switch to a solid color, a gradient, or a replacement image, the result is fully opaque and JPEG or WebP become available too, with the same quality slider and PNG lossless/lossy controls as the Image Compressor. An animated GIF or an SVG isn't accepted, for the same reasons the Image Compressor and Image Cropper don't take them either.
+  - q: Can I replace the background instead of just removing it?
+    a: Yes — once the cutout is ready, switch from Transparent to Color (any solid color), Gradient (two colors in any of eight directions), or Image (upload a replacement photo). Switching the background never re-runs the AI model — only the first cutout does that — so trying a few different backgrounds or colors is instant.
+  - q: Can I position, resize or rotate the subject on the replacement image?
+    a: Yes — once you choose a replacement background image, the cutout becomes fully adjustable on top of it. Drag it to move it, drag its corner handle to resize it, or drag its top handle to rotate it, with a live preview as you go; the same four values (X, Y, scale, rotation) are also plain number fields underneath for precise or keyboard-only adjustment. The output image is sized to the replacement photo's own dimensions, and the cutout can be placed fully or partially outside the frame if that's the composition you want — whatever hangs off the edge is simply cropped out of the final export, the same way it would be in any layered image editor.
+related:
+  - image-cropper
+  - image-compressor
+  - image-format-converter
+  - favicon-generator
+---
+
+## How the AI model works
+
+[u2netp](https://github.com/danielgatis/rembg) is a compact version of U²-Net, a neural
+network trained to find the single most salient object in a photo and produce a grayscale
+mask of it — bright where the subject is, dark where the background is. This tool resizes
+your photo down to the model's fixed input size, runs it through the model using
+[onnxruntime-web](https://github.com/microsoft/onnxruntime) (Microsoft's WebAssembly build of
+ONNX Runtime), then scales the resulting mask back up to your photo's original size and uses
+it as the alpha (transparency) channel of the output PNG. All of that — model, runtime, and
+every pixel — runs inside your browser tab.
+
+## Why the first run is slower
+
+Unlike this site's other image tools, which use only the browser's own built-in APIs, this
+one needs an actual AI model, so it's the one tool here with a real one-time download: about
+4.6 MB for the model weights and roughly 14 MB for the WebAssembly runtime that executes them.
+That only happens once per device — the browser's own cache keeps both around, so it isn't
+re-downloaded on your next visit unless you clear site data.
+
+## License and attribution
+
+u2netp is distributed under the Apache-2.0 license by the U²-Net authors, via the
+[rembg](https://github.com/danielgatis/rembg) project's model release. onnxruntime-web is
+Microsoft's MIT-licensed WebAssembly build of ONNX Runtime. Both run entirely client-side —
+no request containing your photo is ever made to either project or to any server this site
+controls. The "Load example" sample photo is
+[Stray cat on wall.jpg](https://commons.wikimedia.org/wiki/File:Stray_cat_on_wall.jpg) by
+Neal Ziring, released into the public domain.
