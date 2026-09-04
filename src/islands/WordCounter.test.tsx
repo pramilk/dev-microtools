@@ -63,102 +63,132 @@ describe('<WordCounter />', () => {
     expect(input.value).toBe('hello_world');
   });
 
-  it('applies sentence case via NLP, disabled until there is text', async () => {
-    render(<WordCounter />);
-    const button = screen.getByRole('button', { name: /sentence case/i });
-    expect(button).toBeDisabled();
+  it(
+    'applies sentence case via NLP, disabled until there is text',
+    async () => {
+      render(<WordCounter />);
+      const button = screen.getByRole('button', { name: /sentence case/i });
+      expect(button).toBeDisabled();
 
-    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
-    fireEvent.input(input, { target: { value: 'john smith went to paris.' } });
-    expect(button).not.toBeDisabled();
+      const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+      fireEvent.input(input, { target: { value: 'john smith went to paris.' } });
+      expect(button).not.toBeDisabled();
 
-    fireEvent.click(button);
+      fireEvent.click(button);
 
-    // A generous timeout: this awaits a real dynamic import() of compromise (~136KB) plus
-    // NLP tagging, not a mock — under full-suite parallel load (many files competing for
-    // CPU) that can comfortably exceed testing-library's ~1000ms default wait.
-    await waitFor(() => expect(input.value).toBe('John Smith went to Paris.'), { timeout: 5000 });
-  });
+      // A generous timeout on both this test and the waitFor below: this awaits a real
+      // dynamic import() of compromise (~136KB) plus NLP tagging, not a mock — under
+      // full-suite parallel load (many files competing for CPU) that can exceed Vitest's
+      // 5000ms default per-test budget, which fails the test regardless of waitFor's own
+      // timeout, so both need raising together.
+      await waitFor(() => expect(input.value).toBe('John Smith went to Paris.'), { timeout: 15000 });
+    },
+    15000
+  );
 
-  it('underlines and warns about words sentence case was not confident were proper nouns', async () => {
-    render(<WordCounter />);
-    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
-    fireEvent.input(input, { target: { value: 'I saw a Fox in the yard.' } });
-    fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
+  it(
+    'underlines and warns about words sentence case was not confident were proper nouns',
+    async () => {
+      render(<WordCounter />);
+      const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+      fireEvent.input(input, { target: { value: 'I saw a Fox in the yard.' } });
+      fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
 
-    await waitFor(() => expect(document.querySelectorAll('.highlight__lowconf')).toHaveLength(1), { timeout: 5000 });
-    expect(screen.getByText(/wasn't confident.*proper noun/i)).toBeInTheDocument();
+      await waitFor(() => expect(document.querySelectorAll('.highlight__lowconf')).toHaveLength(1), { timeout: 15000 });
+      expect(screen.getByText(/wasn't confident.*proper noun/i)).toBeInTheDocument();
 
-    // The hover reason lives directly on the word itself — a real, hoverable mark stacked
-    // on top of the textarea at exactly that word's position, not a list below the box.
-    // "Fox" is also an ordinary dictionary word, so it's demoted to lowercase by default
-    // and gets the more specific "commonWord" reason rather than the generic one.
-    const hint = document.querySelector('.wc-lowconf-hint');
-    expect(hint).toHaveTextContent('fox');
-    expect(hint).toHaveAttribute('title', expect.stringContaining('also an ordinary English word'));
-  });
+      // The hover reason lives directly on the word itself — a real, hoverable mark stacked
+      // on top of the textarea at exactly that word's position, not a list below the box.
+      // "Fox" is also an ordinary dictionary word, so it's demoted to lowercase by default
+      // and gets the more specific "commonWord" reason rather than the generic one.
+      const hint = document.querySelector('.wc-lowconf-hint');
+      expect(hint).toHaveTextContent('fox');
+      expect(hint).toHaveAttribute('title', expect.stringContaining('also an ordinary English word'));
+    },
+    15000
+  );
 
-  it('toggles a flagged word\'s capitalization on click, and back again on a second click', async () => {
-    render(<WordCounter />);
-    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
-    fireEvent.input(input, { target: { value: 'I saw a Fox in the yard.' } });
-    fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
-    await waitFor(() => expect(document.querySelector('.wc-lowconf-hint')).toBeInTheDocument(), { timeout: 5000 });
+  it(
+    "toggles a flagged word's capitalization on click, and back again on a second click",
+    async () => {
+      render(<WordCounter />);
+      const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+      fireEvent.input(input, { target: { value: 'I saw a Fox in the yard.' } });
+      fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
+      await waitFor(() => expect(document.querySelector('.wc-lowconf-hint')).toBeInTheDocument(), { timeout: 15000 });
 
-    const hint = document.querySelector('.wc-lowconf-hint') as HTMLElement;
-    fireEvent.click(hint);
-    expect(input.value).toBe('I saw a Fox in the yard.');
-    // The highlight stays put — it's still the same uncertain guess, just toggled — so the
-    // word remains clickable to flip back.
-    expect(document.querySelector('.wc-lowconf-hint')).toBeInTheDocument();
+      const hint = document.querySelector('.wc-lowconf-hint') as HTMLElement;
+      fireEvent.click(hint);
+      expect(input.value).toBe('I saw a Fox in the yard.');
+      // The highlight stays put — it's still the same uncertain guess, just toggled — so the
+      // word remains clickable to flip back.
+      expect(document.querySelector('.wc-lowconf-hint')).toBeInTheDocument();
 
-    fireEvent.click(document.querySelector('.wc-lowconf-hint') as HTMLElement);
-    expect(input.value).toBe('I saw a fox in the yard.');
-  });
+      fireEvent.click(document.querySelector('.wc-lowconf-hint') as HTMLElement);
+      expect(input.value).toBe('I saw a fox in the yard.');
+    },
+    15000
+  );
 
-  it('toggles a flagged word via the keyboard (Enter), not just a mouse click', async () => {
-    render(<WordCounter />);
-    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
-    fireEvent.input(input, { target: { value: 'I saw a Fox in the yard.' } });
-    fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
-    await waitFor(() => expect(document.querySelector('.wc-lowconf-hint')).toBeInTheDocument(), { timeout: 5000 });
+  it(
+    'toggles a flagged word via the keyboard (Enter), not just a mouse click',
+    async () => {
+      render(<WordCounter />);
+      const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+      fireEvent.input(input, { target: { value: 'I saw a Fox in the yard.' } });
+      fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
+      await waitFor(() => expect(document.querySelector('.wc-lowconf-hint')).toBeInTheDocument(), { timeout: 15000 });
 
-    fireEvent.keyDown(document.querySelector('.wc-lowconf-hint') as HTMLElement, { key: 'Enter' });
-    expect(input.value).toBe('I saw a Fox in the yard.');
-  });
+      fireEvent.keyDown(document.querySelector('.wc-lowconf-hint') as HTMLElement, { key: 'Enter' });
+      expect(input.value).toBe('I saw a Fox in the yard.');
+    },
+    15000
+  );
 
-  it('gives a different hover reason for a flagged word that is not a common dictionary word', async () => {
-    render(<WordCounter />);
-    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
-    fireEvent.input(input, { target: { value: 'I met Pramil yesterday.' } });
-    fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
+  it(
+    'gives a different hover reason for a flagged word that is not a common dictionary word',
+    async () => {
+      render(<WordCounter />);
+      const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+      fireEvent.input(input, { target: { value: 'I met Pramil yesterday.' } });
+      fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
 
-    await waitFor(() => expect(document.querySelectorAll('.highlight__lowconf')).toHaveLength(1), { timeout: 5000 });
-    const hint = document.querySelector('.wc-lowconf-hint');
-    expect(hint).toHaveTextContent('Pramil');
-    expect(hint).toHaveAttribute('title', expect.stringContaining('not a common English word'));
-  });
+      await waitFor(() => expect(document.querySelectorAll('.highlight__lowconf')).toHaveLength(1), { timeout: 15000 });
+      const hint = document.querySelector('.wc-lowconf-hint');
+      expect(hint).toHaveTextContent('Pramil');
+      expect(hint).toHaveAttribute('title', expect.stringContaining('not a common English word'));
+    },
+    15000
+  );
 
-  it('does not show the low-confidence warning when sentence case has no doubts', async () => {
-    render(<WordCounter />);
-    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
-    fireEvent.input(input, { target: { value: 'the weather is nice today.' } });
-    fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
+  it(
+    'does not show the low-confidence warning when sentence case has no doubts',
+    async () => {
+      render(<WordCounter />);
+      const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+      fireEvent.input(input, { target: { value: 'the weather is nice today.' } });
+      fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
 
-    await waitFor(() => expect(input.value).toBe('The weather is nice today.'), { timeout: 5000 });
-    expect(screen.queryByText(/wasn't confident.*proper noun/i)).not.toBeInTheDocument();
-  });
+      await waitFor(() => expect(input.value).toBe('The weather is nice today.'), { timeout: 15000 });
+      expect(screen.queryByText(/wasn't confident.*proper noun/i)).not.toBeInTheDocument();
+    },
+    15000
+  );
 
-  it('clears the low-confidence highlight once the user edits the text directly', async () => {
-    render(<WordCounter />);
-    const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
-    fireEvent.input(input, { target: { value: 'I saw a Fox in the yard.' } });
-    fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
-    await waitFor(() => expect(document.querySelectorAll('.highlight__lowconf')).toHaveLength(1), { timeout: 5000 });
+  it(
+    'clears the low-confidence highlight once the user edits the text directly',
+    async () => {
+      render(<WordCounter />);
+      const input = screen.getByLabelText(/^text/i) as HTMLTextAreaElement;
+      fireEvent.input(input, { target: { value: 'I saw a Fox in the yard.' } });
+      fireEvent.click(screen.getByRole('button', { name: /sentence case/i }));
+      await waitFor(() => expect(document.querySelectorAll('.highlight__lowconf')).toHaveLength(1), { timeout: 15000 });
 
-    fireEvent.input(input, { target: { value: 'I saw a Fox in the yard. Edited.' } });
-    expect(document.querySelectorAll('.highlight__lowconf')).toHaveLength(0);
-  });
+      fireEvent.input(input, { target: { value: 'I saw a Fox in the yard. Edited.' } });
+      expect(document.querySelectorAll('.highlight__lowconf')).toHaveLength(0);
+    },
+    15000
+  );
 
   it('always converts from the original text, not the currently displayed cased text', () => {
     render(<WordCounter />);
