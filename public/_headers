@@ -16,4 +16,7 @@
   # user-specified endpoints (Curl Command Builder sends to whatever URL the user types; the
   # npm Package Size tool queries the npm registry/esm.sh) — locking connect-src to 'self'
   # would break both by design, not as an oversight.
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
+  # script-src additionally allows static.cloudflareinsights.com for Cloudflare Web
+  # Analytics' beacon script (loaded in BaseLayout.astro when SITE.cloudflareAnalyticsToken
+  # is set) — without it the browser blocks the beacon and analytics silently stop recording.
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
