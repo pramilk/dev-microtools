@@ -1,0 +1,111 @@
+---
+title: CSP Header Builder & Analyzer
+headline: Content-Security-Policy Header Builder & Analyzer
+description: Build a Content-Security-Policy header from a form, or paste one to get it linted, explained, and its reporting headers generated. Runs in your browser.
+summary: Build a Content-Security-Policy header directive by directive, or paste one to get it linted and explained.
+category: Security
+order: 49
+updated: 2026-09-03
+whatIsIt: >-
+  A Content-Security-Policy (CSP) is a response header that tells the browser exactly where
+  a page's scripts, styles, images, fonts and other resources are allowed to load from — the
+  single most effective browser-side defence against cross-site scripting, because even if an
+  attacker manages to inject a `<script>` tag, the browser refuses to run it unless its source
+  is on the allow-list. The catch is that CSP syntax is unforgiving and the failure mode is
+  silent: a typo, a missing directive, or a source list that quietly contradicts itself does
+  not throw an error anywhere obvious — it either blocks something that should have worked, or
+  allows something that should have been blocked, and either way you find out from a bug
+  report, not a build failure. This tool works in two directions. Build mode assembles a
+  policy from a form, directive by directive, so you never have to remember the exact
+  semicolon-and-space syntax by hand, and shows the same checklist analysis live as you type.
+  Analyze mode does the reverse: paste a header you already have — from a `curl -I`, a
+  browser's network panel, or a colleague's config — and get it parsed, restated in normal
+  form, and checked against the same list of mistakes that actually show up in hand-written
+  policies: `'unsafe-inline'` quietly allowing injected scripts to run, a missing `object-src`
+  leaving a legacy plugin vector open, `'none'` contradicting itself when mixed with another
+  source, and a directive repeated twice in one header where only the first occurrence is ever
+  honored. It also builds the companion `Reporting-Endpoints` and `Report-To` headers a
+  `report-to` directive needs to actually deliver violation reports anywhere — a step most
+  hand-written policies skip entirely because it isn't obvious that `report-to` alone does
+  nothing without them.
+useCases:
+  - Writing a first Content-Security-Policy for a site that has never had one, without memorizing directive names or getting the semicolon syntax wrong.
+  - Auditing a policy that's already live — pasting the header value from a production response and seeing exactly which directives are missing or too permissive before an incident forces the question.
+  - Reviewing a colleague's pull request that touches the CSP, to check the diff for a mistake that will only show up as a broken page or a silent security gap.
+  - Setting up violation reporting for the first time — generating the Reporting-Endpoints and legacy Report-To headers a report-to directive actually depends on, which is easy to leave half-configured.
+  - Testing a stricter policy in Report-Only mode before switching it to enforcing, to see what it would have blocked without actually breaking the page first.
+howTo:
+  - In Build mode, fill in a source list for each directive that applies — start with default-src, script-src, style-src, img-src and object-src, which cover most pages.
+  - Use the suggested keywords (start typing in a field for the dropdown, or type your own hosts and schemes) — 'self', 'none', 'unsafe-inline', data:, and so on.
+  - Set Enforce or Report-only depending on whether you want the policy to block violations or only log them while you test it.
+  - Fill in a report collector URL and group name under Violation reporting if you want browsers to send you violation reports — this also generates the Reporting-Endpoints and Report-To headers the report-to directive needs.
+  - Read the warnings and notes under the output — warnings are things worth fixing, notes are optional hardening that's usually cheap to add.
+  - Copy the finished header into your server config, reverse proxy, or framework's header middleware.
+  - To check an existing policy instead, switch to Analyze mode and paste the header value — with or without the leading "Content-Security-Policy:" name.
+example:
+  label: A reasonably strict policy for a page loading one third-party script.
+  input: "default-src 'self'; script-src 'self' https://cdn.example.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+  output: |-
+    Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.example.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests; report-uri https://example.com/csp-reports; report-to csp-endpoint;
+
+    Reporting-Endpoints: csp-endpoint="https://example.com/csp-reports"
+    Report-To: {"group":"csp-endpoint","max_age":10886400,"endpoints":[{"url":"https://example.com/csp-reports"}]}
+  note: >-
+    Press "Load example" to build exactly this. The checklist below it comes back clean —
+    every directive this tool checks for is present and none of them contradicts another —
+    except a note that style-src still allows 'unsafe-inline', which is common and often
+    unavoidable for inline styles, so it's flagged as a note rather than a warning.
+faq:
+  - q: What's the difference between a warning and a note in the checklist?
+    a: A warning flags something that actively weakens the policy — 'unsafe-inline' or 'unsafe-eval' on script-src, a wildcard source, a directive that contradicts itself by mixing 'none' with something else, or a directive repeated twice in one header (browsers only honor the first). A note flags optional, usually-cheap hardening the policy doesn't have yet — no object-src 'none', no base-uri, no frame-ancestors — that's worth adding but isn't actively broken. Both are advisory; this tool never blocks you from copying a policy with warnings in it, since a policy that's imperfect is still far better than no policy at all.
+  - q: Why does report-to need two extra headers? Doesn't the directive do everything?
+    a: 'No — the `report-to` directive only names a *group*, e.g. `report-to csp-endpoint`; it does not say where reports for that group actually go. The destination URL is declared separately, by a `Reporting-Endpoints` response header (the current spec) or the older, Chrome-only `Report-To` header. Skip both and `report-to csp-endpoint` silently does nothing — no error, no report, nothing. This tool generates both companion headers as soon as you fill in a report collector URL, specifically because this gap is easy to miss and has no visible symptom when it''s wrong.'
+  - q: Should I use report-uri or report-to?
+    a: Both, for now. report-uri is older and deprecated, but every browser that supports CSP reporting at all supports it. report-to is the current standard but browser support is inconsistent, and a browser that doesn't understand it simply sends nothing — it doesn't fall back to report-uri on its own. Sending both directives means every browser reports violations somewhere; dropping report-uri today would silently lose reports from whichever engines haven't caught up.
+  - q: I set object-src to 'none' — why does the checklist still show a note about it?
+    a: It shouldn't — that note only appears when object-src is missing entirely, or set to something other than exactly 'none' by itself. If you're seeing it with object-src 'none' set, double check there's no extra source alongside it (object-src 'none' 'self' is treated as still needing attention, since mixing 'none' with anything else is itself a separate, contradictory-policy warning).
+  - q: Can I deliver a CSP through a <meta> tag instead of a real response header?
+    a: You can, but with real limits worth knowing before you rely on it — a <meta http-equiv="Content-Security-Policy" content="..."> tag cannot carry frame-ancestors, report-uri, report-to, or sandbox; browsers ignore those directives entirely when set this way. It also only takes effect from the point in the HTML where the tag appears, so anything the browser loads before that point (rare, but possible with a script above it) isn't covered. A real HTTP response header has none of these gaps and is the recommended delivery method whenever you control the server.
+  - q: Does Report-Only mode actually protect anything?
+    a: No — Content-Security-Policy-Report-Only logs violations to the console and sends reports to your configured endpoint, but never blocks anything, even a directive as strict as script-src 'none'. It exists purely as a dry run — ship it, watch real traffic for reports of things your real users' browsers would have blocked, fix the false positives, then switch the same policy to the enforcing Content-Security-Policy header once reports come back clean.
+  - q: Do I need to trim curl -I output down to just the CSP line before pasting it?
+    a: No — paste the whole response. Analyze mode looks for a line starting with Content-Security-Policy (or Content-Security-Policy-Report-Only) among everything else — date, content-type, other security headers — and only parses that one. If it can't find a matching line, it says so directly rather than silently showing nothing.
+  - q: Is anything I build or paste here sent anywhere?
+    a: No — this is pure string parsing and assembly running in your browser tab, the same as every other tool on this site. Nothing about your policy, your domains, or your reporting endpoint is transmitted anywhere, including to the reporting endpoint itself — this tool only generates the headers that would tell a browser where to send real violation reports; it never sends one itself.
+related:
+  - meta-tag-generator
+  - robots-txt-generator
+  - hash-generator
+---
+
+## Why a policy that "looks right" can still be wrong
+
+CSP has no client-side validator built into the browser the way HTML has DOM error recovery —
+a malformed or self-contradictory directive doesn't fail loudly, it just doesn't do what you
+expected, and the only symptom is either a false sense of security or a page feature that
+mysteriously stopped working. `object-src 'none' 'self'` is a good example: it looks like
+"block everything except same-origin," but `'none'` means *no* source is allowed at all, so
+mixing it with anything else is a contradiction most browsers resolve by dropping the whole
+directive — silently reverting to no restriction. The checklist in this tool exists because
+these failure modes are common, well-documented, and easy to miss when hand-writing or
+hand-reviewing a policy.
+
+## The reporting gap this tool closes
+
+Every guide on `report-to` explains the directive syntax and almost none of them mention that
+it does nothing on its own. The Reporting API splits configuration across three places by
+design — the CSP header says *what* triggers a report, the `Reporting-Endpoints` header says
+*where* reports for a named group go, and (for older Chrome versions) the legacy `Report-To`
+header repeats that in a different shape — and it is entirely possible to ship a syntactically
+perfect `report-to csp-endpoint` directive that never delivers a single report, because nothing
+ever declared what `csp-endpoint` means. This tool builds the destination headers alongside the
+directive itself, from the same report collector URL, so the three pieces can't drift apart.
+
+## What powers this tool
+
+Pure string parsing and assembly, no dependency — a hand-rolled CSP tokenizer that splits a
+header on `;` and whitespace the same way a browser does, and a checklist of directive-level
+rules drawn from the CSP specification and common real-world misconfiguration write-ups.
+Nothing is validated against a live server or a real browser's actual enforcement; this is a
+linter, not a browser, so it catches syntax and structure mistakes, not runtime behavior
+specific to one engine.

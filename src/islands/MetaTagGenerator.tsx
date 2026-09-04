@@ -3,10 +3,15 @@ import {
   buildMetaTags,
   formatSearchBreadcrumb,
   truncateForPreview,
+  truncateByPixelWidth,
   DEFAULT_META_TAG_OPTIONS,
   OG_TYPES,
   RECOMMENDED_DESCRIPTION_MAX,
   RECOMMENDED_TITLE_MAX,
+  SERP_TITLE_FONT_PX,
+  SERP_TITLE_MAX_WIDTH_PX,
+  SERP_DESCRIPTION_FONT_PX,
+  SERP_DESCRIPTION_MAX_WIDTH_PX,
   type MetaTagOptions,
   type OgType,
 } from '../lib/tools/metaTags';
@@ -68,10 +73,11 @@ export default function MetaTagGenerator() {
   const clearAll = () => setOptions(DEFAULT_META_TAG_OPTIONS);
   const isEmpty = useMemo(() => JSON.stringify(options) === JSON.stringify(DEFAULT_META_TAG_OPTIONS), [options]);
 
-  const previewTitle = truncateForPreview(options.title.trim() || 'Your page title', RECOMMENDED_TITLE_MAX);
-  const previewDescription = truncateForPreview(
+  const previewTitle = truncateByPixelWidth(options.title.trim() || 'Your page title', SERP_TITLE_MAX_WIDTH_PX, SERP_TITLE_FONT_PX);
+  const previewDescription = truncateByPixelWidth(
     options.description.trim() || 'Your meta description will appear here once you type one in.',
-    RECOMMENDED_DESCRIPTION_MAX
+    SERP_DESCRIPTION_MAX_WIDTH_PX,
+    SERP_DESCRIPTION_FONT_PX
   );
   const previewBreadcrumb = formatSearchBreadcrumb(options.canonicalUrl) || 'example.com';
   const previewDomain = (() => {
@@ -403,7 +409,12 @@ export default function MetaTagGenerator() {
 
       <div class="meta-previews">
         <div class="meta-preview">
-          <h3 class="meta-preview__title">Google search preview</h3>
+          <h3
+            class="meta-preview__title"
+            title="Truncated by approximate rendered pixel width, the way Google's result actually clips — not a flat character count"
+          >
+            Google search preview
+          </h3>
           <div class="meta-preview__search">
             <div class="meta-preview__search-site">
               <span class="meta-preview__favicon" aria-hidden="true" />

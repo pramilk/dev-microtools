@@ -1,0 +1,124 @@
+---
+title: JSON-LD Schema Generator
+headline: JSON-LD / Schema.org Structured Data Generator
+description: Build validated JSON-LD structured data — Article, Product, FAQ, How-to, Organization or Breadcrumbs — from a form. Runs entirely in your browser.
+summary: Build Article, Product, FAQ, How-to, Organization or Breadcrumb structured data from a form, ready to paste in.
+category: Generate
+order: 50
+updated: 2026-09-03
+whatIsIt: >-
+  Structured data is a block of JSON a page carries inside a `<script type="application/ld+json">`
+  tag, written in the vocabulary defined by schema.org, that tells search engines exactly what
+  a page contains in a machine-readable form — this is an article by this author published on
+  this date, this product costs this much and is in stock, this page answers these specific
+  questions. It doesn't change what a visitor sees; it changes what a crawler understands, and
+  that understanding is what unlocks rich results — star ratings, prices, and FAQ dropdowns
+  shown directly in search results — along with better categorization in every tool that reads
+  it, from search engines to AI assistants citing a page. Hand-writing JSON-LD correctly is
+  fiddlier than it looks: the property names are exact and case-sensitive, nested objects like
+  `author` and `offers` need their own `@type`, and Google's rich-result eligibility rules for
+  a given type (a required `image`, a specific date format, a `mainEntity` array with the right
+  shape) aren't visible anywhere in the schema.org spec itself — they're a separate set of
+  requirements layered on top. This tool builds six of the most commonly used types — Article,
+  Product, FAQ page, How-to, Organization and Breadcrumbs — from a plain form, validates what
+  can be validated (URLs, prices, ISO 8601 durations, ratings), and flags the gaps that would
+  quietly cost a rich result: no image on an Article, no price on a Product, a rating with no
+  review count behind it.
+useCases:
+  - Adding Article schema to a blog post so it's eligible for the byline, publish date and image that can show up in a search result.
+  - Marking up a product page with a price, availability and genuine rating so a search listing can show stars and a price directly.
+  - Turning an existing FAQ section into FAQPage schema without hand-writing the nested Question/Answer structure.
+  - Documenting a multi-step process — a recipe, a setup guide, a troubleshooting sequence — as HowTo schema other tools and assistants can parse directly.
+  - Declaring a site's own Organization identity (name, logo, social profiles) so search engines can connect them to the same entity.
+  - Adding BreadcrumbList schema so search results show a page's position in the site (Home › Blog › Post) instead of its raw URL path.
+howTo:
+  - Pick a schema type from the dropdown — Article, Product, FAQ page, How-to, Organization or Breadcrumbs.
+  - Fill in the fields that apply. Only the first one is required to generate anything; the rest are optional but each missing one is called out under the output.
+  - For FAQ, How-to and Breadcrumbs, use "+ Add" to add as many question, step, or breadcrumb rows as the page needs.
+  - Read the notes under the output — they call out both validation issues and honest caveats about what actually earns a rich result today (see the FAQ below on FAQPage and HowTo).
+  - Copy the generated <script> block into the page's <head>, or anywhere in the body — crawlers read it either way.
+  - Validate the live page afterward with Google's Rich Results Test, linked below the output — this tool checks the schema is well-formed, not that Google will actually show a rich result for it.
+example:
+  label: An Article schema for a blog post with an author and publisher.
+  input: 'Headline "How CSP Headers Actually Stop Injected Scripts", author Jane Doe, publisher DevMicroTools, page URL https://example.com/blog/csp-headers-explained.'
+  output: |-
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "How CSP Headers Actually Stop Injected Scripts",
+      "description": "A walkthrough of how a Content-Security-Policy blocks script injection in practice, with real header examples.",
+      "image": [
+        "https://devmicrotools.com/og-image.png"
+      ],
+      "datePublished": "2026-09-01",
+      "dateModified": "2026-09-03",
+      "author": {
+        "@type": "Person",
+        "name": "Jane Doe"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "DevMicroTools",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://devmicrotools.com/favicon.svg"
+        }
+      },
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "https://example.com/blog/csp-headers-explained"
+      }
+    }
+    </script>
+  note: >-
+    Press "Load example" on the Article tab to build exactly this. Every recommended field is
+    filled in, so the checklist below the output comes back with no warnings — try deleting
+    the image URL to see the specific rich-result consequence explained instead of a generic
+    "missing field" message.
+faq:
+  - q: Does adding this markup guarantee a rich result in Google?
+    a: No, and this tool is deliberately honest about that rather than implying otherwise. Valid structured data makes a page *eligible* for a rich result; Google's algorithms still decide independently whether to show one, based on the page's overall quality and trust signals as much as the markup itself. Think of this tool as removing a blocker, not pulling a lever — it gets the technical requirement right so a real rich result is possible, not guaranteed.
+  - q: Is FAQPage or HowTo schema still worth adding if Google restricted their rich results?
+    a: 'Often yes, for two reasons this tool''s warnings spell out honestly rather than glossing over. First, FAQPage rich results are still shown for government and a narrow set of well-known health sites — most sites lost them in 2023, and HowTo lost its rich result even more broadly the same year. Second, the underlying schema.org markup has value beyond that one Google feature: other search engines, AI assistants doing retrieval, and any tool parsing a page programmatically can still read it, since it''s a general-purpose vocabulary, not a Google-only signal. Add it for the structured meaning; just don''t build a growth plan around a rich result that mostly isn''t available anymore.'
+  - q: Why does the tool warn about aggregateRating specifically?
+    a: Because it's the structured-data field most commonly abused with fabricated numbers, and Google both detects and manually penalizes that — a page with implausible or unverifiable ratings can lose rich-result eligibility site-wide, not just on the offending page. This tool will build a valid aggregateRating from whatever rating and review count you enter, exactly like every other field, but it flags the requirement that the numbers be genuine every time you fill both in, since there's no technical way to distinguish a real rating from a fabricated one from the markup alone.
+  - q: What's the difference between putting this in <head> versus <body>?
+    a: None that matters for search engines — Google explicitly documents that JSON-LD is read correctly from either location, unlike meta tags and canonical links, which must be in <head>. Some site builders and CMSs only offer an easy insertion point in the body, and that's fine for this specific format.
+  - q: Can I have more than one JSON-LD block on the same page?
+    a: Yes — a real page commonly carries several, e.g. Organization schema describing the site plus Article schema describing this specific post, or Product schema plus BreadcrumbList. Generate each type separately with this tool and paste multiple <script> blocks; there's no need to merge them into one.
+  - q: Is anything I type here sent anywhere?
+    a: No — this is pure JSON assembly running in your browser tab, the same as every other tool on this site. Nothing about the content you enter is uploaded or transmitted anywhere.
+related:
+  - meta-tag-generator
+  - robots-txt-generator
+  - json-formatter
+---
+
+## Why the checklist calls out things that aren't errors
+
+Most of the warnings under the output here aren't validation failures — the JSON is still
+well-formed and will parse correctly either way. They're the difference between markup that's
+merely valid and markup that actually earns the rich result it's aiming for: an Article with no
+`image` is syntactically fine but ineligible for the image-carousel-style result Google shows
+for articles; a Product with a rating but no review count is dropped from `aggregateRating`
+entirely rather than emitted half-complete, because schema.org requires both together. Reading
+the checklist matters as much as reading the JSON output.
+
+## The two rich-result caveats worth knowing before you build on them
+
+Google narrowed **FAQPage** rich results to government and a small set of well-known health
+sites in 2023, and retired the dedicated **HowTo** rich result in search almost everywhere the
+same year — both changes came after most existing how-to guides on structured data were
+written, so a lot of advice online is now out of date on exactly this point. This tool still
+builds both types correctly, because the schema.org markup itself remains valid and useful
+beyond that one Google feature (see the FAQ), but it surfaces the caveat every time rather than
+implying a rich result that, for most sites, won't actually appear.
+
+## What powers this tool
+
+Pure object construction and validation, no dependency — six focused builder functions, one per
+schema type, sharing a URL/date/duration validation layer and the same `</script>`-safe JSON
+escaping (`<` instead of a raw `<`) already used for this site's own structured data in
+`BaseLayout.astro`, so a description that happens to contain a literal `</script>` string can
+never break out of the generated tag.

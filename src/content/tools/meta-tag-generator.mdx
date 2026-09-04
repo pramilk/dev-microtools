@@ -5,7 +5,7 @@ description: Generate title, description, canonical, Open Graph and Twitter Card
 summary: Build SEO, Open Graph and Twitter Card meta tags for a page, with a live search-result and social-card preview.
 category: Generate
 order: 40
-updated: 2026-09-01
+updated: 2026-09-03
 whatIsIt: >-
   Every page needs the same dozen or so tags in its `<head>` before it can show up properly
   anywhere: a title and description for search engines, a canonical link so duplicate URLs
@@ -73,7 +73,7 @@ faq:
   - q: What does noindex actually do, and when should I use it?
     a: '"noindex" in the robots meta tag tells search engines not to include this specific page in results at all — stronger than `robots.txt`, which only asks a crawler not to *fetch* a page (the page can still get indexed from other signals if it is not fetched but is linked to). Reach for it on pages that genuinely should not appear in search — an internal admin page, a thank-you page after checkout, a duplicate print-friendly view — never on a real page you want found; this tool warns loudly when it is set, since it is easy to leave switched on after testing.'
   - q: My title and description are within the counter limits — will they definitely not get truncated?
-    a: Not guaranteed — Google measures the rendered pixel width of the title, not a fixed character count, so a title full of wide characters (capital letters, emoji) can truncate a little earlier than the counter suggests, and one full of narrow characters can run a little longer. The 60/160-character figures used here are the widely cited practical guidelines, not an exact cutoff Google publishes, but staying under them is a safe, simple target that covers the large majority of cases.
+    a: Closer to guaranteed than before, but still not exact. Google measures the rendered pixel width of the title, not a fixed character count, so a title full of wide characters (capital letters, emoji) can truncate a little earlier than a plain character count suggests, and one full of narrow characters can run a little longer. The search preview above now approximates that directly — it truncates by estimated pixel width using standard Arial character-width metrics, not a flat cutoff — while the 60/160 counters next to each field stay a quick character-based heuristic for typing. Neither is an exact match for Google's own rendering, which varies by device and isn't publicly documented, but the pixel preview is meaningfully closer to what actually shows up in a result.
   - q: Do I need to fill in every field for this to be useful?
     a: No — only the title is required to generate anything at all. Every other field is optional, and the warnings under the output tell you what a real crawler will do without it — no description means the search engine picks its own snippet from the page text, no image means link previews show no thumbnail, no canonical URL means `og:url` is simply omitted. Fill in what applies to the page and leave the rest blank.
   - q: Is anything I type here sent anywhere?

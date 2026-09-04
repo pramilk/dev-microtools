@@ -227,3 +227,65 @@ export function truncateForPreview(value: string, max: number): string {
   if (value.length <= max) return value;
   return `${value.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
+
+/**
+ * Per-em advance widths for common ASCII printable characters, taken from the standard
+ * Arial/Helvetica core-font metrics (per 1000 units of em) used throughout typography and PDF
+ * tooling. Google actually truncates a search-result title and snippet by rendered pixel
+ * width, not character count — a title full of capital letters or 'M'/'W' fills the same
+ * space as a noticeably longer one full of 'i'/'l' and spaces. This table lets the preview
+ * approximate that instead of a flat cutoff. Anything outside the table (accented Latin, CJK,
+ * emoji, symbols) falls back to `AVERAGE_CHAR_WIDTH_EM`.
+ */
+const ARIAL_CHAR_WIDTH_EM: Record<string, number> = {
+  ' ': 0.278, '!': 0.278, '"': 0.355, '#': 0.556, $: 0.556, '%': 0.889, '&': 0.667, "'": 0.191,
+  '(': 0.333, ')': 0.333, '*': 0.389, '+': 0.584, ',': 0.278, '-': 0.333, '.': 0.278, '/': 0.278,
+  '0': 0.556, '1': 0.556, '2': 0.556, '3': 0.556, '4': 0.556, '5': 0.556, '6': 0.556, '7': 0.556,
+  '8': 0.556, '9': 0.556, ':': 0.278, ';': 0.278, '<': 0.584, '=': 0.584, '>': 0.584, '?': 0.556,
+  '@': 1.015,
+  A: 0.667, B: 0.667, C: 0.722, D: 0.722, E: 0.667, F: 0.611, G: 0.778, H: 0.722, I: 0.278,
+  J: 0.5, K: 0.667, L: 0.556, M: 0.833, N: 0.722, O: 0.778, P: 0.667, Q: 0.778, R: 0.722,
+  S: 0.667, T: 0.611, U: 0.722, V: 0.667, W: 0.944, X: 0.667, Y: 0.667, Z: 0.611,
+  '[': 0.278, '\\': 0.278, ']': 0.278, '^': 0.469, _: 0.556, '`': 0.333,
+  a: 0.556, b: 0.556, c: 0.5, d: 0.556, e: 0.556, f: 0.278, g: 0.556, h: 0.556, i: 0.222,
+  j: 0.222, k: 0.5, l: 0.222, m: 0.833, n: 0.556, o: 0.556, p: 0.556, q: 0.556, r: 0.333,
+  s: 0.5, t: 0.278, u: 0.556, v: 0.5, w: 0.722, x: 0.5, y: 0.5, z: 0.5,
+  '{': 0.334, '|': 0.26, '}': 0.334, '~': 0.584,
+};
+const AVERAGE_CHAR_WIDTH_EM = 0.6;
+
+function textWidthPx(text: string, fontSizePx: number): number {
+  let widthEm = 0;
+  for (const char of text) widthEm += ARIAL_CHAR_WIDTH_EM[char] ?? AVERAGE_CHAR_WIDTH_EM;
+  return widthEm * fontSizePx;
+}
+
+/** Approximate desktop SERP rendering size and container width for a search-result title. */
+export const SERP_TITLE_FONT_PX = 20;
+export const SERP_TITLE_MAX_WIDTH_PX = 600;
+/** Same idea for the snippet, sized for roughly two wrapped lines. */
+export const SERP_DESCRIPTION_FONT_PX = 14;
+export const SERP_DESCRIPTION_MAX_WIDTH_PX = 1200;
+
+/**
+ * Truncates `text` to fit inside a fixed-pixel-width container at `fontSizePx`, the way a
+ * search result actually clips a title or snippet, rather than a flat character-count cutoff.
+ * An approximation, not a guarantee: Google doesn't publish its rendering font, exact
+ * container width, or a fixed line count, and real rendering varies by device — but it's
+ * closer to reality than counting characters, since a capital 'M' and a lowercase 'i' don't
+ * take up anywhere near the same space.
+ */
+export function truncateByPixelWidth(text: string, maxWidthPx: number, fontSizePx: number): string {
+  if (textWidthPx(text, fontSizePx) <= maxWidthPx) return text;
+
+  const ellipsisWidthPx = textWidthPx('…', fontSizePx);
+  let result = '';
+  let widthPx = 0;
+  for (const char of text) {
+    const charWidthPx = (ARIAL_CHAR_WIDTH_EM[char] ?? AVERAGE_CHAR_WIDTH_EM) * fontSizePx;
+    if (widthPx + charWidthPx + ellipsisWidthPx > maxWidthPx) break;
+    result += char;
+    widthPx += charWidthPx;
+  }
+  return `${result.trimEnd()}…`;
+}

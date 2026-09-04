@@ -124,6 +124,29 @@ describe('<MetaTagGenerator />', () => {
     expect(screen.getByText(/didn't load/)).toBeInTheDocument();
   });
 
+  it('truncates the search preview title by pixel width, not a flat character count', () => {
+    render(<MetaTagGenerator />);
+    fireEvent.input(screen.getByLabelText(/^page title/i), { target: { value: 'W'.repeat(90) } });
+
+    const wideTruncated = document.querySelector('.meta-preview__search-title')!.textContent!;
+    expect(wideTruncated.endsWith('…')).toBe(true);
+
+    fireEvent.input(screen.getByLabelText(/^page title/i), { target: { value: 'i'.repeat(90) } });
+    const narrowTruncated = document.querySelector('.meta-preview__search-title')!.textContent!;
+
+    // A run of wide capital letters fits noticeably fewer characters in the same pixel budget
+    // than the same length of narrow lowercase letters — proof the preview isn't just cutting
+    // at a fixed character count.
+    expect(wideTruncated.replace('…', '').length).toBeLessThan(narrowTruncated.replace('…', '').length);
+  });
+
+  it('does not truncate a title that fits well within the search preview width', () => {
+    render(<MetaTagGenerator />);
+    fireEvent.input(screen.getByLabelText(/^page title/i), { target: { value: 'Widgets' } });
+
+    expect(document.querySelector('.meta-preview__search-title')!.textContent).toBe('Widgets');
+  });
+
   it('clears the broken-image placeholder once the URL is fixed', () => {
     render(<MetaTagGenerator />);
     fireEvent.input(screen.getByLabelText('Image URL'), { target: { value: 'https://example.com/broken.png' } });

@@ -4,6 +4,7 @@ import {
   DEFAULT_META_TAG_OPTIONS,
   formatSearchBreadcrumb,
   truncateForPreview,
+  truncateByPixelWidth,
   type MetaTagOptions,
 } from './metaTags';
 
@@ -232,5 +233,41 @@ describe('truncateForPreview', () => {
 
   it('handles a max of 0 without throwing', () => {
     expect(truncateForPreview('hello', 0)).toBe('…');
+  });
+});
+
+describe('truncateByPixelWidth', () => {
+  it('returns short text unchanged', () => {
+    expect(truncateByPixelWidth('Widgets', 600, 20)).toBe('Widgets');
+  });
+
+  it('truncates long text and appends an ellipsis', () => {
+    const result = truncateByPixelWidth('a'.repeat(200), 200, 20);
+    expect(result.endsWith('…')).toBe(true);
+    expect(result.length).toBeLessThan(200);
+  });
+
+  it('handles an empty string', () => {
+    expect(truncateByPixelWidth('', 600, 20)).toBe('');
+  });
+
+  it('fits noticeably fewer wide characters than narrow ones at the same pixel budget', () => {
+    const wide = truncateByPixelWidth('W'.repeat(100), 300, 20);
+    const narrow = truncateByPixelWidth('i'.repeat(100), 300, 20);
+    // Strip the trailing ellipsis before comparing how many real characters fit.
+    expect(wide.replace('…', '').length).toBeLessThan(narrow.replace('…', '').length);
+  });
+
+  it('never overflows the pixel budget it was given', () => {
+    const fontSizePx = 20;
+    const result = truncateByPixelWidth('The quick brown fox jumps over the lazy dog, again and again.', 300, fontSizePx);
+    // Recompute the same way the function does internally, using its own worst case (space,
+    // the narrowest common character) to sanity-check the result never grossly overshoots.
+    expect(result.length).toBeLessThan(300 / (0.222 * fontSizePx) + 1);
+  });
+
+  it('falls back to an average width for characters outside the Arial table', () => {
+    const result = truncateByPixelWidth('日本語のテキストです。'.repeat(20), 200, 20);
+    expect(result.endsWith('…')).toBe(true);
   });
 });

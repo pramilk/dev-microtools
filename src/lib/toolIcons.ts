@@ -58,6 +58,9 @@ export const TOOL_ICONS: Record<string, string> = {
   'docker-run-compose-converter': 'DKR',
   'barcode-generator': '|||',
   'ascii-unicode-keycode-inspector': 'ASC',
+  'csp-header-builder': 'CSP',
+  'json-ld-generator': 'LD',
+  'security-txt-generator': 'SEC',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

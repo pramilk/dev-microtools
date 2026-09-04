@@ -36,10 +36,13 @@ request at all. You can verify this yourself: open DevTools → Network while us
 | [Slug Generator](https://devmicrotools.com/slug-generator/) | Generate | Turn a title into a clean, URL-friendly slug — separator, casing and length options. |
 | [Meta Tag & Open Graph Generator](https://devmicrotools.com/meta-tag-generator/) | Generate | Build SEO, Open Graph and Twitter Card meta tags for a page, with a live search-result and social-card preview. |
 | [Barcode Generator](https://devmicrotools.com/barcode-generator/) | Generate | Turn text or digits into a real, scannable Code 128, Code 39, EAN-13, or UPC-A barcode. |
+| [JSON-LD Schema Generator](https://devmicrotools.com/json-ld-generator/) | Generate | Build Article, Product, FAQ, How-to, Organization or Breadcrumb structured data from a form. |
 | [JWT Debugger](https://devmicrotools.com/jwt-decoder/) | Security | Decode, verify and sign JSON Web Tokens without uploading them anywhere. |
 | [Hash Generator](https://devmicrotools.com/hash-generator/) | Security | Compute MD5, SHA-1 and SHA-2 digests, and verify a checksum against them. |
 | [Password Generator](https://devmicrotools.com/password-generator/) | Security | Create strong random passwords with adjustable length and character types. |
 | [Bcrypt Generator](https://devmicrotools.com/bcrypt-generator/) | Security | Generate a bcrypt hash from a password, or verify a password against one. |
+| [CSP Header Builder & Analyzer](https://devmicrotools.com/csp-header-builder/) | Security | Build a Content-Security-Policy header from a form, or paste one to get it linted and explained. |
+| [security.txt Generator](https://devmicrotools.com/security-txt-generator/) | Security | Build a standards-compliant security.txt file (RFC 9116) with validated Contact and Expires fields. |
 | [Regex Tester](https://devmicrotools.com/regex-tester/) | Text | Test regular expressions with live highlighting, groups and replace preview. |
 | [Diff Checker](https://devmicrotools.com/diff-checker/) | Text | Compare two texts or JSON documents and see exactly what changed. |
 | [Word Counter](https://devmicrotools.com/word-counter/) | Text | Count words and characters, convert text case, and find and replace text. |

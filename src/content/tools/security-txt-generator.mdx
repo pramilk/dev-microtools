@@ -1,0 +1,93 @@
+---
+title: security.txt Generator
+headline: security.txt Generator (RFC 9116)
+description: Build a standards-compliant security.txt file — Contact, Expires, and every optional RFC 9116 field — from a form. Runs entirely in your browser.
+summary: Build a security.txt file per RFC 9116, with validated Contact, Expires and Canonical fields.
+category: Security
+order: 51
+updated: 2026-09-03
+whatIsIt: >-
+  security.txt is a plain-text file, standardized by RFC 9116, that tells a security
+  researcher who finds a vulnerability in a site exactly how to report it — instead of hunting
+  for a contact page, guessing at an email address, or giving up and posting it publicly. It's
+  the security equivalent of `robots.txt`: a small, predictable file at a fixed, well-known
+  location that both humans and automated scanners check first. The format itself is simple —
+  a handful of `Field: value` lines — but it has real requirements that are easy to get wrong
+  by hand: at least one `Contact` line is mandatory, `Expires` is mandatory and must be a
+  specific date-time format, and several of the optional fields (`Canonical`, `Encryption`,
+  `Policy`) only add value when they're a genuinely reachable URL rather than a placeholder
+  copied from an example. This tool builds the file field by field, normalizes a bare email or
+  phone number into the URI form the spec requires, and validates what can be validated before
+  handing you the finished file to serve at `/.well-known/security.txt`.
+useCases:
+  - Publishing a security.txt for the first time so vulnerability reports have a real, documented channel instead of arriving through a support inbox or a public GitHub issue.
+  - Setting a fresh Expires date on a security.txt that's gone stale — RFC 9116 recommends keeping it under a year, and this tool flags one that's already too far out or already expired.
+  - Adding a Canonical URL to an existing file so a copy of it, cached or mirrored elsewhere, can be traced back to the authoritative source.
+  - Pointing researchers to a PGP key (Encryption) or a disclosure policy (Policy) alongside the contact address, so the file does more than just name an inbox.
+  - Generating the file as part of a security or compliance checklist, where "publish a security.txt" is a standard, low-effort item.
+howTo:
+  - Add at least one Contact — an email, phone number, or URL. List your preferred channel first; add more with "+ Add contact" for a fallback.
+  - Set an Expires date. RFC 9116 requires this field and recommends keeping it under a year out, so revisit the file periodically.
+  - Fill in Canonical with this file's own eventual URL — recommended so a cached or mirrored copy can be traced back to the original.
+  - Optionally add Encryption (a PGP key URL), Acknowledgments, Policy, Hiring and CSAF as they apply.
+  - Read the warnings under the output — a past or far-future Expires date and a missing Canonical are both flagged.
+  - Copy or download the result, and serve it byte-for-byte at /.well-known/security.txt with a text/plain; charset=utf-8 content type.
+example:
+  label: A file with two contacts, a PGP key, and a disclosure policy.
+  input: 'Contacts security@example.com and https://example.com/report, expires 2027-09-03, encryption and policy links set, canonical https://example.com/.well-known/security.txt.'
+  output: |-
+    Contact: mailto:security@example.com
+    Contact: https://example.com/report
+    Expires: 2027-09-03T00:00:00Z
+    Encryption: https://example.com/pgp-key.txt
+    Acknowledgments: https://example.com/security/hall-of-fame
+    Preferred-Languages: en, es
+    Policy: https://example.com/security-policy
+    Canonical: https://example.com/.well-known/security.txt
+  note: >-
+    Press "Load example" to build exactly this. The warnings list comes back empty — every
+    field RFC 9116 recommends is present and Expires is comfortably within the next year.
+faq:
+  - q: Does this file need to be signed with PGP?
+    a: 'Not required — RFC 9116 permits an OpenPGP clear-signed file but doesn''t mandate one, and this tool doesn''t sign it for you, since that needs your own private key, which has no business anywhere near a browser tab. If you want a signed file, generate the content here, then run it through your own `gpg --clear-sign` (or equivalent) locally before publishing — the Encryption field this tool builds is exactly where you''d point people to the public key that signature can be verified against.'
+  - q: Does it have to go at /.well-known/security.txt, or can I use /security.txt?
+    a: /.well-known/security.txt is the location RFC 9116 defines and the one crawlers and scanners check first. A copy at the legacy /security.txt (no .well-known) is still permitted as a redirect for backward compatibility with tools written against the older draft spec, but it isn't a substitute for the real location.
+  - q: Why does the tool normalize my email into mailto:security@example.com?
+    a: Because RFC 9116 requires each Contact value to be a URI, not a bare address — a plain email or phone number isn't valid on its own. Typing it in either recognizable form still works here; the mailto:, tel:, or https:// prefix is added automatically the same way this site's Meta Tag Generator adds a missing @ to a Twitter handle, so you don't have to remember the exact required syntax.
+  - q: What actually happens if I don't set a Canonical URL?
+    a: The file is still fully valid without one — Canonical is recommended, not required. What it buys you is provenance — if a scanner or researcher finds a copy of your security.txt somewhere unexpected (a CDN cache, a staging mirror, a tool's own crawl archive), the Canonical field is how they confirm which URL is the authoritative, currently-maintained one.
+  - q: Why does the tool warn if Expires is more than a year out?
+    a: Because RFC 9116 explicitly recommends it, for a practical reason — a file that expires in five years is a file nobody has to look at again for five years, and contact details, PGP keys, and policies all drift in that time. A short expiry forces a periodic "is this still accurate" check, the same reasoning behind SSL certificates having an expiry at all.
+  - q: Is anything I type here sent anywhere?
+    a: No — this is pure string generation and validation running in your browser tab, the same as every other tool on this site. Nothing about your contact details or the rest of the file is uploaded anywhere.
+related:
+  - csp-header-builder
+  - robots-txt-generator
+  - meta-tag-generator
+---
+
+## Why Contact and Expires are the only two required fields
+
+Every other field in RFC 9116 is optional because it adds detail on top of the one thing the
+file exists to do: tell someone how to reach you about a security issue, and prove the
+information is current enough to trust. `Contact` supplies the first; `Expires` supplies the
+second, forcing the file to be revisited rather than left to rot the way a forgotten
+`security@` alias often does. This tool enforces both as hard requirements for exactly that
+reason — a security.txt missing either isn't really a shorter version of a valid one, it's
+missing the two fields the format was built around.
+
+## The one thing this tool intentionally doesn't do
+
+It doesn't fetch, verify, or crawl anything — no check that `/.well-known/security.txt`
+actually serves what you built, no live PGP key lookup, no attempt to confirm a URL you typed
+resolves to something real. That's consistent with every other tool on this site: nothing you
+type is transmitted anywhere, which also means this tool can't verify a URL is *reachable*,
+only that it's syntactically valid. Confirm the file is actually live and correctly served
+after publishing it — a security.txt is only useful if a researcher's tooling can fetch it.
+
+## What powers this tool
+
+Pure string assembly and validation, no dependency — URL, date, email/phone, and IETF
+language-tag checks, and a small set of field-ordering conventions that follow RFC 9116's own
+worked example so the output reads the way a security researcher already expects a
+security.txt to look.

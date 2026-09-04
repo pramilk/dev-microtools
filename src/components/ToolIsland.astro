@@ -46,6 +46,9 @@ import FaviconGenerator from '../islands/FaviconGenerator';
 import DockerRunComposeConverter from '../islands/DockerRunComposeConverter';
 import BarcodeGenerator from '../islands/BarcodeGenerator';
 import AsciiTableKeycodeInspector from '../islands/AsciiTableKeycodeInspector';
+import CspBuilder from '../islands/CspBuilder';
+import JsonLdGenerator from '../islands/JsonLdGenerator';
+import SecurityTxtGenerator from '../islands/SecurityTxtGenerator';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -117,3 +120,6 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'docker-run-compose-converter' && <DockerRunComposeConverter client:load />}
 {slug === 'barcode-generator' && <BarcodeGenerator client:load />}
 {slug === 'ascii-unicode-keycode-inspector' && <AsciiTableKeycodeInspector client:load />}
+{slug === 'csp-header-builder' && <CspBuilder client:load />}
+{slug === 'json-ld-generator' && <JsonLdGenerator client:load />}
+{slug === 'security-txt-generator' && <SecurityTxtGenerator client:load />}
