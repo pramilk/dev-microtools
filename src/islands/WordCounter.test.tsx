@@ -1,6 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
+import { createFakeWorkerClass } from '../../test/fakeWorker';
+import { applySentenceCase, type NerClassifier } from '../lib/tools/sentenceCase';
+import type { SentenceCaseWorkerRequest, SentenceCaseWorkerResult } from '../workers/sentenceCase.worker';
 import WordCounter from './WordCounter';
+
+// jsdom has no real Worker, and the real NER classifier depends on a multi-megabyte WASM
+// model that has no place in a component test — see CaseConverter.test.tsx's identical mock
+// for the full rationale, since this same Sentence case feature is shared between the two.
+const noEntities: NerClassifier = async () => [];
+vi.mock('../workers/sentenceCase.worker?worker', () => ({
+  default: createFakeWorkerClass((request: SentenceCaseWorkerRequest): Promise<SentenceCaseWorkerResult> =>
+    applySentenceCase(request.text, noEntities)
+  ),
+}));
 
 beforeEach(() => {
   Object.defineProperty(navigator, 'clipboard', {

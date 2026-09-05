@@ -1,6 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
+import { createFakeWorkerClass } from '../../test/fakeWorker';
+import { applySentenceCase, type NerClassifier } from '../lib/tools/sentenceCase';
+import type { SentenceCaseWorkerRequest, SentenceCaseWorkerResult } from '../workers/sentenceCase.worker';
 import CaseConverter from './CaseConverter';
+
+// jsdom has no real Worker, and the real NER classifier depends on a multi-megabyte WASM
+// model that has no place in a component test — this fake worker runs the real
+// `applySentenceCase` merge logic (so a bug there still fails this test the same way it
+// always did) against a no-op classifier, i.e. compromise-only behavior, same as before this
+// tool gained a second, transformer-based signal.
+const noEntities: NerClassifier = async () => [];
+vi.mock('../workers/sentenceCase.worker?worker', () => ({
+  default: createFakeWorkerClass((request: SentenceCaseWorkerRequest): Promise<SentenceCaseWorkerResult> =>
+    applySentenceCase(request.text, noEntities)
+  ),
+}));
 
 beforeEach(() => {
   Object.defineProperty(navigator, 'clipboard', {

@@ -69,8 +69,12 @@ export default defineConfig({
        * `onnxruntime-web` (Background Remover) ships its own Emscripten-generated WASM
        * loader with `import.meta.url`-relative asset references — the same shape esbuild's
        * optimizer mishandles, so it's excluded for the same reason.
+       *
+       * `@huggingface/transformers` (Sentence Case's NER model) bundles `onnxruntime-web`
+       * itself as its inference backend, so it ships the identical WASM-loader shape and
+       * needs the same exclusion.
        */
-      exclude: ['@jsquash/oxipng', 'onnxruntime-web'],
+      exclude: ['@jsquash/oxipng', 'onnxruntime-web', '@huggingface/transformers'],
     },
     worker: {
       // Every worker in src/workers/ dynamically import()s its own heavy dependency

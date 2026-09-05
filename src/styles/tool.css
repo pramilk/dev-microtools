@@ -135,6 +135,28 @@
   font-weight: 450;
 }
 
+/* Small inline "AI" tag for one control inside a tool that only partially depends on an
+   on-device AI model — e.g. Sentence case inside Case Converter/Word Counter, where every
+   other button is a plain deterministic transform. Same visual language as the homepage's
+   .tool-card__ai-badge (index.astro), which marks a whole card the same way for a tool
+   whose *entire* function is AI-powered (Background Remover, Face & Plate Blur); this is
+   the equivalent for a single feature, so it's a plain inline element rather than
+   absolutely positioned in a card corner. */
+.badge--ai {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 0.05rem 0.3rem;
+  line-height: 1.4;
+}
+
 /* Inline busy indicator for any tool whose work now runs in a Web Worker (see
    src/islands/shared/useWorkerTask.ts) — first used by Image Compressor, now shared by
    every tool with a genuinely async, potentially-slow operation instead of each

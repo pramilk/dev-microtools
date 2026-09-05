@@ -5,20 +5,21 @@ description: Count words, characters and reading time, convert between nine text
 summary: Count words and characters, convert text case, and find and replace text — all in your browser.
 category: Text
 order: 31
-updated: 2026-08-24
+updated: 2026-09-04
 whatIsIt: >-
   A word counter measures the size and shape of a piece of text — words, characters,
   sentences, paragraphs, and how long it will take to read or speak aloud — so you can check
   a draft against a limit before you submit it. This tool goes further than a plain count: it
   also converts the text between nine common casing styles (from UPPERCASE and Title Case to
   identifier styles like camelCase and snake_case), and includes a find-and-replace panel
-  that highlights every match live as you type. A separate "Sentence case (beta)" button uses
-  a small NLP library to guess which words are proper nouns — names, places, organizations —
-  so it can capitalize sentence starts without lowercasing "Paris" or "Google" along with
-  everything else; it underlines any word it wasn't confident about, and clicking an
-  underlined word toggles its capitalization, so you can fix a wrong guess in one click
-  instead of retyping it. Everything runs locally in your browser — the text you paste or
-  drop in is never uploaded anywhere.
+  that highlights every match live as you type. A separate "Sentence case (beta)" button
+  combines a small NLP library's built-in name/place/organization list with a small on-device
+  AI model to guess which words are proper nouns, so it can capitalize sentence starts
+  without lowercasing "Paris" or "Google" along with everything else; it underlines any word
+  neither signal was confident about, and clicking an underlined word toggles its
+  capitalization, so you can fix a wrong guess in one click instead of retyping it. Everything
+  runs locally in your browser via WebAssembly — the text you paste or drop in is never
+  uploaded anywhere.
 useCases:
   - Checking a tweet, meta description, or form field against a hard character limit before submitting it.
   - Estimating how long a blog post, script, or presentation will take to read or speak aloud.
@@ -29,7 +30,7 @@ howTo:
   - Paste or type your text into the box, or drag a .txt file onto it — stats update live as you go.
   - Read the stats row for word, character, sentence, paragraph and line counts, plus estimated reading and speaking time.
   - Click a case button to convert the text in place — prose-style cases (UPPERCASE, lowercase, Title Case) keep your original spacing, while identifier-style cases (camelCase, snake_case, and the rest) rebuild the text as a single token per word, the way those formats work everywhere else.
-  - Click "Sentence case (beta)" for a smarter, NLP-assisted conversion that tries to keep proper nouns capitalized — review any word it underlines, since automatic proper-noun detection is a best-effort guess, not a guarantee; click an underlined word to toggle it between capitalized and lowercase.
+  - Click "Sentence case (beta)" for a smarter, AI-assisted conversion that tries to keep proper nouns capitalized — review any word it underlines, since automatic proper-noun detection is a best-effort guess, not a guarantee; click an underlined word to toggle it between capitalized and lowercase.
   - Tick "Find & replace" to search the text — matches highlight live below the box — then fill in a replacement and click "Replace all".
   - Click "Copy report" to copy a plain-text summary of every stat, ready to paste into an email or ticket.
 example:
@@ -54,7 +55,7 @@ faq:
   - q: Does find and replace support regular expressions?
     a: No — it's a literal, exact-text search with an optional case-sensitivity toggle, which covers the common case of fixing a repeated typo or swapping one term for another. If you need pattern-based matching with capture groups, the Regex Tester on this site is the dedicated tool for that.
   - q: How does Sentence case handle names, places, and other proper nouns?
-    a: It uses a small natural-language-processing library to guess which words are proper nouns from context and a built-in list of known names, places, and organizations, then keeps only those capitalized while lowercasing everything else (except sentence starts). This is fundamentally a best-effort guess, not a lookup you can fully trust — an uncommon name, a brand the library doesn't recognize, or an ordinary word that happens to be capitalized (like "Fox" mid-sentence) can be misjudged in either direction. Any word it guessed was a proper noun purely from capitalization or context, without matching a known name, gets underlined in the text so you can review it yourself before trusting the result — click an underlined word to flip it to lowercase (or click again to restore the guess) instead of retyping it. Words it doesn't recognize and that weren't already capitalized in your original text won't be capitalized either — it can't invent a name it has never seen.
+    a: It combines two signals. A small natural-language-processing library carries a built-in list of known names, places, and organizations — it recognizes those regardless of how your text was originally capitalized, but anything outside that list is just a capitalization guess. A small AI model then adds real contextual judgment on top, which can occasionally catch an uncommon name even when it wasn't capitalized in your original text, by reading the surrounding sentence — though it works best when your text is already reasonably capitalized. Either signal being confident is enough to capitalize a word with no flag; if neither is confident, it's still capitalized as a guess but underlined for review. This is fundamentally best-effort, not a lookup you can fully trust — an uncommon name, a brand neither signal recognizes, or an ordinary word that happens to be capitalized (like "Fox" mid-sentence) can still be misjudged. Click an underlined word to flip it to lowercase (or click again to restore the guess) instead of retyping it.
 related:
   - case-converter
   - regex-tester
@@ -81,11 +82,16 @@ Prose casing (UPPERCASE, lowercase, Title Case) is a pure mechanical transform �
 letter's target case follows directly from the rule, no judgment required. Real sentence
 case isn't: deciding whether to keep a word capitalized means deciding whether it's a name,
 a place, or a brand, and no dictionary-free rule can make that call correctly. Sentence case
-(beta) uses [`compromise`](https://github.com/spencermountain/compromise) (MIT licensed), a
-small natural-language-processing library, to make that judgment automatically — loaded only
-if you click the button, so nobody pays for it just by visiting the page. It's still a
-best-effort guess rather than a guarantee; see the FAQ below for exactly where it can go
-wrong and how the tool flags its own uncertainty.
+(beta) combines two independent signals to make that judgment automatically, loaded only if
+you click the button:
+[`compromise`](https://github.com/spencermountain/compromise) (MIT licensed), a small
+natural-language-processing library whose built-in name/place/organization list works even
+on text that's already all-caps or all-lowercase; and a small transformer-based AI model
+(an Apache-2.0-licensed, on-device port of `dslim/distilbert-NER`) that adds genuine
+contextual understanding for names outside that list, run through WebAssembly the same way
+this site's Background Remover and Face & Plate Blur run their own models — nothing is ever
+uploaded. It's still a best-effort guess rather than a guarantee; see the FAQ below for
+exactly where it can go wrong and how the tool flags its own uncertainty.
 
 ## Why a browser-only tool
 

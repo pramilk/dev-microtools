@@ -21,8 +21,9 @@
   # is set) — without it the browser blocks the beacon and analytics silently stop recording.
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
 
-# Background Remover and Face & Plate Blur are the two pages on the site that run
-# WebAssembly (onnxruntime-web, for their in-browser AI models) — WASM instantiation needs
+# Background Remover, Face & Plate Blur, Case Converter and Word Counter are the pages on
+# the site that run WebAssembly (onnxruntime-web, either directly or via
+# @huggingface/transformers, for their in-browser AI models) — WASM instantiation needs
 # 'wasm-unsafe-eval' in script-src, a narrow keyword that permits WebAssembly.compile/instantiate
 # specifically without opening up 'unsafe-eval's full arbitrary-string-eval surface.
 #
@@ -65,11 +66,45 @@
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
 
+# Case Converter and Word Counter both run their "Sentence case (beta)" feature's NER model
+# via @huggingface/transformers (onnxruntime-web/WASM under the hood) — same requirement as
+# the two blocks above, see that comment for why every header needs its own "! HeaderName"
+# negation line here.
+/case-converter/
+  ! X-Content-Type-Options
+  ! X-Frame-Options
+  ! Referrer-Policy
+  ! Permissions-Policy
+  ! Strict-Transport-Security
+  ! Content-Security-Policy
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=(), usb=(), interest-cohort=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
+
+/word-counter/
+  ! X-Content-Type-Options
+  ! X-Frame-Options
+  ! Referrer-Policy
+  ! Permissions-Policy
+  ! Strict-Transport-Security
+  ! Content-Security-Policy
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=(), usb=(), interest-cohort=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
+
 # Build-output JS/CSS/wasm chunks (Astro emits them all here, regardless of which page(s)
 # import them) must NOT carry their own Content-Security-Policy header. These files are
 # never navigated to directly, so a CSP on the asset response itself is normally a no-op —
 # except when a script here is loaded as a dedicated Worker (as onnxruntime-web does for its
-# threaded WASM backend, used by Background Remover and Face & Plate Blur): per the CSP spec, a same-origin worker
+# threaded WASM backend, used directly by Background Remover and Face & Plate Blur, and via
+# @huggingface/transformers by Case Converter and Word Counter's Sentence case feature): per
+# the CSP spec, a same-origin worker
 # inherits its CREATING DOCUMENT's policy only if the worker script's own HTTP response has
 # no explicit Content-Security-Policy header. Because the site-wide "/*" rule above sets one
 # on every response, /_astro/ort.wasm.bundle*.js was carrying the SITE-WIDE DEFAULT policy

@@ -64,11 +64,11 @@ import { SITE } from '../lib/site';
         wishing were here, that is worth knowing too. New tools are added regularly.
       </p>
 
-      <h2>Open source components</h2>
+      <h2 id="open-source-components">Open source components</h2>
       <p>
-        Almost everything here uses native browser APIs. Nineteen third-party libraries are
+        Almost everything here uses native browser APIs. Twenty third-party libraries are
         included for the specific jobs the browser has no built-in for — every tool's own
-        page also links the library it uses. All nineteen licences permit commercial use.
+        page also links the library it uses. All twenty licences permit commercial use.
       </p>
       <table>
         <thead>
@@ -91,23 +91,25 @@ import { SITE } from '../lib/site';
           <tr><td><a href="https://github.com/jamsinclair/jSquash/tree/main/packages/oxipng" target="_blank" rel="noopener noreferrer"><code>@jsquash/oxipng</code></a></td><td>Apache-2.0</td><td>Image Compressor (extra lossless PNG pass)</td></tr>
           <tr><td><a href="https://github.com/101arrowz/fflate" target="_blank" rel="noopener noreferrer"><code>fflate</code></a></td><td>MIT</td><td>Image Compressor (zip download of a batch)</td></tr>
           <tr><td><a href="https://github.com/ibezkrovnyi/image-quantization/tree/main/packages/image-q" target="_blank" rel="noopener noreferrer"><code>image-q</code></a></td><td>MIT</td><td>Image Compressor, Image Cropper, Image Format Converter (lossy PNG mode)</td></tr>
-          <tr><td><a href="https://github.com/spencermountain/compromise" target="_blank" rel="noopener noreferrer"><code>compromise</code></a></td><td>MIT</td><td>Word Counter (Sentence case proper-noun detection, loaded only on click)</td></tr>
+          <tr><td><a href="https://github.com/spencermountain/compromise" target="_blank" rel="noopener noreferrer"><code>compromise</code></a></td><td>MIT</td><td>Case Converter, Word Counter (Sentence case proper-noun dictionary lookup, loaded only on click)</td></tr>
           <tr><td><a href="https://github.com/niieani/gpt-tokenizer" target="_blank" rel="noopener noreferrer"><code>gpt-tokenizer</code></a></td><td>MIT</td><td>LLM Token Counter (OpenAI's published token vocabularies)</td></tr>
           <tr><td><a href="https://github.com/markedjs/marked" target="_blank" rel="noopener noreferrer"><code>marked</code></a></td><td>MIT</td><td>Markdown Previewer (Markdown → HTML)</td></tr>
           <tr><td><a href="https://github.com/cure53/DOMPurify" target="_blank" rel="noopener noreferrer"><code>DOMPurify</code></a></td><td>MPL-2.0 or Apache-2.0</td><td>Markdown Previewer (sanitizes the rendered HTML)</td></tr>
           <tr><td><a href="https://github.com/mixmark-io/turndown" target="_blank" rel="noopener noreferrer"><code>turndown</code></a></td><td>MIT</td><td>Markdown Previewer (HTML → Markdown)</td></tr>
           <tr><td><a href="https://github.com/domchristie/turndown-plugin-gfm" target="_blank" rel="noopener noreferrer"><code>turndown-plugin-gfm</code></a></td><td>MIT</td><td>Markdown Previewer (GFM tables, strikethrough, task lists)</td></tr>
           <tr><td><a href="https://github.com/microsoft/onnxruntime" target="_blank" rel="noopener noreferrer"><code>onnxruntime-web</code></a></td><td>MIT</td><td>Background Remover, Face &amp; Plate Blur (on-device AI models via WebAssembly)</td></tr>
+          <tr><td><a href="https://github.com/huggingface/transformers.js" target="_blank" rel="noopener noreferrer"><code>@huggingface/transformers</code></a></td><td>Apache-2.0</td><td>Case Converter, Word Counter (Sentence case AI model, via WebAssembly, loaded only on click)</td></tr>
         </tbody>
       </table>
 
-      <h2>AI models</h2>
+      <h2 id="ai-models">AI models</h2>
       <p>
-        Two tools also download a pre-trained model file — not an npm package like the
+        Three tools also download a pre-trained model file — not an npm package like the
         libraries above, but a set of weights a neural network was trained on — to run
-        entirely on-device via WebAssembly (<code>onnxruntime-web</code>, listed above). Both
-        are freely licensed for commercial use, and both run exactly like every other tool
-        here: nothing leaves your browser, ever, for the model to process.
+        entirely on-device via WebAssembly (<code>onnxruntime-web</code> or
+        <code>@huggingface/transformers</code>, both listed above). All are freely licensed
+        for commercial use, and all run exactly like every other tool here: nothing leaves
+        your browser, ever, for the model to process.
       </p>
       <table>
         <thead>
@@ -120,6 +122,7 @@ import { SITE } from '../lib/site';
         <tbody>
           <tr><td><a href="https://github.com/danielgatis/rembg" target="_blank" rel="noopener noreferrer">u2netp</a></td><td>Apache-2.0</td><td>Background Remover</td></tr>
           <tr><td><a href="https://github.com/onnx/models/tree/main/validated/vision/body_analysis/ultraface" target="_blank" rel="noopener noreferrer">Ultra-Light-Fast-Generic-Face-Detector-1MB</a></td><td>MIT</td><td>Face &amp; Plate Blur</td></tr>
+          <tr><td><a href="https://huggingface.co/dslim/distilbert-NER" target="_blank" rel="noopener noreferrer">distilbert-NER</a></td><td>Apache-2.0</td><td>Case Converter, Word Counter (Sentence case proper-noun detection)</td></tr>
         </tbody>
       </table>
       <p>

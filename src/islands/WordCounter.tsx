@@ -9,13 +9,16 @@ import {
   CASE_LABELS,
   type CaseType,
 } from '../lib/tools/wordCounter';
-import { applySentenceCase, toggleGuessedCase, type LowConfidenceRange } from '../lib/tools/sentenceCase';
+import { toggleGuessedCase, type LowConfidenceRange } from '../lib/tools/sentenceCase';
 import { readShareStateFromLocation } from '../lib/shareLink';
 import { ShareLinkButton } from './shared/ShareLinkButton';
 import { CopyButton } from './shared/CopyButton';
 import { useTextFileDrop } from './shared/useTextFileDrop';
 import { useCopy } from './shared/useCopy';
 import { ErrorMessage } from './shared/ErrorMessage';
+import { useWorkerTask } from './shared/useWorkerTask';
+import SentenceCaseWorker from '../workers/sentenceCase.worker?worker';
+import type { SentenceCaseWorkerRequest, SentenceCaseWorkerResult } from '../workers/sentenceCase.worker';
 
 const SAMPLE = `The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquid jugs!
 
@@ -70,6 +73,7 @@ export default function WordCounter() {
   const backdropRef = useRef<HTMLDivElement>(null);
   const lowConfidenceBackdropRef = useRef<HTMLDivElement>(null);
   const lowConfidenceHintsRef = useRef<HTMLDivElement>(null);
+  const sentenceCaseWorker = useWorkerTask<SentenceCaseWorkerRequest, SentenceCaseWorkerResult>(() => new SentenceCaseWorker());
 
   useEffect(() => {
     void readShareStateFromLocation<ShareState>().then((restored) => {
@@ -144,7 +148,7 @@ export default function WordCounter() {
     setSentenceCaseLoading(true);
     setSentenceCaseError(null);
     try {
-      const result = await applySentenceCase(baseText);
+      const result = await sentenceCaseWorker.run({ text: baseText });
       setInput(result.text);
       setLowConfidenceRanges(result.lowConfidenceRanges);
     } catch {
@@ -371,15 +375,19 @@ export default function WordCounter() {
             class="btn"
             onClick={() => void runSentenceCase()}
             disabled={baseText === '' || sentenceCaseLoading}
-            title="Best-effort: capitalizes sentence starts and guesses proper nouns using NLP. May be wrong — review highlighted words."
+            title="Best-effort: capitalizes sentence starts and guesses proper nouns using a small on-device AI model plus NLP. May be wrong — review highlighted words."
           >
             {sentenceCaseLoading ? 'Sentence case…' : 'Sentence case (beta)'}
+            <span class="badge--ai" title="Uses a small on-device AI model, in addition to NLP — every other button here is a plain deterministic transform.">
+              AI
+            </span>
           </button>
         </div>
         <p class="field__hint">
-          Sentence case (beta) guesses proper nouns automatically using NLP and can be wrong
-          — especially for uncommon names, brands, or acronyms. Any word it wasn't confident
-          about gets underlined in the text box above for you to review.
+          Sentence case (beta) guesses proper nouns automatically using a small AI model
+          (downloaded once, ~40&nbsp;MB, entirely in your browser — nothing is uploaded) plus
+          NLP, and can be wrong — especially for uncommon names, brands, or acronyms. Any word
+          it wasn't confident about gets underlined in the text box above for you to review.
         </p>
         <ErrorMessage message={sentenceCaseError} />
       </div>

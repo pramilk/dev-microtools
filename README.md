@@ -69,7 +69,7 @@ request at all. You can verify this yourself: open DevTools → Network while us
 | [Diff Checker](https://devmicrotools.com/diff-checker/) | Compare two texts or JSON documents and see exactly what changed. |
 | [Word Counter](https://devmicrotools.com/word-counter/) | Count words and characters, convert text case, and find and replace text. |
 | [Duplicate Line Remover](https://devmicrotools.com/duplicate-line-remover/) | Find duplicate lines, sentences, or paragraphs and remove one, some, or all of them. |
-| [Case Converter](https://devmicrotools.com/case-converter/) | Convert text between nine common casing styles, plus a smarter NLP-assisted Sentence case. |
+| [Case Converter](https://devmicrotools.com/case-converter/) | Convert text between nine common casing styles, plus a smarter AI-assisted Sentence case. |
 | [Invisible & Homoglyph Inspector](https://devmicrotools.com/invisible-char-inspector/) | Find zero-width characters, bidi overrides, odd whitespace and Latin-lookalike homoglyphs, then clean them. |
 
 ### AI

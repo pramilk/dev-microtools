@@ -28,6 +28,7 @@
     "@astrojs/mdx": "^7.0.5",
     "@astrojs/preact": "^6.0.2",
     "@astrojs/sitemap": "^3.7.3",
+    "@huggingface/transformers": "^3.8.1",
     "@jsquash/oxipng": "^2.3.0",
     "astro": "^7.2.2",
     "astro-og-canvas": "^0.13.0",
@@ -65,5 +66,10 @@
     "typescript": "^6.0.3",
     "vitest": "^4.1.10",
     "zod": "^4.4.3"
+  },
+  "overrides": {
+    "@huggingface/transformers": {
+      "sharp": "^0.35.3"
+    }
   }
 }
