@@ -24,12 +24,20 @@
 # Background Remover is the one page on the site that runs WebAssembly (onnxruntime-web, for
 # its in-browser AI model) — WASM instantiation needs 'wasm-unsafe-eval' in script-src, a
 # narrow keyword that permits WebAssembly.compile/instantiate specifically without opening up
-# 'unsafe-eval's full arbitrary-string-eval surface. Scoped to this one route (a full
-# override, not a merge — Cloudflare's _headers doesn't merge same-named headers across
-# matching sections) rather than added to the site-wide policy above, since no other tool
-# needs it. Everything else in the policy is identical to the default above; keep the two in
-# sync if the shared policy ever changes.
+# 'unsafe-eval's full arbitrary-string-eval surface.
+#
+# IMPORTANT: Cloudflare's _headers does NOT let a more specific rule override a header set by
+# a broader one — when multiple sections match the same path, same-named header VALUES ARE
+# JOINED WITH A COMMA (https://developers.cloudflare.com/workers/static-assets/headers/),
+# which silently mangles a second Content-Security-Policy into garbage rather than replacing
+# the first. Since every path (including this one) also matches the site-wide "/*" block
+# above, the "! Content-Security-Policy" line below is required to detach that inherited
+# header before setting this route's own value — without it, this whole block is a no-op and
+# the WASM instantiation is silently blocked by the site-wide policy again.
+# Everything else in the policy is identical to the default above; keep the two in sync if
+# the shared policy ever changes.
 /background-remover/
+  ! Content-Security-Policy
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
