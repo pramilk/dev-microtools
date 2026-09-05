@@ -1,11 +1,40 @@
 // @ts-check
+import { readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import preact from '@astrojs/preact';
 import sitemap from '@astrojs/sitemap';
 import mdx from '@astrojs/mdx';
+import { load as loadYaml } from 'js-yaml';
 
 // Required for @astrojs/sitemap to emit absolute URLs and for canonical link tags.
 const SITE = 'https://devmicrotools.com';
+
+/**
+ * slug -> `updated` date, read directly off each tool's .mdx frontmatter (the same field
+ * `[slug].astro` uses for JSON-LD `dateModified`) so the sitemap can carry a real per-page
+ * `<lastmod>` instead of none at all. Read here with a plain YAML parse rather than through
+ * `astro:content` — that virtual module isn't available yet while the config itself is being
+ * evaluated, and this integration option only runs once at build time.
+ */
+function readToolLastmods() {
+  const toolsDir = fileURLToPath(new URL('./src/content/tools/', import.meta.url));
+  const lastmods = new Map();
+  for (const file of readdirSync(toolsDir)) {
+    if (!file.endsWith('.mdx')) continue;
+    const raw = readFileSync(path.join(toolsDir, file), 'utf-8');
+    const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    if (!match) continue;
+    const frontmatter = /** @type {{ updated?: string | Date }} */ (loadYaml(match[1]));
+    if (frontmatter?.updated) {
+      lastmods.set(file.slice(0, -'.mdx'.length), new Date(frontmatter.updated).toISOString());
+    }
+  }
+  return lastmods;
+}
+
+const toolLastmods = readToolLastmods();
 
 // https://astro.build/config
 export default defineConfig({
@@ -19,7 +48,21 @@ export default defineConfig({
   redirects: {
     '/feedback': 'https://github.com/pramilk/dev-microtools/issues/new',
   },
-  integrations: [preact(), mdx(), sitemap()],
+  integrations: [
+    preact(),
+    mdx(),
+    sitemap({
+      // Gives Google/Bing a real recrawl signal per tool page instead of a bare <loc> —
+      // reuses the same `updated` frontmatter date [slug].astro's JSON-LD `dateModified`
+      // already relies on. Non-tool pages (home, about, privacy) are left without
+      // <lastmod> rather than guessing one.
+      serialize(item) {
+        const slugMatch = new URL(item.url).pathname.match(/^\/([^/]+)\/$/);
+        const lastmod = slugMatch ? toolLastmods.get(slugMatch[1]) : undefined;
+        return lastmod ? { ...item, lastmod } : item;
+      },
+    }),
+  ],
   build: {
     // Emit `/tools/foo/index.html` so URLs stay trailing-slash consistent.
     format: 'directory',

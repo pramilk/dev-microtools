@@ -38,6 +38,7 @@ const { Content } = await render(tool);
 
 const path = `/${tool.id}/`;
 const pageUrl = new URL(path, Astro.site ?? SITE.url).href;
+const ogImage = new URL(`/og/${tool.id}.png`, Astro.site ?? SITE.url).href;
 
 const schema = [
   {
@@ -46,13 +47,15 @@ const schema = [
     name: data.title,
     description: data.description,
     url: pageUrl,
+    image: ogImage,
+    inLanguage: 'en-US',
     applicationCategory: 'DeveloperApplication',
     operatingSystem: 'Any',
     browserRequirements: 'Requires JavaScript',
     dateModified: data.updated.toISOString(),
     // Free and no sign-up: both are true and both are what people search for.
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-    publisher: { '@type': 'Organization', name: SITE.name, url: SITE.url },
+    publisher: { '@type': 'Organization', name: SITE.name, url: SITE.url, sameAs: [SITE.repoUrl] },
   },
   {
     '@context': 'https://schema.org',
