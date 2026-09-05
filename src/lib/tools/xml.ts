@@ -7,7 +7,12 @@ import { type ToolResult, ok, err, messageFrom } from './result';
  */
 export const MAX_INPUT_LENGTH = 2_000_000;
 
-export const DEFAULT_INDENT_SIZE = 2;
+/** Indentation width for {@link formatXml} — matches the JSON/SQL formatters' own indent options. */
+export type XmlIndentStyle = 2 | 4 | 'tab';
+
+export const DEFAULT_INDENT_SIZE: XmlIndentStyle = 2;
+
+const indentUnit = (indent: XmlIndentStyle): string => (indent === 'tab' ? '\t' : ' '.repeat(indent));
 
 const ELEMENT_NODE = 1;
 const TEXT_NODE = 3;
@@ -74,8 +79,8 @@ function attrsToString(el: Element): string {
  *    content is never silently corrupted
  *  - otherwise, element-only content -> one child per line, indented
  */
-function serializeElementPretty(el: Element, depth: number, indentSize: number, serializer: XMLSerializer): string {
-  const indent = ' '.repeat(depth * indentSize);
+function serializeElementPretty(el: Element, depth: number, indentStyle: XmlIndentStyle, serializer: XMLSerializer): string {
+  const indent = indentUnit(indentStyle).repeat(depth);
   const open = `<${el.tagName}${attrsToString(el)}`;
   const children = Array.from(el.childNodes);
   const meaningful = children.filter((node) => !isWhitespaceOnlyText(node));
@@ -96,16 +101,16 @@ function serializeElementPretty(el: Element, depth: number, indentSize: number, 
   }
 
   const innerLines = meaningful
-    .map((node) => serializeNodePretty(node, depth + 1, indentSize, serializer))
+    .map((node) => serializeNodePretty(node, depth + 1, indentStyle, serializer))
     .filter((line) => line !== '');
   return `${indent}${open}>\n${innerLines.join('\n')}\n${indent}</${el.tagName}>`;
 }
 
-function serializeNodePretty(node: ChildNode, depth: number, indentSize: number, serializer: XMLSerializer): string {
-  if (node.nodeType === ELEMENT_NODE) return serializeElementPretty(node as Element, depth, indentSize, serializer);
+function serializeNodePretty(node: ChildNode, depth: number, indentStyle: XmlIndentStyle, serializer: XMLSerializer): string {
+  if (node.nodeType === ELEMENT_NODE) return serializeElementPretty(node as Element, depth, indentStyle, serializer);
   if (isWhitespaceOnlyText(node)) return '';
 
-  const indent = ' '.repeat(depth * indentSize);
+  const indent = indentUnit(indentStyle).repeat(depth);
   // Comments, processing instructions, DOCTYPE and stray text nodes all serialise
   // correctly through the native serializer with no reformatting needed.
   return indent + serializer.serializeToString(node);
@@ -117,7 +122,7 @@ function serializeNodePretty(node: ChildNode, depth: number, indentSize: number,
  * declaration/DOCTYPE preserved. Text-only leaves stay on one line rather than being
  * needlessly split across three.
  */
-export function formatXml(input: string, indentSize: number = DEFAULT_INDENT_SIZE): ToolResult<string> {
+export function formatXml(input: string, indent: XmlIndentStyle = DEFAULT_INDENT_SIZE): ToolResult<string> {
   if (input.trim() === '') return err('Enter some XML to format.');
   if (input.length > MAX_INPUT_LENGTH) {
     return err(
@@ -131,7 +136,7 @@ export function formatXml(input: string, indentSize: number = DEFAULT_INDENT_SIZ
   const serializer = new XMLSerializer();
   const declaration = extractXmlDeclaration(input);
   const lines = Array.from(parsed.value.childNodes)
-    .map((node) => serializeNodePretty(node, 0, indentSize, serializer))
+    .map((node) => serializeNodePretty(node, 0, indent, serializer))
     .filter((line) => line !== '');
 
   const body = lines.join('\n');
@@ -335,7 +340,7 @@ function elementFromValue(tagName: string, value: unknown, depth: number, indent
  *    wrapped in a `<root>` element, with a top-level array's items becoming repeated
  *    `<item>` children.
  */
-export function jsonValueToXml(value: unknown, indentSize: number = DEFAULT_INDENT_SIZE): ToolResult<string> {
+export function jsonValueToXml(value: unknown, indentSize: number = 2): ToolResult<string> {
   const entries = isPlainObject(value) ? Object.entries(value) : [];
 
   if (entries.length === 1 && !Array.isArray(entries[0]![1])) {

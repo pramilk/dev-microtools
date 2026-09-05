@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { type ToolResult, ok } from '../lib/tools/result';
-import { formatXml, minifyXml, validateXml, xmlToJson, DEFAULT_INDENT_SIZE } from '../lib/tools/xml';
+import { formatXml, minifyXml, validateXml, xmlToJson, DEFAULT_INDENT_SIZE, type XmlIndentStyle } from '../lib/tools/xml';
 import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { OutputPane } from './shared/OutputPane';
@@ -44,11 +44,12 @@ const SAMPLE = `<?xml version="1.0" encoding="UTF-8"?>
 interface ShareState {
   input: string;
   mode: Mode;
+  indent: XmlIndentStyle;
 }
 
 /** Runs the selected mode over the source document, always through a `ToolResult`. */
-function applyMode(source: string, mode: Mode): ToolResult<string> {
-  if (mode === 'format') return formatXml(source, DEFAULT_INDENT_SIZE);
+function applyMode(source: string, mode: Mode, indent: XmlIndentStyle): ToolResult<string> {
+  if (mode === 'format') return formatXml(source, indent);
   if (mode === 'minify') return minifyXml(source);
   if (mode === 'validate') {
     const result = validateXml(source);
@@ -60,6 +61,7 @@ function applyMode(source: string, mode: Mode): ToolResult<string> {
 
 export default function XmlTool() {
   const [mode, setMode] = useState<Mode>('format');
+  const [indent, setIndent] = useState<XmlIndentStyle>(DEFAULT_INDENT_SIZE);
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +74,8 @@ export default function XmlTool() {
       if (!restored?.ok) return;
       setInput(restored.value.input);
       setMode(restored.value.mode);
+      // Fall back for links made before indent was shared, rather than restoring `undefined`.
+      setIndent(restored.value.indent ?? DEFAULT_INDENT_SIZE);
       history.replaceState(null, '', window.location.pathname);
     });
   }, []);
@@ -85,7 +89,7 @@ export default function XmlTool() {
       return;
     }
 
-    const result = applyMode(input, mode);
+    const result = applyMode(input, mode, indent);
     // Guards against a stale synchronous result if this effect somehow re-fires out of
     // order — kept for consistency with every other tool's async result-handling shape.
     if (id !== requestId.current) return;
@@ -96,7 +100,7 @@ export default function XmlTool() {
       setOutput('');
       setError(result.error);
     }
-  }, [input, mode]);
+  }, [input, mode, indent]);
 
   const isJsonMode = mode === 'json';
   const filename = isJsonMode ? 'data.json' : 'data.xml';
@@ -120,8 +124,29 @@ export default function XmlTool() {
           ))}
         </div>
 
+        <label
+          class="checkbox"
+          title={mode === 'format' ? 'Choose the indentation width used when formatting' : 'Only applies to Format mode'}
+        >
+          <span class="field__hint">Indent</span>
+          <select
+            class="select"
+            value={String(indent)}
+            disabled={mode !== 'format'}
+            onChange={(event) => {
+              const next = (event.target as HTMLSelectElement).value;
+              setIndent(next === 'tab' ? 'tab' : (Number(next) as 2 | 4));
+            }}
+            aria-label="Indentation"
+          >
+            <option value="2">2 spaces</option>
+            <option value="4">4 spaces</option>
+            <option value="tab">Tab</option>
+          </select>
+        </label>
+
         <span class="tool-bar__spacer" />
-        <ShareLinkButton getState={() => ({ input, mode })} describe="this document" />
+        <ShareLinkButton getState={() => ({ input, mode, indent })} describe="this document" />
         <button type="button" class="btn" onClick={() => setInput(SAMPLE)} title="Load a small example document">
           Load example
         </button>

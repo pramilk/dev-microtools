@@ -27,6 +27,16 @@ describe('formatXml', () => {
     expect(result).toEqual({ ok: true, value: '<root>\n    <a>1</a>\n</root>' });
   });
 
+  it('indents with a tab when the tab indent style is requested', () => {
+    const result = formatXml('<root><a>1</a></root>', 'tab');
+    expect(result).toEqual({ ok: true, value: '<root>\n\t<a>1</a>\n</root>' });
+  });
+
+  it('applies the requested indent at every nesting depth, not just the first', () => {
+    const result = formatXml('<root><a><b>1</b></a></root>', 'tab');
+    expect(result).toEqual({ ok: true, value: '<root>\n\t<a>\n\t\t<b>1</b>\n\t</a>\n</root>' });
+  });
+
   it('keeps a text-only leaf element on one line rather than splitting it', () => {
     const result = formatXml('<root><name>Alice</name></root>');
     expect(result.ok).toBe(true);

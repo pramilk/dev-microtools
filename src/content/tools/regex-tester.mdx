@@ -1,18 +1,22 @@
 ---
 title: Regex Tester
 headline: Regex Tester with Live Match Highlighting
-description: Test JavaScript regular expressions with live highlighting, capture groups and replace preview. Runs in your browser, nothing uploaded. Free, no sign-up.
+description: Test regular expressions with live highlighting, groups and replace preview, plus a flavour selector for PCRE, Python, Java, .NET and Go. Free, no sign-up.
 summary: Test regular expressions with live highlighting, groups and replace preview.
 category: Text
 order: 2
-updated: 2026-08-22
+updated: 2026-09-05
 whatIsIt: >-
   A regular expression describes a pattern of text, and getting one right almost always
   takes several attempts against real input. This tester runs your pattern as you type,
   highlights every match in the subject text, and lists each match with its position and
   captured groups — both numbered and named. It also previews replacements, so you can
   confirm a substitution does what you intend before running it against anything that
-  matters. The engine is your browser's own, so behaviour matches JavaScript exactly.
+  matters. The engine is your browser's own JavaScript engine, so behaviour matches
+  JavaScript exactly by default. A Flavour selector lets you write a pattern in PCRE,
+  Python, Java, .NET or Go syntax instead — the tool translates the syntax differences it
+  knows about (named groups, POSIX classes, `\A`/`\Z` anchors and more) before running it,
+  and explains every translation it made so you know exactly what changed.
 useCases:
   - Building a validation pattern and checking it against a list of inputs that should match and inputs that should not.
   - Extracting a field from semi-structured text such as log lines, and confirming the capture group grabs exactly the right part.
@@ -33,7 +37,9 @@ example:
   note: Named groups make a pattern far easier to read six months later than $1 and $2 do, and every modern JavaScript engine supports them.
 faq:
   - q: Which regex flavour does this use?
-    a: JavaScript's, because the pattern runs in your browser's native engine. Most syntax is shared across languages, but there are real differences — JavaScript has no atomic groups or possessive quantifiers, and its lookbehind support is newer than some engines'. If your pattern is destined for Python, PCRE or Go, test it there too before relying on it. If you paste in syntax from another flavour, such as Python's `(?P<name>...)` named groups, the tool flags it with a note explaining the JavaScript equivalent instead of just failing to parse.
+    a: By default, JavaScript's, because the pattern runs in your browser's native engine. The Flavour dropdown above the pattern field also offers PCRE (PHP/Perl), Python, Java, .NET and Go — picking one translates that flavour's syntax differences (named groups, POSIX classes, `\A`/`\Z` anchors, possessive quantifiers, atomic groups) into JavaScript before running, and shows a note for every translation made. There is still only one real engine running underneath (see the next question), so this is a syntax bridge, not five separate regex engines.
+  - q: If it only runs JavaScript, how is the flavour selector not fake?
+    a: It genuinely changes what your pattern is interpreted as, honestly. Choosing PCRE or Python lets you type `(?P<name>...)` and see it translated to JavaScript's `(?<name>...)` with a note saying so, rather than being told it's a syntax error. Choosing Go is the strictest case — Go's RE2 engine refuses to run lookahead, lookbehind or back-references at all, because supporting them would break its guarantee of linear-time matching, so this tool rejects those constructs outright under Go rather than pretending to approximate something RE2 genuinely can't do. What it cannot do is reproduce subtler behavioural differences between real engines (exact backtracking order, Unicode case-folding edge cases) — for that, test the pattern in its real target language before shipping it.
   - q: Why does my pattern match nothing when it works elsewhere?
     a: >-
       The most common cause is a missing global flag, which limits you to the first match. The second is escaping: if you copied the pattern out of a string literal in code, it may contain doubled backslashes that need reducing to single ones here. Enter the raw pattern, not the quoted string version of it.

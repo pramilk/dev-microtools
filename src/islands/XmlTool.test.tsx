@@ -89,6 +89,34 @@ describe('<XmlTool />', () => {
     expect(result.textContent).toContain('"#text": "hello"');
   });
 
+  it('reformats using the selected indent width', async () => {
+    render(<XmlTool />);
+    typeInto(screen.getByLabelText(/xml input/i), '<root><a>1</a></root>');
+    await output().findByText(/<root>/);
+
+    fireEvent.change(screen.getByLabelText(/indentation/i), { target: { value: '4' } });
+
+    expect(await output().findByText(/<a>1<\/a>/)).toBeInTheDocument();
+    expect(document.querySelector('.output')?.textContent).toContain('    <a>1</a>');
+  });
+
+  it('reformats with a tab when Tab indent is selected', async () => {
+    render(<XmlTool />);
+    typeInto(screen.getByLabelText(/xml input/i), '<root><a>1</a></root>');
+    await output().findByText(/<root>/);
+
+    fireEvent.change(screen.getByLabelText(/indentation/i), { target: { value: 'tab' } });
+
+    expect(document.querySelector('.output')?.textContent).toContain('\t<a>1</a>');
+  });
+
+  it('disables the indent control outside Format mode', () => {
+    render(<XmlTool />);
+    fireEvent.click(screen.getByRole('button', { name: /^minify$/i }));
+
+    expect(screen.getByLabelText(/indentation/i)).toBeDisabled();
+  });
+
   it('loads the sample document on request', async () => {
     render(<XmlTool />);
     fireEvent.click(screen.getByRole('button', { name: /load example/i }));

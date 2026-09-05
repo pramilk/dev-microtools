@@ -10,6 +10,8 @@ import {
   flattenPatternGroups,
   detectFlavorHints,
   hasCatastrophicBacktrackingRisk,
+  resolveFlavorPattern,
+  REGEX_FLAVORS,
   COMMON_PATTERNS,
   REDOS_LENGTH_GUARD,
 } from './regex';
@@ -434,6 +436,237 @@ describe('detectFlavorHints', () => {
 
   it('does not confuse a named group with an inline modifier', () => {
     expect(detectFlavorHints('(?<year>\\d{4})')).toEqual([]);
+  });
+});
+
+describe('REGEX_FLAVORS', () => {
+  it('lists javascript, pcre, python, java, dotnet and go, each with a label and hint', () => {
+    expect(REGEX_FLAVORS.map((f) => f.id)).toEqual(['javascript', 'pcre', 'python', 'java', 'dotnet', 'go']);
+    for (const flavor of REGEX_FLAVORS) {
+      expect(flavor.label.length).toBeGreaterThan(0);
+      expect(flavor.hint.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('resolveFlavorPattern', () => {
+  it('passes JavaScript through untouched, with no notes', () => {
+    const result = resolveFlavorPattern('(?P<year>\\d{4})', 'g', 'javascript');
+    expect(result).toEqual({ ok: true, value: { pattern: '(?P<year>\\d{4})', flags: 'g', notes: [] } });
+  });
+
+  it('translates a PCRE/Python named group to JavaScript syntax', () => {
+    const result = resolveFlavorPattern('(?P<year>\\d{4})', 'g', 'pcre');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.pattern).toBe('(?<year>\\d{4})');
+      expect(result.value.notes.some((n) => n.includes('named group'))).toBe(true);
+    }
+  });
+
+  it('translated named groups actually run and capture under JavaScript', () => {
+    const resolved = resolveFlavorPattern('(?P<year>\\d{4})', 'g', 'pcre');
+    expect(resolved.ok).toBe(true);
+    if (!resolved.ok) return;
+    const run = runRegex(resolved.value.pattern, resolved.value.flags, 'Born 1990');
+    expect(run.ok).toBe(true);
+    if (run.ok) expect(run.value.matches[0]?.named.year).toBe('1990');
+  });
+
+  it('translates a Python named back-reference (?P=name) to \\k<name>', () => {
+    const result = resolveFlavorPattern('(?P<a>x)(?P=a)', '', 'python');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.pattern).toBe('(?<a>x)\\k<a>');
+  });
+
+  it('translates \\g<name> named back-references to \\k<name>', () => {
+    const result = resolveFlavorPattern('(?P<a>x)\\g<a>', '', 'python');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.pattern).toBe('(?<a>x)\\k<a>');
+  });
+
+  it('translates a POSIX character class to a JavaScript range', () => {
+    const result = resolveFlavorPattern('[[:alpha:]]+', '', 'pcre');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.pattern).toBe('[a-zA-Z]+');
+      expect(result.value.notes.some((n) => n.includes('POSIX'))).toBe(true);
+    }
+  });
+
+  it('translates an atomic group to a plain non-capturing group, with a note', () => {
+    const result = resolveFlavorPattern('(?>abc)', '', 'pcre');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.pattern).toBe('(?:abc)');
+      expect(result.value.notes.some((n) => n.includes('Atomic'))).toBe(true);
+    }
+  });
+
+  it('translates a possessive quantifier to an ordinary greedy one, with a note', () => {
+    const result = resolveFlavorPattern('a++', '', 'pcre');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.pattern).toBe('a+');
+      expect(result.value.notes.some((n) => n.includes('Possessive'))).toBe(true);
+    }
+  });
+
+  it('translates \\A and \\Z anchors to ^ and $', () => {
+    const result = resolveFlavorPattern('\\Aabc\\Z', '', 'pcre');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.pattern).toBe('^abc$');
+      expect(result.value.notes.length).toBe(2);
+    }
+  });
+
+  it('warns that ^/$ differ from \\A/\\Z once multiline is on', () => {
+    const result = resolveFlavorPattern('\\Aabc\\Z', 'm', 'pcre');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.notes.some((n) => n.includes('multiline'))).toBe(true);
+  });
+
+  it("labels Python's \\Z distinctly from PCRE's \\Z/\\z", () => {
+    const result = resolveFlavorPattern('abc\\Z', '', 'python');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.notes.some((n) => n.startsWith('\\Z '))).toBe(true);
+  });
+
+  it('converts a leading inline flag modifier into the equivalent flag', () => {
+    const result = resolveFlavorPattern('(?i)abc', '', 'pcre');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.pattern).toBe('abc');
+      expect(result.value.flags).toBe('i');
+      expect(result.value.notes.some((n) => n.includes('(?i)'))).toBe(true);
+    }
+  });
+
+  it('merges an inline flag with flags already set, without duplicating', () => {
+    const result = resolveFlavorPattern('(?i)abc', 'i', 'pcre');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.flags).toBe('i');
+  });
+
+  it('notes that verbose/extended mode (x) is not supported', () => {
+    const result = resolveFlavorPattern('(?x)a b', '', 'pcre');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.pattern).toBe('a b');
+      expect(result.value.notes.some((n) => n.includes('Verbose'))).toBe(true);
+    }
+  });
+
+  it('translates a Go named group (?P<name>...) to JavaScript syntax', () => {
+    const result = resolveFlavorPattern('(?P<year>\\d{4})', 'g', 'go');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.pattern).toBe('(?<year>\\d{4})');
+  });
+
+  it('rejects lookahead for Go, since RE2 cannot run it', () => {
+    const result = resolveFlavorPattern('foo(?=bar)', '', 'go');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/lookahead.*RE2/i);
+  });
+
+  it('rejects lookbehind for Go', () => {
+    const result = resolveFlavorPattern('(?<=foo)bar', '', 'go');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/RE2/i);
+  });
+
+  it('rejects a numbered back-reference for Go', () => {
+    const result = resolveFlavorPattern('(a)\\1', '', 'go');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/back-reference/i);
+  });
+
+  it('rejects a named back-reference for Go, even spelled the Python way', () => {
+    const result = resolveFlavorPattern('(?P<a>x)(?P=a)', '', 'go');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/back-reference/i);
+  });
+
+  it('rejects an atomic group for Go', () => {
+    const result = resolveFlavorPattern('(?>abc)', '', 'go');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/RE2/i);
+  });
+
+  it('rejects a possessive quantifier for Go', () => {
+    const result = resolveFlavorPattern('a++', '', 'go');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/possessive/i);
+  });
+
+  it('accepts an ordinary Go pattern with no backtracking constructs', () => {
+    const result = resolveFlavorPattern('[0-9]+-[a-z]+', 'i', 'go');
+    expect(result).toEqual({ ok: true, value: { pattern: '[0-9]+-[a-z]+', flags: 'i', notes: [] } });
+  });
+
+  it('leaves a Java pattern using JavaScript-style named groups untouched', () => {
+    const result = resolveFlavorPattern('(?<year>\\d{4})', 'g', 'java');
+    expect(result).toEqual({ ok: true, value: { pattern: '(?<year>\\d{4})', flags: 'g', notes: [] } });
+  });
+
+  it("translates Java's POSIX \\p{Alpha}-style class to a JavaScript character class", () => {
+    const result = resolveFlavorPattern('\\p{Alpha}+', '', 'java');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.pattern).toBe('[a-zA-Z]+');
+      expect(result.value.notes.some((n) => n.includes('POSIX'))).toBe(true);
+    }
+  });
+
+  it('translates a Java possessive quantifier and atomic group the same way as PCRE', () => {
+    const result = resolveFlavorPattern('(?>a++)', '', 'java');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.pattern).toBe('(?:a+)');
+  });
+
+  it('rejects PCRE-style POSIX bracket classes under Java, rather than silently mis-parsing them', () => {
+    const result = resolveFlavorPattern('[[:alpha:]]+', '', 'java');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/POSIX/i);
+  });
+
+  it('rejects PCRE-style POSIX bracket classes under Python too', () => {
+    const result = resolveFlavorPattern('[[:alpha:]]+', '', 'python');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/not valid in Python/i);
+  });
+
+  it('leaves an ordinary .NET pattern using JavaScript-style named groups untouched', () => {
+    const result = resolveFlavorPattern('(?<year>\\d{4})', 'g', 'dotnet');
+    expect(result).toEqual({ ok: true, value: { pattern: '(?<year>\\d{4})', flags: 'g', notes: [] } });
+  });
+
+  it("translates .NET's quote-style named group to angle-bracket syntax", () => {
+    const result = resolveFlavorPattern("(?'year'\\d{4})", '', 'dotnet');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.pattern).toBe('(?<year>\\d{4})');
+      expect(result.value.notes.some((n) => n.includes('named group'))).toBe(true);
+    }
+  });
+
+  it("translates .NET's quote-style named back-reference to \\k<name>", () => {
+    const result = resolveFlavorPattern("(?'a'x)\\k'a'", '', 'dotnet');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.pattern).toBe("(?<a>x)\\k<a>");
+  });
+
+  it('rejects a .NET balancing group, since JavaScript has no equivalent construct', () => {
+    const result = resolveFlavorPattern('(?<open-close>a)', '', 'dotnet');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/[Bb]alancing/);
+  });
+
+  it('translates a .NET atomic group and possessive quantifier the same way as PCRE', () => {
+    const result = resolveFlavorPattern('(?>a++)', '', 'dotnet');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.pattern).toBe('(?:a+)');
   });
 });
 

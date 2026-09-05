@@ -137,6 +137,77 @@ describe('<RegexTester />', () => {
     expect(await screen.findByRole('alert')).toBeInTheDocument();
   });
 
+  it('shows a status line confirming the selected flavour, even when nothing needs translating', async () => {
+    render(<RegexTester />);
+    expect(screen.getByText(/running as javascript/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/regex flavour/i), { target: { value: 'go' } });
+    typeInto(screen.getByLabelText(/regular expression/i), '[0-9]+');
+
+    // Honest about doing nothing: an ordinary pattern needs no translation under most
+    // flavours, and claiming one happened anyway would be misleading busywork-theatre.
+    expect(screen.getByText(/identical to javascript here/i)).toBeInTheDocument();
+    expect(screen.queryByText(/running as javascript/i)).not.toBeInTheDocument();
+  });
+
+  it('says a pattern was actually translated only once something changed', async () => {
+    render(<RegexTester />);
+    fireEvent.change(screen.getByLabelText(/regex flavour/i), { target: { value: 'pcre' } });
+    typeInto(screen.getByLabelText(/regular expression/i), '(?P<year>\\d{4})');
+
+    expect(await screen.findByText(/translated before running/i)).toBeInTheDocument();
+    expect(screen.queryByText(/identical to javascript here/i)).not.toBeInTheDocument();
+  });
+
+  it('says a Go-incompatible pattern cannot be translated, in the status line too', async () => {
+    render(<RegexTester />);
+    fireEvent.change(screen.getByLabelText(/regex flavour/i), { target: { value: 'go' } });
+    typeInto(screen.getByLabelText(/regular expression/i), 'foo(?=bar)');
+
+    expect(await screen.findByText(/can't be translated/i)).toBeInTheDocument();
+  });
+
+  it('translates PCRE named-group syntax and runs it once the PCRE flavour is selected', async () => {
+    render(<RegexTester />);
+    fireEvent.change(screen.getByLabelText(/regex flavour/i), { target: { value: 'pcre' } });
+    typeInto(screen.getByLabelText(/regular expression/i), '(?P<year>\\d{4})');
+    typeInto(screen.getByLabelText(/test string/i), 'Born 1990');
+
+    expect(await screen.findByText('1 match')).toBeInTheDocument();
+    expect(screen.getByText('year')).toBeInTheDocument();
+    expect(screen.getAllByText('1990').length).toBeGreaterThan(0);
+    // Once a flavour is picked, the same syntax is translated rather than flagged.
+    expect(screen.queryByText(/Python\/PCRE syntax/i)).not.toBeInTheDocument();
+  });
+
+  it('shows an approximation note once a non-JavaScript flavour translates something', async () => {
+    render(<RegexTester />);
+    fireEvent.change(screen.getByLabelText(/regex flavour/i), { target: { value: 'pcre' } });
+    typeInto(screen.getByLabelText(/regular expression/i), '(?P<year>\\d{4})');
+
+    expect(await screen.findByText(/named group/i)).toBeInTheDocument();
+  });
+
+  it("rejects a Go-incompatible construct with a clear error naming RE2's constraint", async () => {
+    render(<RegexTester />);
+    fireEvent.change(screen.getByLabelText(/regex flavour/i), { target: { value: 'go' } });
+    typeInto(screen.getByLabelText(/regular expression/i), 'foo(?=bar)');
+    typeInto(screen.getByLabelText(/test string/i), 'foobar');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/RE2/i);
+  });
+
+  it('resets the flavour to JavaScript when Clear is pressed', async () => {
+    render(<RegexTester />);
+    const flavorSelect = screen.getByLabelText(/regex flavour/i) as HTMLSelectElement;
+    fireEvent.change(flavorSelect, { target: { value: 'python' } });
+    typeInto(screen.getByLabelText(/regular expression/i), 'abc');
+
+    fireEvent.click(screen.getByRole('button', { name: /^clear$/i }));
+
+    await waitFor(() => expect(flavorSelect.value).toBe('javascript'));
+  });
+
   it('tests a list of lines independently and reports pass/fail per line', async () => {
     render(<RegexTester />);
     typeInto(screen.getByLabelText(/regular expression/i), '^\\d+$');
@@ -246,6 +317,26 @@ describe('<RegexTester /> share link', () => {
     render(<RegexTester />);
 
     expect(await screen.findByText('2 matches')).toBeInTheDocument();
+    window.location.hash = '';
+  });
+
+  it('restores the selected flavour from a shared link', async () => {
+    const { encodeShareState } = await import('../lib/shareLink');
+    const encoded = await encodeShareState({
+      pattern: '(?P<year>\\d{4})',
+      flags: 'g',
+      flavor: 'pcre',
+      subject: 'Born 1990',
+      replacement: '',
+    });
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) return;
+
+    window.location.hash = `#s=${encoded.value}`;
+    render(<RegexTester />);
+
+    expect(await screen.findByText('1 match')).toBeInTheDocument();
+    expect((screen.getByLabelText(/regex flavour/i) as HTMLSelectElement).value).toBe('pcre');
     window.location.hash = '';
   });
 });

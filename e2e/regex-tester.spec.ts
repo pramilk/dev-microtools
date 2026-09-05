@@ -76,4 +76,20 @@ test.describe('Regex Tester', () => {
 
     await expect(tool.getByText(/took too long to run and was stopped/i)).toBeVisible({ timeout: 5_000 });
   });
+
+  test('translates PCRE syntax under the flavour selector, and rejects a Go-incompatible pattern', async ({ page }) => {
+    await gotoTool(page, 'regex-tester');
+    const tool = widget(page);
+
+    await tool.getByLabel(/regex flavour/i).selectOption('pcre');
+    await patternField(tool).fill('(?P<year>\\d{4})');
+    await subjectField(tool).fill('Born 1990');
+    await expect(tool.getByText('1 match')).toBeVisible();
+    await expect(tool.getByText(/named group/i)).toBeVisible();
+
+    await tool.getByLabel(/regex flavour/i).selectOption('go');
+    await patternField(tool).fill('foo(?=bar)');
+    await subjectField(tool).fill('foobar');
+    await expect(tool.getByRole('alert')).toContainText(/RE2/i);
+  });
 });

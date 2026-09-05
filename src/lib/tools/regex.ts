@@ -855,6 +855,274 @@ export function detectFlavorHints(pattern: string): string[] {
   return FLAVOR_HINTS.filter(({ test }) => test.test(pattern)).map(({ message }) => message);
 }
 
+// -------------------------------------------------------------- Regex flavours
+
+export type RegexFlavor = 'javascript' | 'pcre' | 'python' | 'java' | 'dotnet' | 'go';
+
+export interface RegexFlavorInfo {
+  id: RegexFlavor;
+  label: string;
+  hint: string;
+}
+
+/**
+ * The engine actually running is always JavaScript's `RegExp` — there is no PCRE, Python,
+ * Java, .NET or Go engine available client-side, and shipping one (e.g. a WASM PCRE2
+ * build) would be a large dependency for a single tool's secondary feature. Instead, the
+ * non-JS flavours translate the well-known *syntax* differences (named groups, POSIX
+ * classes, `\A`/`\Z` anchors, possessive quantifiers, atomic groups...) into their
+ * JavaScript equivalent before running, and surface a note wherever the translation is an
+ * approximation rather than an exact match. This is honest about what it is: a syntax
+ * bridge with behavioural caveats, not five real engines.
+ */
+export const REGEX_FLAVORS: RegexFlavorInfo[] = [
+  {
+    id: 'javascript',
+    label: 'JavaScript',
+    hint: 'The engine this tool actually runs — no translation applied.',
+  },
+  {
+    id: 'pcre',
+    label: 'PCRE (PHP / Perl)',
+    hint: 'PCRE-only syntax (named groups, POSIX classes, \\A/\\Z...) is translated to its JavaScript equivalent before running.',
+  },
+  {
+    id: 'python',
+    label: 'Python (re)',
+    hint: "Python's re-only syntax is translated to its JavaScript equivalent before running.",
+  },
+  {
+    id: 'java',
+    label: 'Java',
+    hint: "Java-only syntax — POSIX \\p{Alpha}-style classes, possessive quantifiers, atomic groups — is translated to its JavaScript equivalent before running.",
+  },
+  {
+    id: 'dotnet',
+    label: '.NET (C#)',
+    hint: 'Most .NET syntax already matches JavaScript; quote-style named groups are translated, and balancing groups (no JavaScript equivalent exists) are rejected rather than mistranslated.',
+  },
+  {
+    id: 'go',
+    label: 'Go (RE2)',
+    hint: "RE2 guarantees linear-time matching by forbidding backtracking constructs — lookaround and back-references are rejected, not approximated, because Go's regexp package genuinely cannot run them.",
+  },
+];
+
+const POSIX_CLASS_MAP: Record<string, string> = {
+  alpha: 'a-zA-Z',
+  digit: '0-9',
+  alnum: 'a-zA-Z0-9',
+  upper: 'A-Z',
+  lower: 'a-z',
+  space: ' \\t\\n\\r\\f\\v',
+  punct: '!-\\/:-@\\[-`{-~',
+  xdigit: '0-9a-fA-F',
+  blank: ' \\t',
+  cntrl: '\\x00-\\x1f\\x7f',
+  print: '\\x20-\\x7e',
+  graph: '\\x21-\\x7e',
+  ascii: '\\x00-\\x7f',
+};
+
+/** Flavours that spell a named group the Python/PCRE way — `(?P<name>...)`, `(?P=name)`, `\g<name>` — rather than JavaScript's own `(?<name>...)`/`\k<name>`. Java and .NET already use JavaScript's own angle-bracket syntax, so they're not in this list. */
+const PYTHON_STYLE_NAMED_GROUP_FLAVORS: RegexFlavor[] = ['pcre', 'python', 'go'];
+
+/** Flavours whose `[:alpha:]`-style POSIX bracket classes match JavaScript's `[a-zA-Z]`-style ranges one-for-one. Python and .NET don't have this syntax at all; Java spells the same idea `\p{Alpha}` instead. */
+const POSIX_BRACKET_CLASS_FLAVORS: RegexFlavor[] = ['pcre', 'go'];
+
+function findInvalidPosixBracketUsage(pattern: string, flavor: RegexFlavor): string | null {
+  if (POSIX_BRACKET_CLASS_FLAVORS.includes(flavor)) return null;
+  if (!/\[:[a-z]+:\]/.test(pattern)) return null;
+  const label = REGEX_FLAVORS.find((f) => f.id === flavor)?.label ?? flavor;
+  const suggestion = flavor === 'java' ? 'Use a \\p{Alpha}-style class instead.' : 'Use a character range like [a-zA-Z] instead.';
+  return `[:name:]-style POSIX classes are PCRE/POSIX syntax and are not valid in ${label}. ${suggestion}`;
+}
+
+function translatePosixClasses(pattern: string, flavor: RegexFlavor, notes: string[]): string {
+  let out = pattern;
+  if (POSIX_BRACKET_CLASS_FLAVORS.includes(flavor) && /\[:[a-z]+:\]/.test(out)) {
+    notes.push('POSIX classes such as [:alpha:] were translated to an equivalent JavaScript character range.');
+    out = out.replace(/\[:([a-z]+):\]/g, (full, name: string) => POSIX_CLASS_MAP[name] ?? full);
+  }
+
+  const JAVA_POSIX_PROPERTY = /\\p\{(Lower|Upper|Alpha|Digit|Alnum|Punct|Graph|Print|Blank|Cntrl|XDigit|ASCII)\}/gi;
+  if (flavor === 'java' && JAVA_POSIX_PROPERTY.test(out)) {
+    notes.push(
+      "Java's POSIX \\p{Alpha}-style classes were translated to an equivalent JavaScript character class. If one appeared inside a larger [...] class rather than on its own, double-check the translated pattern still does what you expect."
+    );
+    out = out.replace(JAVA_POSIX_PROPERTY, (full, name: string) => `[${POSIX_CLASS_MAP[name.toLowerCase()] ?? full}]`);
+  }
+
+  return out;
+}
+
+function translateNamedGroupSyntax(pattern: string, flavor: RegexFlavor, notes: string[]): string {
+  let out = pattern;
+  if (PYTHON_STYLE_NAMED_GROUP_FLAVORS.includes(flavor)) {
+    if (/\(\?P</.test(out)) {
+      notes.push('(?P<name>...) named groups were translated to JavaScript’s (?<name>...) syntax.');
+      out = out.replace(/\(\?P</g, '(?<');
+    }
+    if (/\(\?P=\w+\)/.test(out)) {
+      notes.push('(?P=name) named back-references were translated to \\k<name>.');
+      out = out.replace(/\(\?P=(\w+)\)/g, '\\k<$1>');
+    }
+    if (/\\g<\w+>/.test(out)) {
+      notes.push('\\g<name> named back-references were translated to \\k<name>.');
+      out = out.replace(/\\g<(\w+)>/g, '\\k<$1>');
+    }
+  }
+
+  if (flavor === 'dotnet') {
+    if (/\(\?'[^']+'/.test(out)) {
+      notes.push("(?'name'...) named groups were translated to JavaScript’s (?<name>...) syntax.");
+      out = out.replace(/\(\?'([^']+)'/g, '(?<$1>');
+    }
+    if (/\\k'[^']+'/.test(out)) {
+      notes.push("\\k'name' named back-references were translated to \\k<name>.");
+      out = out.replace(/\\k'([^']+)'/g, '\\k<$1>');
+    }
+  }
+
+  return out;
+}
+
+function translateAtomicAndPossessive(pattern: string, notes: string[]): string {
+  let out = pattern;
+  if (/\(\?>/.test(out)) {
+    notes.push(
+      'Atomic groups (?>...) are not supported in JavaScript; treated as an ordinary group, so backtracking behaviour may differ on pathological input.'
+    );
+    out = out.replace(/\(\?>/g, '(?:');
+  }
+  if (/[*+?}]\+/.test(out)) {
+    notes.push(
+      'Possessive quantifiers (like *+ or ++) are not supported in JavaScript; treated as ordinary greedy quantifiers.'
+    );
+    out = out.replace(/([*+?}])\+/g, '$1');
+  }
+  return out;
+}
+
+/** `\A` is start-of-string in every flavour here. The end anchor differs enough to need per-flavour handling. */
+function translateAnchors(pattern: string, flavor: RegexFlavor, hasMultiline: boolean, notes: string[]): string {
+  let out = pattern;
+  if (/\\A/.test(out)) {
+    out = out.replace(/\\A/g, '^');
+    notes.push(
+      '\\A (start of string) was translated to ^.' +
+        (hasMultiline ? ' With multiline mode on, ^ also matches the start of each line, which \\A would not.' : '')
+    );
+  }
+
+  const endAnchor = flavor === 'go' ? /\\z/ : /\\Z|\\z/;
+  if (endAnchor.test(out)) {
+    const label = flavor === 'python' ? '\\Z' : flavor === 'go' ? '\\z' : '\\Z or \\z';
+    out = out.replace(/\\Z|\\z/g, '$');
+    notes.push(
+      `${label} (absolute end of string) was translated to $.` +
+        (hasMultiline ? ' With multiline mode on, $ also matches the end of each line, which this anchor would not.' : '')
+    );
+  }
+  return out;
+}
+
+function translateLeadingInlineFlags(pattern: string, notes: string[]): { pattern: string; addFlags: string } {
+  const match = /^\(\?([a-zA-Z]+)\)/.exec(pattern);
+  if (!match) return { pattern, addFlags: '' };
+
+  const letters = match[1]!;
+  const flagFor: Record<string, string> = { i: 'i', m: 'm', s: 's' };
+  const addFlags = [...letters]
+    .map((letter) => flagFor[letter])
+    .filter((flag): flag is string => Boolean(flag))
+    .join('');
+
+  if (letters.includes('x')) {
+    notes.push(
+      'Verbose/extended mode (x) is not supported; whitespace and # comments inside the pattern are treated literally, not stripped.'
+    );
+  }
+  if (addFlags) {
+    notes.push(`The inline modifier (?${letters}) at the start of the pattern was converted to the matching flag checkbox.`);
+  }
+
+  return { pattern: pattern.slice(match[0].length), addFlags };
+}
+
+/** RE2 (Go) refuses these outright rather than approximating them, because it genuinely cannot execute them. */
+function findUnsupportedRE2Construct(pattern: string): string | null {
+  if (/\(\?<?[=!]/.test(pattern)) {
+    return "Lookahead/lookbehind is not supported by Go's RE2 engine, which guarantees linear-time matching by disallowing backtracking constructs. Remove it to test a pattern Go can actually run.";
+  }
+  if (/\\k<\w+>|\\[1-9]\d*/.test(pattern)) {
+    return "Back-references are not supported by Go's RE2 engine, for the same reason: they require backtracking. Remove it to test a pattern Go can actually run.";
+  }
+  if (/\(\?>/.test(pattern)) {
+    return "Atomic groups are not a concept in Go's RE2 engine, which never backtracks in the first place. Remove it to test a pattern Go can actually run.";
+  }
+  if (/[*+?}]\+/.test(pattern)) {
+    return "Possessive quantifiers are not valid syntax in Go's RE2 engine. Use an ordinary quantifier instead.";
+  }
+  return null;
+}
+
+/** .NET balancing groups have no JavaScript equivalent at all — rejected outright rather than silently mistranslated. */
+function findUnsupportedDotNetConstruct(pattern: string): string | null {
+  if (/\(\?<\w*-\w+>/.test(pattern)) {
+    return "Balancing groups like (?<name1-name2>...) have no equivalent in JavaScript's regex engine — there is no construct that tracks nested group counts the way .NET's does. Rewrite the pattern without them to test it here.";
+  }
+  return null;
+}
+
+export interface FlavorResolution {
+  /** The JavaScript-compatible pattern actually compiled and run. */
+  pattern: string;
+  /** `flags`, plus any flags implied by a translated inline modifier like `(?i)`. */
+  flags: string;
+  /** Approximations made during translation, shown to the user as informational notes. */
+  notes: string[];
+}
+
+/**
+ * Translates `pattern` from `flavor`'s syntax into the JavaScript syntax this tool can
+ * actually execute, collecting a human-readable note for every approximation made. Two
+ * kinds of construct are rejected outright instead of approximated, because there is no
+ * JavaScript equivalent to fall back on at all: Go/RE2's backtracking constructs
+ * (lookaround, back-references, atomic groups, possessive quantifiers — genuinely
+ * unrunnable, not just differently-spelled) and .NET's balancing groups (a nested-count
+ * tracker JavaScript's engine has no concept of). See {@link REGEX_FLAVORS}'s doc comment
+ * for why approximation is the right default everywhere else.
+ */
+export function resolveFlavorPattern(pattern: string, flags: string, flavor: RegexFlavor): ToolResult<FlavorResolution> {
+  if (flavor === 'javascript') return ok({ pattern, flags, notes: [] });
+
+  const invalidPosix = findInvalidPosixBracketUsage(pattern, flavor);
+  if (invalidPosix) return err(invalidPosix);
+
+  if (flavor === 'dotnet') {
+    const unsupportedDotNet = findUnsupportedDotNetConstruct(pattern);
+    if (unsupportedDotNet) return err(unsupportedDotNet);
+  }
+
+  const notes: string[] = [];
+  const inline = translateLeadingInlineFlags(pattern, notes);
+  const mergedFlags = Array.from(new Set([...flags, ...inline.addFlags])).join('');
+
+  let working = translateNamedGroupSyntax(inline.pattern, flavor, notes);
+  working = translatePosixClasses(working, flavor, notes);
+  working = translateAnchors(working, flavor, mergedFlags.includes('m'), notes);
+
+  if (flavor === 'go') {
+    const unsupported = findUnsupportedRE2Construct(working);
+    if (unsupported) return err(unsupported);
+  } else {
+    working = translateAtomicAndPossessive(working, notes);
+  }
+
+  return ok({ pattern: working, flags: mergedFlags, notes });
+}
+
 /** Applies a replacement pattern, supporting $1 / $<name> back-references. */
 export function applyReplace(
   pattern: string,

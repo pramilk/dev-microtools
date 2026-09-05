@@ -4,14 +4,17 @@ import {
   toSegments,
   explainRegex,
   REGEX_FLAGS,
+  REGEX_FLAVORS,
   COMMON_PATTERNS,
   buildPatternTree,
   flattenPatternGroups,
   detectFlavorHints,
+  resolveFlavorPattern,
   GROUP_TINT_COUNT,
   type PatternSegmentNode,
   type RegexRun,
   type LineTestResult,
+  type RegexFlavor,
 } from '../lib/tools/regex';
 import { ok, err, type ToolResult } from '../lib/tools/result';
 import { readShareStateFromLocation } from '../lib/shareLink';
@@ -74,11 +77,16 @@ interface ShareState {
   flags: string;
   subject: string;
   replacement: string;
+  flavor?: RegexFlavor;
 }
+
+/** The flavour a fresh page starts with — the engine this tool actually runs, no translation. */
+const DEFAULT_FLAVOR: RegexFlavor = 'javascript';
 
 export default function RegexTester() {
   const [pattern, setPattern] = useState('');
   const [flags, setFlags] = useState(DEFAULT_FLAGS);
+  const [flavor, setFlavor] = useState<RegexFlavor>(DEFAULT_FLAVOR);
   const [subject, setSubject] = useState('');
   const [replacement, setReplacement] = useState('');
   const [showReplace, setShowReplace] = useState(false);
@@ -93,6 +101,8 @@ export default function RegexTester() {
       if (!restored?.ok) return;
       setPattern(restored.value.pattern);
       setFlags(restored.value.flags);
+      // Fall back for links made before flavour was shared, rather than restoring `undefined`.
+      setFlavor(restored.value.flavor ?? DEFAULT_FLAVOR);
       setSubject(restored.value.subject);
       if (restored.value.replacement !== '') {
         setReplacement(restored.value.replacement);
@@ -101,6 +111,15 @@ export default function RegexTester() {
       history.replaceState(null, '', window.location.pathname);
     });
   }, []);
+
+  // The pattern/flags actually compiled and run: identical to what was typed in JavaScript
+  // mode, or translated from the selected flavour's syntax otherwise (see resolveFlavorPattern's
+  // doc comment on why this is a syntax bridge rather than a real second engine).
+  const resolved = useMemo(() => resolveFlavorPattern(pattern, flags, flavor), [pattern, flags, flavor]);
+  const flavorError = resolved.ok ? null : resolved.error;
+  const effectivePattern = resolved.ok ? resolved.value.pattern : '';
+  const effectiveFlags = resolved.ok ? resolved.value.flags : flags;
+  const flavorNotes = resolved.ok ? resolved.value.notes : [];
 
   const regexWorkerTask = useWorkerTask<RegexWorkerRequest, RegexWorkerResult>(() => new RegexWorker());
 
@@ -120,25 +139,32 @@ export default function RegexTester() {
       setRunBusy(false);
       return;
     }
+    if (flavorError) {
+      setRun(err(flavorError));
+      setRunBusy(false);
+      return;
+    }
     const id = (runRequestId.current += 1);
     const timer = window.setTimeout(() => {
       setRunBusy(true);
-      regexWorkerTask.run({ kind: 'run', pattern, flags, subject }, { timeoutMs: REGEX_TIMEOUT_MS }).then(
-        (result) => {
-          if (id !== runRequestId.current || result.kind !== 'run') return;
-          setRunBusy(false);
-          setRun(ok(result.value));
-        },
-        (thrown: unknown) => {
-          if (id !== runRequestId.current) return;
-          setRunBusy(false);
-          setRun(err(timeoutMessage(thrown, 'Something went wrong running that pattern.')));
-        }
-      );
+      regexWorkerTask
+        .run({ kind: 'run', pattern: effectivePattern, flags: effectiveFlags, subject }, { timeoutMs: REGEX_TIMEOUT_MS })
+        .then(
+          (result) => {
+            if (id !== runRequestId.current || result.kind !== 'run') return;
+            setRunBusy(false);
+            setRun(ok(result.value));
+          },
+          (thrown: unknown) => {
+            if (id !== runRequestId.current) return;
+            setRunBusy(false);
+            setRun(err(timeoutMessage(thrown, 'Something went wrong running that pattern.')));
+          }
+        );
     }, REGEX_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pattern, flags, subject]);
+  }, [pattern, effectivePattern, effectiveFlags, flavorError, subject]);
 
   const matches = run?.ok ? run.value.matches : [];
   const error = run && !run.ok ? run.error : null;
@@ -158,30 +184,41 @@ export default function RegexTester() {
       setReplaceBusy(false);
       return;
     }
+    if (flavorError) {
+      setReplaced(err(flavorError));
+      setReplaceBusy(false);
+      return;
+    }
     const id = (replaceRequestId.current += 1);
     const timer = window.setTimeout(() => {
       setReplaceBusy(true);
-      regexWorkerTask.run({ kind: 'replace', pattern, flags, subject, replacement }, { timeoutMs: REGEX_TIMEOUT_MS }).then(
-        (result) => {
-          if (id !== replaceRequestId.current || result.kind !== 'replace') return;
-          setReplaceBusy(false);
-          setReplaced(ok(result.value));
-        },
-        (thrown: unknown) => {
-          if (id !== replaceRequestId.current) return;
-          setReplaceBusy(false);
-          setReplaced(err(timeoutMessage(thrown, 'Could not apply that replacement.')));
-        }
-      );
+      regexWorkerTask
+        .run(
+          { kind: 'replace', pattern: effectivePattern, flags: effectiveFlags, subject, replacement },
+          { timeoutMs: REGEX_TIMEOUT_MS }
+        )
+        .then(
+          (result) => {
+            if (id !== replaceRequestId.current || result.kind !== 'replace') return;
+            setReplaceBusy(false);
+            setReplaced(ok(result.value));
+          },
+          (thrown: unknown) => {
+            if (id !== replaceRequestId.current) return;
+            setReplaceBusy(false);
+            setReplaced(err(timeoutMessage(thrown, 'Could not apply that replacement.')));
+          }
+        );
     }, REGEX_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showReplace, pattern, flags, subject, replacement]);
+  }, [showReplace, pattern, effectivePattern, effectiveFlags, flavorError, subject, replacement]);
 
   const explanation = useMemo(() => {
     if (!showExplain || pattern === '') return null;
-    return explainRegex(pattern, flags);
-  }, [showExplain, pattern, flags]);
+    if (flavorError) return err(flavorError);
+    return explainRegex(effectivePattern, effectiveFlags);
+  }, [showExplain, pattern, effectivePattern, effectiveFlags, flavorError]);
 
   const [lineResults, setLineResults] = useState<ToolResult<LineTestResult[]> | null>(null);
   const [lineTestBusy, setLineTestBusy] = useState(false);
@@ -193,25 +230,32 @@ export default function RegexTester() {
       setLineTestBusy(false);
       return;
     }
+    if (flavorError) {
+      setLineResults(err(flavorError));
+      setLineTestBusy(false);
+      return;
+    }
     const id = (lineTestRequestId.current += 1);
     const timer = window.setTimeout(() => {
       setLineTestBusy(true);
-      regexWorkerTask.run({ kind: 'testLines', pattern, flags, subject: testList }, { timeoutMs: REGEX_TIMEOUT_MS }).then(
-        (result) => {
-          if (id !== lineTestRequestId.current || result.kind !== 'testLines') return;
-          setLineTestBusy(false);
-          setLineResults(ok(result.value));
-        },
-        (thrown: unknown) => {
-          if (id !== lineTestRequestId.current) return;
-          setLineTestBusy(false);
-          setLineResults(err(timeoutMessage(thrown, 'Something went wrong testing those lines.')));
-        }
-      );
+      regexWorkerTask
+        .run({ kind: 'testLines', pattern: effectivePattern, flags: effectiveFlags, subject: testList }, { timeoutMs: REGEX_TIMEOUT_MS })
+        .then(
+          (result) => {
+            if (id !== lineTestRequestId.current || result.kind !== 'testLines') return;
+            setLineTestBusy(false);
+            setLineResults(ok(result.value));
+          },
+          (thrown: unknown) => {
+            if (id !== lineTestRequestId.current) return;
+            setLineTestBusy(false);
+            setLineResults(err(timeoutMessage(thrown, 'Something went wrong testing those lines.')));
+          }
+        );
     }, REGEX_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showLineTest, pattern, flags, testList]);
+  }, [showLineTest, pattern, effectivePattern, effectiveFlags, flavorError, testList]);
 
   const patternTree = useMemo(() => (pattern !== '' ? buildPatternTree(pattern) : []), [pattern]);
   const groupList = useMemo(() => flattenPatternGroups(patternTree), [patternTree]);
@@ -219,7 +263,12 @@ export default function RegexTester() {
     () => new Map(groupList.filter((g) => g.name !== undefined).map((g) => [g.name!, g.index])),
     [groupList]
   );
-  const flavorHints = useMemo(() => (pattern !== '' ? detectFlavorHints(pattern) : []), [pattern]);
+  // Only nudges toward the flavour selector while still in JavaScript mode — once a
+  // flavour is picked, that same syntax is deliberately translated instead of flagged.
+  const flavorHints = useMemo(
+    () => (flavor === 'javascript' && pattern !== '' ? detectFlavorHints(pattern) : []),
+    [flavor, pattern]
+  );
 
   const toggleFlag = (flag: string) => {
     setFlags((current) =>
@@ -241,11 +290,13 @@ export default function RegexTester() {
     subject === '' &&
     replacement === '' &&
     testList === '' &&
-    flags === DEFAULT_FLAGS;
+    flags === DEFAULT_FLAGS &&
+    flavor === DEFAULT_FLAVOR;
 
   const clearAll = () => {
     setPattern('');
     setFlags(DEFAULT_FLAGS);
+    setFlavor(DEFAULT_FLAVOR);
     setSubject('');
     setReplacement('');
     setTestList('');
@@ -257,10 +308,23 @@ export default function RegexTester() {
   return (
     <div class="tool">
       <div class="field">
-        <label class="field__label" for="rx-pattern">
-          <span>Regular expression</span>
-          <span class="field__hint">JavaScript flavour</span>
-        </label>
+        <div class="field__label">
+          <label for="rx-pattern">Regular expression</label>
+          <select
+            id="rx-flavor"
+            class="select rx-flavor-select"
+            aria-label="Regex flavour"
+            title="Which engine's syntax to read the pattern as. This tool only runs JavaScript's engine — the other flavours translate their syntax to JavaScript's first and note any approximation made."
+            value={flavor}
+            onChange={(event) => setFlavor((event.target as HTMLSelectElement).value as RegexFlavor)}
+          >
+            {REGEX_FLAVORS.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <div class="rx-input">
           <span class="rx-input__delim" aria-hidden="true">
             /
@@ -279,6 +343,19 @@ export default function RegexTester() {
             /{flags}
           </span>
         </div>
+        <p class="field__hint rx-flavor-status">
+          {(() => {
+            if (flavor === 'javascript') {
+              return 'Running as JavaScript — the engine this tool actually executes, no translation.';
+            }
+            const label = REGEX_FLAVORS.find((f) => f.id === flavor)?.label;
+            if (flavorError) return `Read as ${label} syntax — this pattern can't be translated to JavaScript, see below.`;
+            if (flavorNotes.length === 0) {
+              return `Read as ${label} syntax — identical to JavaScript here, so nothing needed translating.`;
+            }
+            return `Read as ${label} syntax — translated before running, see the notes below.`;
+          })()}
+        </p>
       </div>
 
       {flavorHints.length > 0 && (
@@ -289,6 +366,19 @@ export default function RegexTester() {
                 !
               </span>
               <span>{hint}</span>
+            </p>
+          ))}
+        </div>
+      )}
+
+      {flavorNotes.length > 0 && (
+        <div class="msg-list">
+          {flavorNotes.map((note, index) => (
+            <p key={index} class="msg msg--info">
+              <span class="msg__icon" aria-hidden="true">
+                ⓘ
+              </span>
+              <span>{note}</span>
             </p>
           ))}
         </div>
@@ -343,57 +433,61 @@ export default function RegexTester() {
           </button>
         ))}
 
-        <span class="tool-bar__spacer" />
-        <ShareLinkButton
-          getState={() => ({ pattern, flags, subject, replacement: showReplace ? replacement : '' })}
-          describe="this pattern"
-        />
-        <select
-          class="input rx-preset-select"
-          aria-label="Load a common pattern"
-          title="Start from a ready-made pattern for a common case"
-          value=""
-          onChange={(event) => {
-            const select = event.target as HTMLSelectElement;
-            const preset = COMMON_PATTERNS.find((p) => p.id === select.value);
-            if (preset) {
-              setPattern(preset.pattern);
-              setFlags(preset.flags);
-              setSubject(preset.sample);
-            }
-            select.value = '';
-          }}
-        >
-          <option value="" disabled>
-            Common patterns…
-          </option>
-          {COMMON_PATTERNS.map((preset) => (
-            <option key={preset.id} value={preset.id}>
-              {preset.label}
+        {/* Its own auto-margin, not the usual bare .tool-bar__spacer, so this whole
+            cluster stays right-aligned even when it wraps to its own line below the
+            flags — a bare spacer only pushes whatever shares its own flex line. */}
+        <div class="tool-bar__group rx-actions">
+          <ShareLinkButton
+            getState={() => ({ pattern, flags, flavor, subject, replacement: showReplace ? replacement : '' })}
+            describe="this pattern"
+          />
+          <select
+            class="input rx-preset-select"
+            aria-label="Load a common pattern"
+            title="Start from a ready-made pattern for a common case"
+            value=""
+            onChange={(event) => {
+              const select = event.target as HTMLSelectElement;
+              const preset = COMMON_PATTERNS.find((p) => p.id === select.value);
+              if (preset) {
+                setPattern(preset.pattern);
+                setFlags(preset.flags);
+                setSubject(preset.sample);
+              }
+              select.value = '';
+            }}
+          >
+            <option value="" disabled>
+              Common patterns…
             </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          class="btn"
-          onClick={() => {
-            setPattern(SAMPLE.pattern);
-            setSubject(SAMPLE.sample);
-            setFlags(SAMPLE.flags);
-          }}
-          title="Load an example pattern and text to try the tool"
-        >
-          Load example
-        </button>
-        <button
-          type="button"
-          class="btn"
-          onClick={clearAll}
-          disabled={isEmpty}
-          title="Clear the pattern, flags and text, and start over"
-        >
-          Clear
-        </button>
+            {COMMON_PATTERNS.map((preset) => (
+              <option key={preset.id} value={preset.id}>
+                {preset.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            class="btn"
+            onClick={() => {
+              setPattern(SAMPLE.pattern);
+              setSubject(SAMPLE.sample);
+              setFlags(SAMPLE.flags);
+            }}
+            title="Load an example pattern and text to try the tool"
+          >
+            Load example
+          </button>
+          <button
+            type="button"
+            class="btn"
+            onClick={clearAll}
+            disabled={isEmpty}
+            title="Clear the pattern, flags and text, and start over"
+          >
+            Clear
+          </button>
+        </div>
       </div>
 
       <ErrorMessage message={error} />
@@ -618,7 +712,10 @@ export default function RegexTester() {
           color: var(--text-subtle); font-size: var(--text-sm);
         }
         .rx-input__field { flex: 1; }
+        .rx-flavor-status { margin: var(--space-2) 0 0; }
+        .rx-actions { margin-left: auto; }
         .rx-preset-select { width: auto; max-width: 12rem; font-size: var(--text-sm); }
+        .rx-flavor-select { width: auto; max-width: 11rem; font-size: var(--text-xs); padding: 0.25rem 0.5rem; }
         .msg-list { display: flex; flex-direction: column; gap: var(--space-2); }
         .pattern-breakdown {
           border: 1px solid var(--border); border-radius: var(--radius);
