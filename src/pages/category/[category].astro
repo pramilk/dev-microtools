@@ -1,0 +1,266 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { TOOL_ICONS, DEFAULT_TOOL_ICON } from '../../lib/toolIcons';
+import { AI_POWERED_TOOL_SLUGS } from '../../lib/aiTools';
+import { SITE } from '../../lib/site';
+import {
+  CATEGORIES,
+  CATEGORY_SLUGS,
+  CATEGORY_INTROS,
+  CATEGORY_HEADLINES,
+  type Category,
+} from '../../lib/categories';
+
+// Crawlable landing page per category — until this route existed, "security tools online" /
+// "image tools browser" style category-level search intent had no dedicated page to rank
+// for, only client-side filter state on the homepage (see .assets/SEO-REVIEW.md Tier 2 #4).
+export async function getStaticPaths() {
+  const tools = await getCollection('tools');
+  return CATEGORIES.filter((category) => tools.some((tool) => tool.data.category === category)).map(
+    (category) => ({
+      params: { category: CATEGORY_SLUGS[category] },
+      props: { category },
+    })
+  );
+}
+
+interface Props {
+  category: Category;
+}
+
+const { category } = Astro.props;
+const path = `/category/${CATEGORY_SLUGS[category]}/`;
+const pageUrl = new URL(path, Astro.site ?? SITE.url).href;
+
+const allTools = await getCollection('tools');
+const tools = allTools.filter((tool) => tool.data.category === category).sort((a, b) => a.data.order - b.data.order);
+
+const headline = CATEGORY_HEADLINES[category];
+const intro = CATEGORY_INTROS[category];
+
+const schema = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: `${headline} | ${SITE.name}`,
+    description: intro,
+    url: pageUrl,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    itemListElement: tools.map((tool, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: tool.data.title,
+      url: new URL(`/${tool.id}/`, Astro.site ?? SITE.url).href,
+    })),
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: new URL('/', Astro.site ?? SITE.url).href },
+      { '@type': 'ListItem', position: 2, name: category, item: pageUrl },
+    ],
+  },
+];
+---
+
+<BaseLayout title={headline} description={intro} canonicalPath={path} schema={schema}>
+  <div class="category-page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="/">Home</a>
+      <span aria-hidden="true">/</span>
+      <span aria-current="page">{category}</span>
+    </nav>
+
+    <header class="category-page__header">
+      <p class="eyebrow">{tools.length} tools</p>
+      <h1>{headline}</h1>
+      <p class="lede">{intro}</p>
+    </header>
+
+    <ul class="grid">
+      {
+        tools.map((tool) => (
+          <li>
+            <a href={`/${tool.id}/`} class="card tool-card">
+              <span class="tool-card__top">
+                <span class="tool-card__icon" aria-hidden="true">
+                  {TOOL_ICONS[tool.id] ?? DEFAULT_TOOL_ICON}
+                </span>
+                <span class="tool-card__name">{tool.data.title}</span>
+              </span>
+              <span class="tool-card__summary">{tool.data.summary}</span>
+              {AI_POWERED_TOOL_SLUGS.has(tool.id) && (
+                <span
+                  class="tool-card__ai-badge"
+                  title="Uses an on-device AI model — still runs entirely in your browser"
+                >
+                  AI
+                </span>
+              )}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <p class="category-page__all">
+      Looking for something else? <a href="/">Browse all {allTools.length} tools</a>.
+    </p>
+  </div>
+</BaseLayout>
+
+<style>
+  .category-page {
+    width: 100%;
+    max-width: var(--content-width-wide);
+    margin-inline: auto;
+    padding-inline: var(--space-4);
+    padding-block: var(--space-5) var(--space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+
+  @media (min-width: 48rem) {
+    .category-page {
+      padding-inline: var(--space-5);
+    }
+  }
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-base);
+    color: var(--text-subtle);
+  }
+
+  .breadcrumb a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-color: var(--accent-border);
+    text-underline-offset: 2px;
+  }
+
+  .breadcrumb a:hover {
+    color: var(--accent-hover);
+    text-decoration-color: currentColor;
+  }
+
+  .category-page__header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-width: 52rem;
+  }
+
+  .category-page__header .lede {
+    color: var(--text-muted);
+  }
+
+  .grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  }
+
+  .tool-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    height: 100%;
+    padding: var(--space-4);
+    text-decoration: none;
+    transition:
+      border-color 0.12s ease,
+      box-shadow 0.12s ease;
+  }
+
+  .tool-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow);
+  }
+
+  .tool-card__top {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .tool-card__icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-width: 2.1rem;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    opacity: 0.85;
+    transition: opacity 0.12s ease;
+  }
+
+  .tool-card:hover .tool-card__icon {
+    opacity: 1;
+  }
+
+  .tool-card__name {
+    font-weight: 650;
+    color: var(--text);
+    font-size: var(--text-base);
+  }
+
+  .tool-card:hover .tool-card__name {
+    color: var(--accent);
+  }
+
+  .tool-card__summary {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .tool-card__ai-badge {
+    position: absolute;
+    bottom: var(--space-3);
+    right: var(--space-3);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 0.05rem 0.3rem;
+    opacity: 0.8;
+  }
+
+  .category-page__all {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .category-page__all a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-color: var(--accent-border);
+    text-underline-offset: 2px;
+  }
+
+  .category-page__all a:hover {
+    color: var(--accent-hover);
+    text-decoration-color: currentColor;
+  }
+</style>
