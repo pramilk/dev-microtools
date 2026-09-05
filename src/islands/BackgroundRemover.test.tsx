@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 import { createFakeWorkerClass } from '../../test/fakeWorker';
 import { handleBackgroundRemoveRequest } from '../workers/backgroundRemove.worker';
 import { handleImageCompressRequest } from '../workers/imageCompress.worker';
+import { MODEL_INPUT_SIZE } from '../lib/tools/backgroundRemove';
 import BackgroundRemover from './BackgroundRemover';
 
 // jsdom has no real Worker; these run the real request-handling logic
@@ -139,7 +140,7 @@ describe('<BackgroundRemover />', () => {
     runMock.mockReset();
     createMock.mockReset();
     createMock.mockResolvedValue({ inputNames: ['input'], outputNames: ['output'], run: runMock });
-    runMock.mockResolvedValue({ output: { data: new Float32Array(320 * 320).fill(0.5) } });
+    runMock.mockResolvedValue({ output: { data: new Float32Array(MODEL_INPUT_SIZE * MODEL_INPUT_SIZE).fill(0.5) } });
     translateSpy.mockClear();
     rotateSpy.mockClear();
     scaleSpy.mockClear();
@@ -195,7 +196,7 @@ describe('<BackgroundRemover />', () => {
 
     expect(await screen.findByText(/removing background/i)).toBeInTheDocument();
 
-    resolveRun({ output: { data: new Float32Array(320 * 320).fill(0.5) } });
+    resolveRun({ output: { data: new Float32Array(MODEL_INPUT_SIZE * MODEL_INPUT_SIZE).fill(0.5) } });
     await waitFor(() => expect(screen.getByRole('button', { name: /download png/i })).toBeInTheDocument());
   });
 

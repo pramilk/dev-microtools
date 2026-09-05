@@ -12,9 +12,9 @@ whatIsIt: >-
   model that powers most "AI background remover" web apps, except nothing here is ever sent
   to a server. Drop in a photo and the model finds the main subject and builds a transparency
   mask around it. From there you can keep the cut-out area transparent, fill it with a solid
-  color or a two-color gradient (in any of eight directions), drop in a different image as a
-  replacement background, blur or pixelate the *original* background while keeping the
-  subject sharp, or pick a ready-made background from the Template gallery — dozens of
+  color or a two-color gradient (in any of eight directions), blur or pixelate the *original*
+  background while keeping the subject sharp, drop in a different image as a replacement
+  background, or pick a ready-made background from the Template gallery — dozens of
   procedurally-drawn art patterns and real, license-verified nature photos, grouped by
   category. With a replacement image, freely drag, resize and rotate the cutout on top of it
   to place it exactly where you want. Export as PNG, JPEG, or WebP, with the same
@@ -34,7 +34,7 @@ useCases:
 howTo:
   - Drop a photo in, or choose one from your device.
   - Wait a few seconds while the AI model analyzes the image (longer the first time, while the model downloads).
-  - Choose what replaces the background — transparent, a solid color, a gradient, another image, a blur/pixelate of the original background, or a template from the gallery.
+  - Choose what replaces the background — transparent, a solid color, a gradient, a blur/pixelate of the original background, another image, or a template from the gallery.
   - For a replacement image, drag the cutout to position it, its corner handle to resize it, and its top handle to rotate it.
   - Once the result is opaque, pick an output format and quality.
   - Drag the before/after slider to check the result against a checkerboard transparency background, then download the finished file.
@@ -53,9 +53,9 @@ faq:
   - q: Can I remove the background from more than one photo?
     a: Yes — process as many as you like, one at a time. Only the very first one pays the model-download cost; every photo after that reuses the already-downloaded model for the rest of your visit.
   - q: What file formats does this accept, and what does it output?
-    a: It accepts any common raster format your browser can decode — JPEG, PNG, WebP, BMP. Output stays PNG-only while the background is Transparent, since PNG is the format that actually supports the transparent pixels a cutout needs — once you switch to a solid color, a gradient, or a replacement image, the result is fully opaque and JPEG or WebP become available too, with the same quality slider and PNG lossless/lossy controls as the Image Compressor. An animated GIF or an SVG isn't accepted, for the same reasons the Image Compressor and Image Cropper don't take them either.
+    a: It accepts any common raster format your browser can decode — JPEG, PNG, WebP, BMP. Output stays PNG-only while the background is Transparent, since PNG is the format that actually supports the transparent pixels a cutout needs — once you switch to a solid color, a gradient, a blur, a replacement image, or a template, the result is fully opaque, the format switches to JPEG by default (you can still pick WebP or PNG yourself), and the same quality slider and PNG lossless/lossy controls as the Image Compressor become available. An animated GIF or an SVG isn't accepted, for the same reasons the Image Compressor and Image Cropper don't take them either.
   - q: Can I replace the background instead of just removing it?
-    a: Yes — once the cutout is ready, switch from Transparent to Color (any solid color), Gradient (two colors in any of eight directions), Image (upload a replacement photo), Blur (soften the original background instead of replacing it), or Template (pick from a gallery of ready-made backgrounds). Switching the background never re-runs the AI model — only the first cutout does that — so trying a few different backgrounds is instant.
+    a: Yes — once the cutout is ready, switch from Transparent to Color (any solid color), Gradient (two colors in any of eight directions), Blur (soften the original background instead of replacing it), Image (upload a replacement photo), or Template (pick from a gallery of ready-made backgrounds). Switching the background never re-runs the AI model — only the first cutout does that — so trying a few different backgrounds is instant.
   - q: Can I position, resize or rotate the subject on the replacement image?
     a: Yes — once you choose a replacement background image, the cutout becomes fully adjustable on top of it. Drag it to move it, drag its corner handle to resize it, or drag its top handle to rotate it, with a live preview as you go; the same four values (X, Y, scale, rotation) are also plain number fields underneath for precise or keyboard-only adjustment. The output image is sized to the replacement photo's own dimensions, and the cutout can be placed fully or partially outside the frame if that's the composition you want — whatever hangs off the edge is simply cropped out of the final export, the same way it would be in any layered image editor.
   - q: How does the Blur background option work?

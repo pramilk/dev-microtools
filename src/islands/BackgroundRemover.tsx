@@ -945,11 +945,11 @@ const ROTATE_HANDLE_MARGIN = 1.2;
 const MAX_PLACE_STAGE_HEIGHT_REM = 22;
 
 /** A real bundled photo rather than synthetic canvas art (the pattern every other tool's
- *  "Load example" uses) — u2netp is trained on real photographs, and a generated shape
- *  doesn't demonstrate a cutout nearly as well as an actual subject against an actual
- *  background does. Public domain (no attribution required): "Stray cat on wall.jpg" by
- *  Neal Ziring, via Wikimedia Commons — see this tool's own content page for the credit
- *  and license link. */
+ *  "Load example" uses) — the segmentation model is trained on real photographs, and a
+ *  generated shape doesn't demonstrate a cutout nearly as well as an actual subject against
+ *  an actual background does. Public domain (no attribution required): "Stray cat on
+ *  wall.jpg" by Neal Ziring, via Wikimedia Commons — see this tool's own content page for
+ *  the credit and license link. */
 const SAMPLE_IMAGE_URL = '/samples/cat.jpg';
 
 async function loadSampleImageFile(): Promise<File> {
@@ -1051,14 +1051,6 @@ export default function BackgroundRemover() {
     const timer = window.setTimeout(() => setDebouncedBlurStrength(blurStrength), 200);
     return () => window.clearTimeout(timer);
   }, [blurStrength]);
-
-  // Transparency only survives in PNG — switching to a solid/image background makes the
-  // result fully opaque either way, but the format control still only offers JPEG/WebP once
-  // there's an actual background to fill with, so this only fires on the transparent<->other
-  // transition, never mid-way through an unrelated format change.
-  useEffect(() => {
-    if (backgroundMode === 'transparent' && format !== 'image/png') setFormat('image/png');
-  }, [backgroundMode, format]);
 
   useEffect(() => {
     if (!file) {
@@ -1507,6 +1499,25 @@ export default function BackgroundRemover() {
     setDebouncedQuality(DEFAULT_QUALITY);
   };
 
+  // Batches the mode switch with its format consequence into one state update (same pattern as
+  // `updateBlurStyle` below) rather than reacting to the mode change in a separate effect —
+  // setting format from an effect would land in a second render pass, recompositing once with
+  // the old format and again once the effect's setFormat commits, wastefully drawing every
+  // background twice on every mode switch. Transparency only survives in PNG, so entering
+  // Transparent mode always forces it back — a hard requirement. Leaving Transparent has no such
+  // requirement (JPEG/WebP/PNG are all valid once the result is opaque), so that direction only
+  // nudges the default to JPEG once, right on the transition — a later manual pick (e.g. PNG for
+  // exact color reproduction) survives further switches between two non-transparent modes since
+  // this only fires when the mode actually changes to/from 'transparent'.
+  const selectBackgroundMode = (mode: BackgroundMode) => {
+    if (mode === 'transparent') {
+      if (format !== 'image/png') setFormat('image/png');
+    } else if (backgroundMode === 'transparent') {
+      setFormat('image/jpeg');
+    }
+    setBackgroundMode(mode);
+  };
+
   // A style switch resets intensity to that style's own default — blur radius and pixelate
   // block size are unrelated units, so there's no meaningful "previous value" to carry over
   // between them (same reasoning as Face/Plate Blur's `updateRegionStyle`).
@@ -1673,9 +1684,9 @@ export default function BackgroundRemover() {
           <ErrorMessage message={processError} />
 
           {removingBackground && !cutoutPixels && (
-            <p class="field__hint">
-              <span class="job__spinner" aria-hidden="true" /> Removing background… this can take several seconds, longer the first time
-              while the AI model downloads.
+            <p class="bg-remove-status" role="status">
+              <span class="job__spinner job__spinner--lg" aria-hidden="true" /> Removing background… this can take a few seconds, longer
+              the first time while the AI model downloads.
             </p>
           )}
 
@@ -1687,7 +1698,7 @@ export default function BackgroundRemover() {
                     type="button"
                     class="seg__btn"
                     aria-pressed={backgroundMode === 'transparent'}
-                    onClick={() => setBackgroundMode('transparent')}
+                    onClick={() => selectBackgroundMode('transparent')}
                     title="Keep the cut-out area transparent — a PNG with an alpha channel."
                   >
                     Transparent
@@ -1696,7 +1707,7 @@ export default function BackgroundRemover() {
                     type="button"
                     class="seg__btn"
                     aria-pressed={backgroundMode === 'color'}
-                    onClick={() => setBackgroundMode('color')}
+                    onClick={() => selectBackgroundMode('color')}
                     title="Fill the cut-out area with a solid color."
                   >
                     Color
@@ -1705,7 +1716,7 @@ export default function BackgroundRemover() {
                     type="button"
                     class="seg__btn"
                     aria-pressed={backgroundMode === 'gradient'}
-                    onClick={() => setBackgroundMode('gradient')}
+                    onClick={() => selectBackgroundMode('gradient')}
                     title="Fill the cut-out area with a two-color gradient."
                   >
                     Gradient
@@ -1713,17 +1724,8 @@ export default function BackgroundRemover() {
                   <button
                     type="button"
                     class="seg__btn"
-                    aria-pressed={backgroundMode === 'image'}
-                    onClick={() => setBackgroundMode('image')}
-                    title="Place the cutout on another image — drag, resize and rotate it freely."
-                  >
-                    Image
-                  </button>
-                  <button
-                    type="button"
-                    class="seg__btn"
                     aria-pressed={backgroundMode === 'blur'}
-                    onClick={() => setBackgroundMode('blur')}
+                    onClick={() => selectBackgroundMode('blur')}
                     title="Blur or pixelate the original background instead of replacing it — the subject stays sharp."
                   >
                     Blur
@@ -1731,8 +1733,17 @@ export default function BackgroundRemover() {
                   <button
                     type="button"
                     class="seg__btn"
+                    aria-pressed={backgroundMode === 'image'}
+                    onClick={() => selectBackgroundMode('image')}
+                    title="Place the cutout on another image — drag, resize and rotate it freely."
+                  >
+                    Image
+                  </button>
+                  <button
+                    type="button"
+                    class="seg__btn"
                     aria-pressed={backgroundMode === 'template'}
-                    onClick={() => setBackgroundMode('template')}
+                    onClick={() => selectBackgroundMode('template')}
                     title="Fill the cut-out area with a ready-made background pattern."
                   >
                     Template
@@ -2002,8 +2013,8 @@ export default function BackgroundRemover() {
                       {formatBytes(file.size)} → {formatBytes(exportResult.blob.size)}
                     </span>
                     {busy && (
-                      <span class="field__hint">
-                        <span class="job__spinner" aria-hidden="true" /> Updating…
+                      <span class="bg-remove-status" role="status">
+                        <span class="job__spinner" aria-hidden="true" /> Updating result… this can take a few seconds
                       </span>
                     )}
                     <span class="tool-bar__spacer" />
@@ -2023,8 +2034,8 @@ export default function BackgroundRemover() {
                 </>
               ) : (
                 compositing && (
-                  <p class="field__hint">
-                    <span class="job__spinner" aria-hidden="true" /> Applying background…
+                  <p class="bg-remove-status" role="status">
+                    <span class="job__spinner" aria-hidden="true" /> Applying background… this can take a few seconds
                   </p>
                 )
               )}
@@ -2037,6 +2048,18 @@ export default function BackgroundRemover() {
         .bg-remove-result { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: var(--space-3); }
         .bg-remove-result__stats { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin: 0; }
         .bg-options { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+        /* Same weight/size/color tokens as .field__label (tool.css) so this reads as a prominent
+           status, not a passive hint — recompositing at this tool's model resolution genuinely
+           takes noticeable time, and this message shouldn't blend into the byte-size readout next
+           to it. Its own class rather than reusing .field__label directly: that class's
+           justify-content: space-between rule is meant for label+control rows, and would misplace
+           a single spinner-plus-text line. */
+        .bg-remove-status { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); font-weight: 600; color: var(--text); }
+        /* A larger variant of the shared .job__spinner (tool.css) for the very first wait on a
+           fresh page load, which — unlike the Updating/Applying background passes above — can
+           include downloading the model itself, not just a quick recomposite. Sizing only;
+           reuses the same border colors and spin animation. */
+        .job__spinner--lg { width: 1.4rem; height: 1.4rem; border-width: 3px; }
         .control { display: flex; flex-direction: column; gap: var(--space-1); }
         .control--inline { flex-direction: row; align-items: center; gap: var(--space-2); }
         .color-input { width: 2.5rem; height: 2rem; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); background: none; cursor: pointer; }

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { MODEL_INPUT_SIZE } from '../lib/tools/backgroundRemove';
 
 const { runMock, createMock } = vi.hoisted(() => ({
   runMock: vi.fn(),
@@ -14,7 +15,7 @@ vi.mock('onnxruntime-web/wasm', () => ({
 
 describe('handleBackgroundRemoveRequest', () => {
   it('runs background removal and returns an RGBA buffer of the same dimensions', async () => {
-    const size = 320; // MODEL_INPUT_SIZE, duplicated here to avoid a runtime import just for the constant
+    const size = MODEL_INPUT_SIZE;
     createMock.mockResolvedValue({ inputNames: ['input'], outputNames: ['output'], run: runMock });
     runMock.mockResolvedValue({ output: { data: new Float32Array(size * size).fill(0.5) } });
 
