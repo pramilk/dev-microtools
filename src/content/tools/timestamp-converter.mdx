@@ -55,3 +55,9 @@ When you control the format, write dates as ISO 8601 with an explicit UTC offset
 `2026-03-14T09:26:53Z`. It sorts correctly as a plain string, it is unambiguous about time
 zone, and every language's date library parses it. Formats like `03/14/2026` are ambiguous
 between American and European conventions and cause real bugs.
+
+## A token's expiry is just an epoch value
+
+A JWT's `exp`, `iat` and `nbf` claims are ordinary Unix timestamps in seconds. Paste one in
+above to see the exact date, or decode the whole token — header, payload and all three time
+claims — at once with the [JWT Debugger](/jwt-decoder/).

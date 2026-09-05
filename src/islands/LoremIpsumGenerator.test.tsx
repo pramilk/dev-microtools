@@ -55,4 +55,21 @@ describe('<LoremIpsumGenerator />', () => {
     expect(screen.getByRole('alert')).toBeInTheDocument();
     expect(document.querySelector('.output--empty')).toBeInTheDocument();
   });
+
+  it('shows a live word and character count of the generated output', () => {
+    render(<LoremIpsumGenerator />);
+
+    fireEvent.change(screen.getByLabelText(/^unit$/i), { target: { value: 'words' } });
+    fireEvent.input(screen.getByLabelText(/^count$/i), { target: { value: '10' } });
+
+    const text = output().getByText((_, el) => el?.tagName === 'PRE').textContent!;
+    expect(screen.getByText(`10 words · ${text.length} characters`)).toBeInTheDocument();
+  });
+
+  it('hides the word/character count when the output is empty', () => {
+    render(<LoremIpsumGenerator />);
+    fireEvent.input(screen.getByLabelText(/^count$/i), { target: { value: '0' } });
+
+    expect(screen.queryByText(/words ·/)).not.toBeInTheDocument();
+  });
 });

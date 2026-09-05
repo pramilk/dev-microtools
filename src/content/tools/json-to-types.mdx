@@ -89,3 +89,10 @@ not others, which is why pasting an array of a few real records (rather than jus
 produces a noticeably more accurate — and more honestly incomplete — set of types than a
 single example ever could. XML input doesn't have this option, since a single XML document
 has exactly one root element to infer from.
+
+## Starting from JSON that doesn't parse
+
+This tool needs valid JSON to infer anything from — a trailing comma or a stray comment
+will fail before it gets to naming a single type. Run the sample through the
+[JSON Formatter](/json-formatter/) first; its repair mode fixes trailing commas, single
+quotes and comments, and the corrected output pastes straight into the field above.

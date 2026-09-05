@@ -36,6 +36,13 @@ export default function LoremIpsumGenerator() {
   const output = result.ok ? result.value : '';
   const error = result.ok ? null : result.error;
 
+  // A word/character count of the *output* here, not just the "how many paragraphs/
+  // sentences/words to generate" input above — so checking whether the generated text
+  // fits a design spec's word or character budget doesn't mean copying it out to a
+  // separate tool just to count it.
+  const wordCount = useMemo(() => (output.trim() === '' ? 0 : output.trim().split(/\s+/).length), [output]);
+  const charCount = output.length;
+
   const limits = LOREM_LIMITS[options.unit];
   const extension = options.asHtml ? 'html' : 'txt';
   const mimeType = options.asHtml ? 'text/html' : 'text/plain';
@@ -108,7 +115,16 @@ export default function LoremIpsumGenerator() {
         placeholder="Generated Lorem Ipsum text appears here."
         tall
         describe="the generated text"
-        actions={<DownloadButton value={output} filename={`lorem-ipsum.${extension}`} mimeType={mimeType} describe="the generated text" />}
+        actions={
+          <>
+            {output !== '' && (
+              <span class="field__hint tnum">
+                {wordCount} words · {charCount} characters
+              </span>
+            )}
+            <DownloadButton value={output} filename={`lorem-ipsum.${extension}`} mimeType={mimeType} describe="the generated text" />
+          </>
+        }
       />
     </div>
   );

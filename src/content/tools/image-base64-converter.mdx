@@ -55,3 +55,9 @@ it actually is would either silently show a broken image or, worse, mis-render s
 happened to decode without erroring. Reading the first few bytes and matching them against each
 format's real signature (the same check a browser's own image decoder performs before parsing)
 means the detected type is actually correct, not just assumed.
+
+## Working with base64 that isn't an image
+
+Everything above assumes the base64 you paste in decodes to an image. For plain text, JSON,
+or any other non-image data encoded as base64 — without the `data:` URI wrapper this tool
+expects — use the general-purpose [Base Converter](/base-encode-decode/) instead.

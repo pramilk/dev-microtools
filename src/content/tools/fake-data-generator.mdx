@@ -58,3 +58,10 @@ obviously fake in a way that undermines the point of a realistic-looking fixture
 generates a person's name once per row, then derives every name-based field (full name, first
 name, last name, email, username) from that same value, so a row reads as one consistent
 person rather than several independently rolled fields glued together.
+
+## The UUID field matches the standalone generator's format
+
+The UUID field produces a structurally valid v4 UUID, the same format the dedicated
+[UUID Generator](/uuid-generator/) produces — drawn from this tool's own seeded random
+source rather than the browser's CSPRNG, so a pinned seed reproduces the exact same value
+across runs instead of a fresh random one each time.

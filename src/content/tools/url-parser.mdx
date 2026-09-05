@@ -67,3 +67,10 @@ re-serializes the entire query string through the same encoding rules a browser 
 so a space becomes `+`, and characters like `&` or `=` inside a value are escaped rather
 than being read as extra query structure. The fragment (the part after `#`, if any) is
 left untouched by these edits, since it isn't part of the query string at all.
+
+## Percent-decoding one value by hand
+
+The table already decodes each key and value for display, so you can read them normally.
+If you need to go the other way — percent-encode a value before pasting it into a URL by
+hand, or decode a raw encoded string outside of a full URL — the
+[URL Encoder & Decoder](/url-encode-decode/) does just that one step on its own.
