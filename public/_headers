@@ -21,10 +21,10 @@
   # is set) — without it the browser blocks the beacon and analytics silently stop recording.
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
 
-# Background Remover is the one page on the site that runs WebAssembly (onnxruntime-web, for
-# its in-browser AI model) — WASM instantiation needs 'wasm-unsafe-eval' in script-src, a
-# narrow keyword that permits WebAssembly.compile/instantiate specifically without opening up
-# 'unsafe-eval's full arbitrary-string-eval surface.
+# Background Remover and Face & Plate Blur are the two pages on the site that run
+# WebAssembly (onnxruntime-web, for their in-browser AI models) — WASM instantiation needs
+# 'wasm-unsafe-eval' in script-src, a narrow keyword that permits WebAssembly.compile/instantiate
+# specifically without opening up 'unsafe-eval's full arbitrary-string-eval surface.
 #
 # IMPORTANT: Cloudflare's _headers does NOT let a more specific rule override a header set by
 # a broader one — when multiple sections match the same path, same-named header VALUES ARE
@@ -36,8 +36,22 @@
 # identical ones below, but still wrong, and a silent no-op for Content-Security-Policy since
 # its two differing values get comma-joined into something no browser can parse correctly).
 # Everything else in the policy is identical to the default above; keep the two in sync if
-# the shared policy ever changes.
+# the shared policy ever changes. Any future WASM-backed tool needs the same block added here.
 /background-remover/
+  ! X-Content-Type-Options
+  ! X-Frame-Options
+  ! Referrer-Policy
+  ! Permissions-Policy
+  ! Strict-Transport-Security
+  ! Content-Security-Policy
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=(), usb=(), interest-cohort=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
+
+/face-plate-blur/
   ! X-Content-Type-Options
   ! X-Frame-Options
   ! Referrer-Policy
@@ -55,7 +69,7 @@
 # import them) must NOT carry their own Content-Security-Policy header. These files are
 # never navigated to directly, so a CSP on the asset response itself is normally a no-op —
 # except when a script here is loaded as a dedicated Worker (as onnxruntime-web does for its
-# threaded WASM backend, used by Background Remover): per the CSP spec, a same-origin worker
+# threaded WASM backend, used by Background Remover and Face & Plate Blur): per the CSP spec, a same-origin worker
 # inherits its CREATING DOCUMENT's policy only if the worker script's own HTTP response has
 # no explicit Content-Security-Policy header. Because the site-wide "/*" rule above sets one
 # on every response, /_astro/ort.wasm.bundle*.js was carrying the SITE-WIDE DEFAULT policy

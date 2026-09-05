@@ -62,6 +62,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'json-ld-generator': 'LD',
   'security-txt-generator': 'SEC',
   'background-remover': 'BG',
+  'face-plate-blur': 'BLR',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

@@ -51,6 +51,7 @@ import CspBuilder from '../islands/CspBuilder';
 import JsonLdGenerator from '../islands/JsonLdGenerator';
 import SecurityTxtGenerator from '../islands/SecurityTxtGenerator';
 import BackgroundRemover from '../islands/BackgroundRemover';
+import FacePlateBlur from '../islands/FacePlateBlur';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -111,6 +112,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'json-ld-generator': JsonLdGenerator,
   'security-txt-generator': SecurityTxtGenerator,
   'background-remover': BackgroundRemover,
+  'face-plate-blur': FacePlateBlur,
 };
 
 /**

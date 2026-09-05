@@ -3,6 +3,7 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { SITE } from '../lib/site';
 import { TOOL_ICONS, DEFAULT_TOOL_ICON } from '../lib/toolIcons';
+import { AI_POWERED_TOOL_SLUGS } from '../lib/aiTools';
 import { CATEGORIES } from '../lib/categories';
 
 const tools = (await getCollection('tools')).sort((a, b) => a.data.order - b.data.order);
@@ -122,6 +123,11 @@ const schema = [
                     </span>
                     <span class="tool-card__summary">{tool.data.summary}</span>
                   </a>
+                  {AI_POWERED_TOOL_SLUGS.has(tool.id) && (
+                    <span class="tool-card__ai-badge" title="Uses an on-device AI model — still runs entirely in your browser">
+                      AI
+                    </span>
+                  )}
                   <button
                     type="button"
                     class="tool-card__pin"
@@ -473,6 +479,35 @@ const schema = [
     font-weight: 650;
     color: var(--text);
     font-size: var(--text-base);
+  }
+
+  /* Outlined, not filled — the same restraint as .tool-card__icon just above (a first pass
+     there used a solid background and it read as too heavy next to the card's plain-text
+     name/summary; a filled chip here would repeat that mistake). Absolutely positioned in
+     the card's own corner (the same technique .tool-card__pin uses for its corner, anchored
+     by `.grid > li { position: relative }` above) rather than sitting inline next to the
+     name — inline, it competed with the title for width and could force a longer tool name
+     onto two lines only on cards that happen to use AI, an inconsistency worth avoiding
+     entirely rather than trying to make just wide enough. */
+  .tool-card__ai-badge {
+    position: absolute;
+    bottom: var(--space-3);
+    right: var(--space-3);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 0.05rem 0.3rem;
+    opacity: 0.8;
+    pointer-events: none;
+  }
+
+  .tool-card:hover .tool-card__ai-badge {
+    opacity: 1;
   }
 
   .tool-card:hover .tool-card__name {

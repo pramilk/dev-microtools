@@ -66,9 +66,9 @@ import { SITE } from '../lib/site';
 
       <h2>Open source components</h2>
       <p>
-        Almost everything here uses native browser APIs. Eighteen third-party libraries are
+        Almost everything here uses native browser APIs. Nineteen third-party libraries are
         included for the specific jobs the browser has no built-in for — every tool's own
-        page also links the library it uses. All eighteen licences permit commercial use.
+        page also links the library it uses. All nineteen licences permit commercial use.
       </p>
       <table>
         <thead>
@@ -97,6 +97,29 @@ import { SITE } from '../lib/site';
           <tr><td><a href="https://github.com/cure53/DOMPurify" target="_blank" rel="noopener noreferrer"><code>DOMPurify</code></a></td><td>MPL-2.0 or Apache-2.0</td><td>Markdown Previewer (sanitizes the rendered HTML)</td></tr>
           <tr><td><a href="https://github.com/mixmark-io/turndown" target="_blank" rel="noopener noreferrer"><code>turndown</code></a></td><td>MIT</td><td>Markdown Previewer (HTML → Markdown)</td></tr>
           <tr><td><a href="https://github.com/domchristie/turndown-plugin-gfm" target="_blank" rel="noopener noreferrer"><code>turndown-plugin-gfm</code></a></td><td>MIT</td><td>Markdown Previewer (GFM tables, strikethrough, task lists)</td></tr>
+          <tr><td><a href="https://github.com/microsoft/onnxruntime" target="_blank" rel="noopener noreferrer"><code>onnxruntime-web</code></a></td><td>MIT</td><td>Background Remover, Face &amp; Plate Blur (on-device AI models via WebAssembly)</td></tr>
+        </tbody>
+      </table>
+
+      <h2>AI models</h2>
+      <p>
+        Two tools also download a pre-trained model file — not an npm package like the
+        libraries above, but a set of weights a neural network was trained on — to run
+        entirely on-device via WebAssembly (<code>onnxruntime-web</code>, listed above). Both
+        are freely licensed for commercial use, and both run exactly like every other tool
+        here: nothing leaves your browser, ever, for the model to process.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Model</th>
+            <th scope="col">Licence</th>
+            <th scope="col">Used in</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><a href="https://github.com/danielgatis/rembg" target="_blank" rel="noopener noreferrer">u2netp</a></td><td>Apache-2.0</td><td>Background Remover</td></tr>
+          <tr><td><a href="https://github.com/onnx/models/tree/main/validated/vision/body_analysis/ultraface" target="_blank" rel="noopener noreferrer">Ultra-Light-Fast-Generic-Face-Detector-1MB</a></td><td>MIT</td><td>Face &amp; Plate Blur</td></tr>
         </tbody>
       </table>
       <p>

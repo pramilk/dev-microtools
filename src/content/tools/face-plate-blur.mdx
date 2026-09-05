@@ -1,0 +1,92 @@
+---
+title: Face & Plate Blur
+headline: Face & Plate Blur — redact faces & plates with AI
+description: Blur or black out faces, plates, or any sensitive area in a photo. Faces are auto-detected on-device; anything else is a manual box. Free, private.
+summary: Blur or black out faces, license plates, or anything else sensitive in a photo — right in your browser.
+category: Images
+order: 53
+updated: 2026-09-04
+whatIsIt: >-
+  This tool redacts sensitive parts of a photo before you share it — a bystander's face in
+  a street photo, a license plate in a car listing, a name badge, a document in the
+  background, anything you don't want visible. Faces are found automatically by a small AI
+  detection model (the same category of on-device model that powers this site's Background
+  Remover) that runs entirely inside your browser via WebAssembly — nothing is ever sent to
+  a server. Every automatically-found face becomes a draggable, resizable box you can
+  adjust, delete, or leave as-is. Because there is no small, general-purpose model that can
+  reliably find a license plate, a sign, or "anything else sensitive" across arbitrary
+  photos, those are always added by hand with the same box tool — drag one over whatever
+  needs hiding. Once your boxes are placed, choose how they're redacted: a soft blur, a
+  pixelated mosaic, or a fully opaque black box, each confined exactly to the boxes you
+  placed. The very first photo processed on a given device downloads the face-detection
+  model (about 1.2 MB, far smaller than a typical webpage image); the browser caches it, so
+  every photo after that runs instantly with no further download.
+useCases:
+  - Blurring bystanders' faces in a street photo or event photo before posting it publicly.
+  - Blacking out a license plate before listing a car or posting a photo that includes one.
+  - Hiding a name badge, ID card, screen, or document visible in the background of a photo.
+  - Redacting a face in a screenshot or support ticket photo before sharing it externally.
+howTo:
+  - Drop a photo in, or choose one from your device.
+  - Wait a moment while the on-device AI model looks for faces — each one found becomes an adjustable box.
+  - Drag a box to reposition it, its corner handle to resize it, or click its × to remove it.
+  - Click "Add box" and drag the new box over a license plate, sign, or anything else that needs hiding.
+  - Pick a redaction style — Blur, Pixelate, or Solid box — and adjust its strength if it has one.
+  - Drag the before/after slider to check the result, then download the finished photo.
+example:
+  label: A public-domain NASA astronaut crew portrait, with every face automatically detected and blurred.
+  input: 'A public-domain official NASA astronaut crew portrait photo showing four people (via Wikimedia Commons).'
+  output: 'The same photo with all four detected faces blurred, and any manually-added boxes redacted the same way.'
+  note: Press "Load example" to try the actual bundled sample photo and see real multi-face detection at work.
+faq:
+  - q: Does this upload my photo anywhere?
+    a: No. The face-detection model downloads once to your browser, then every photo you process runs locally on your own device with no network request carrying the image itself. This is true of every tool on this site, not just this one.
+  - q: Why are faces automatic but plates and everything else manual?
+    a: There's a small, well-tested, freely licensed model for finding faces in a photo (the same kind of model powers face detection in most cameras and photo apps), so it's practical to run it entirely in a browser tab. There's no equivalent small, general-purpose model for license plates, signs, or "anything sensitive" — those vary far more in shape, size and context — so this tool gives you the same box tool to place them by hand instead of pretending to auto-detect something it can't reliably find.
+  - q: How accurate is the face detector, and what if it misses one?
+    a: It does well on clear, reasonably front-facing, well-lit faces — the common case in most photos — but like any face detector it can miss a face that's small, angled away from the camera, partly hidden, or in poor lighting. Always check the boxes it draws before downloading, and use "Add box" to cover anything it missed. "Detect faces" re-runs it at any time without losing boxes you've already placed or adjusted.
+  - q: Can I undo a redaction after downloading?
+    a: No — redaction is destructive by design. Blur and pixelate both scramble the original pixels inside the box (pixelate more thoroughly, since averaging a whole block of pixels down to one flat color destroys far more detail than smoothing them), and solid box replaces them entirely, so the exported image itself never carries whatever was underneath. If you need to change something, adjust the boxes and re-download from the original photo — the source file on your device is never modified.
+  - q: Which redaction style should I use?
+    a: Blur is the softest-looking and hardest to notice as an edit, but a very strong, specialized "deblurring" attempt can sometimes claw back rough detail from a light blur. Pixelate is the classic, instantly recognizable "this is censored" look. Solid box is the only option that makes the original pixels completely unrecoverable — reach for it whenever "definitely can't be undone" matters more than how it looks.
+  - q: What file formats does this accept, and what does it export?
+    a: It accepts any common raster format your browser can decode — JPEG, PNG, WebP, BMP. The export matches the input's format for JPEG and WebP; everything else (including PNG) exports as PNG. An animated GIF or an SVG isn't accepted, for the same reasons the Image Compressor and Image Cropper don't take them either.
+related:
+  - background-remover
+  - image-cropper
+  - image-compressor
+  - image-format-converter
+---
+
+## How face detection works
+
+Faces are found by [Ultra-Light-Fast-Generic-Face-Detector-1MB](https://github.com/onnx/models/tree/main/validated/vision/body_analysis/ultraface),
+a compact detection model trained specifically to find faces quickly on modest hardware.
+This tool resizes your photo down to the model's fixed input size, runs it through the
+model using [onnxruntime-web](https://github.com/microsoft/onnxruntime) (Microsoft's
+WebAssembly build of ONNX Runtime), then scales every detected face box back up to your
+photo's own size and pads it outward a little so the redaction covers hairline, chin and
+ears rather than just a tight box around facial features. All of that — model, runtime, and
+every pixel — runs inside your browser tab.
+
+## Why plates and everything else stay manual
+
+A face detector like this one works because faces share enough visual structure — two eyes,
+a nose, a mouth, in roughly the same arrangement — that a small model can learn to spot them
+reliably. A license plate, a street sign, a badge, or "whatever's sensitive in this
+particular photo" don't share that kind of common structure across photos, so there's no
+equally small, general-purpose model to reach for. Rather than bolt on a much larger,
+slower, or unreliable model just to say "everything is automatic," this tool gives you the
+exact same box tool the face detector uses internally — drag one over anything that needs
+hiding, in the same interface, redacted with the same styles.
+
+## License and attribution
+
+Ultra-Light-Fast-Generic-Face-Detector-1MB is distributed under the MIT license, via its
+ONNX export in the official [onnx/models](https://github.com/onnx/models) repository.
+onnxruntime-web is Microsoft's MIT-licensed WebAssembly build of ONNX Runtime. Both run
+entirely client-side — no request containing your photo is ever made to either project or
+to any server this site controls. The "Load example" sample photo is
+[the official NASA portrait of the SpaceX Crew-11 astronauts](https://commons.wikimedia.org/wiki/File:The_official_crew_portrait_of_NASA%27s_SpaceX_Crew-11_members_(jsc2025e041955).jpg)
+(photo by Robert Markowitz, NASA/Johnson Space Center), a work of the U.S. federal
+government and in the public domain.
