@@ -307,24 +307,63 @@ export default function RegexTester() {
 
   return (
     <div class="tool">
+      <div class="tool-bar rx-top-actions">
+        <ShareLinkButton
+          getState={() => ({ pattern, flags, flavor, subject, replacement: showReplace ? replacement : '' })}
+          describe="this pattern"
+        />
+        <select
+          class="input rx-preset-select"
+          aria-label="Load a common pattern"
+          title="Start from a ready-made pattern for a common case"
+          value=""
+          onChange={(event) => {
+            const select = event.target as HTMLSelectElement;
+            const preset = COMMON_PATTERNS.find((p) => p.id === select.value);
+            if (preset) {
+              setPattern(preset.pattern);
+              setFlags(preset.flags);
+              setSubject(preset.sample);
+            }
+            select.value = '';
+          }}
+        >
+          <option value="" disabled>
+            Common patterns…
+          </option>
+          {COMMON_PATTERNS.map((preset) => (
+            <option key={preset.id} value={preset.id}>
+              {preset.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          class="btn"
+          onClick={() => {
+            setPattern(SAMPLE.pattern);
+            setSubject(SAMPLE.sample);
+            setFlags(SAMPLE.flags);
+          }}
+          title="Load an example pattern and text to try the tool"
+        >
+          Load example
+        </button>
+        <button
+          type="button"
+          class="btn"
+          onClick={clearAll}
+          disabled={isEmpty}
+          title="Clear the pattern, flags and text, and start over"
+        >
+          Clear
+        </button>
+      </div>
+
       <div class="field">
-        <div class="field__label">
-          <label for="rx-pattern">Regular expression</label>
-          <select
-            id="rx-flavor"
-            class="select rx-flavor-select"
-            aria-label="Regex flavour"
-            title="Which engine's syntax to read the pattern as. This tool only runs JavaScript's engine — the other flavours translate their syntax to JavaScript's first and note any approximation made."
-            value={flavor}
-            onChange={(event) => setFlavor((event.target as HTMLSelectElement).value as RegexFlavor)}
-          >
-            {REGEX_FLAVORS.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <label class="field__label" for="rx-pattern">
+          <span>Regular expression</span>
+        </label>
         <div class="rx-input">
           <span class="rx-input__delim" aria-hidden="true">
             /
@@ -356,6 +395,43 @@ export default function RegexTester() {
             return `Read as ${label} syntax — translated before running, see the notes below.`;
           })()}
         </p>
+      </div>
+
+      <div class="tool-bar">
+        <label
+          class="checkbox"
+          title="Which engine's syntax to read the pattern as. This tool only runs JavaScript's engine — the other flavours translate their syntax to JavaScript's first and note any approximation made."
+        >
+          <span class="field__hint">Flavour</span>
+          <select
+            id="rx-flavor"
+            class="select"
+            aria-label="Regex flavour"
+            value={flavor}
+            onChange={(event) => setFlavor((event.target as HTMLSelectElement).value as RegexFlavor)}
+          >
+            {REGEX_FLAVORS.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div class="tool-bar__group" role="group" aria-label="Flags">
+          {REGEX_FLAGS.map(({ flag, label, hint }) => (
+            <button
+              key={flag}
+              type="button"
+              class="flag"
+              aria-pressed={flags.includes(flag)}
+              title={hint}
+              onClick={() => toggleFlag(flag)}
+            >
+              <code>{flag}</code> {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {flavorHints.length > 0 && (
@@ -418,77 +494,6 @@ export default function RegexTester() {
           )}
         </div>
       )}
-
-      <div class="tool-bar" role="group" aria-label="Flags">
-        {REGEX_FLAGS.map(({ flag, label, hint }) => (
-          <button
-            key={flag}
-            type="button"
-            class="flag"
-            aria-pressed={flags.includes(flag)}
-            title={hint}
-            onClick={() => toggleFlag(flag)}
-          >
-            <code>{flag}</code> {label}
-          </button>
-        ))}
-
-        {/* Its own auto-margin, not the usual bare .tool-bar__spacer, so this whole
-            cluster stays right-aligned even when it wraps to its own line below the
-            flags — a bare spacer only pushes whatever shares its own flex line. */}
-        <div class="tool-bar__group rx-actions">
-          <ShareLinkButton
-            getState={() => ({ pattern, flags, flavor, subject, replacement: showReplace ? replacement : '' })}
-            describe="this pattern"
-          />
-          <select
-            class="input rx-preset-select"
-            aria-label="Load a common pattern"
-            title="Start from a ready-made pattern for a common case"
-            value=""
-            onChange={(event) => {
-              const select = event.target as HTMLSelectElement;
-              const preset = COMMON_PATTERNS.find((p) => p.id === select.value);
-              if (preset) {
-                setPattern(preset.pattern);
-                setFlags(preset.flags);
-                setSubject(preset.sample);
-              }
-              select.value = '';
-            }}
-          >
-            <option value="" disabled>
-              Common patterns…
-            </option>
-            {COMMON_PATTERNS.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.label}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            class="btn"
-            onClick={() => {
-              setPattern(SAMPLE.pattern);
-              setSubject(SAMPLE.sample);
-              setFlags(SAMPLE.flags);
-            }}
-            title="Load an example pattern and text to try the tool"
-          >
-            Load example
-          </button>
-          <button
-            type="button"
-            class="btn"
-            onClick={clearAll}
-            disabled={isEmpty}
-            title="Clear the pattern, flags and text, and start over"
-          >
-            Clear
-          </button>
-        </div>
-      </div>
 
       <ErrorMessage message={error} />
 
@@ -713,7 +718,7 @@ export default function RegexTester() {
         }
         .rx-input__field { flex: 1; }
         .rx-flavor-status { margin: var(--space-2) 0 0; }
-        .rx-actions { margin-left: auto; }
+        .rx-top-actions { justify-content: flex-end; }
         .rx-preset-select { width: auto; max-width: 12rem; font-size: var(--text-sm); }
         .rx-flavor-select { width: auto; max-width: 11rem; font-size: var(--text-xs); padding: 0.25rem 0.5rem; }
         .msg-list { display: flex; flex-direction: column; gap: var(--space-2); }
