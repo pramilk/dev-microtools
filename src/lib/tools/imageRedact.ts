@@ -34,8 +34,8 @@ export const MIN_REGION_SIZE = 8;
  *  pixels, or pixelate block size in pixels. Every region carries its own style and
  *  intensity (not one global setting for the whole photo), so these are just the starting
  *  point a new region or a style switch resets to. */
-export const DEFAULT_BLUR_RADIUS = 16;
-export const DEFAULT_PIXEL_BLOCK_SIZE = 14;
+export const DEFAULT_BLUR_RADIUS = 32;
+export const DEFAULT_PIXEL_BLOCK_SIZE = 24;
 
 /**
  * Builds the face detector's input tensor from an RGBA buffer already resized to

@@ -25,9 +25,13 @@ import type { ImageRedactDetectWorkerRequest, ImageRedactDetectWorkerResult } fr
 // image tool on this site (Image Cropper, Background Remover, ...).
 
 const MIN_BLUR_RADIUS = 4;
-const MAX_BLUR_RADIUS = 40;
+// High-resolution phone photos can carry a face across a thousand-plus pixels, so a radius
+// that fully obscures features on a small/medium image can still leave them legible at that
+// scale — this cap (and the pixelate one below) is set well past what a typical redaction
+// needs so the slider's top end is always strong enough, not just its default.
+const MAX_BLUR_RADIUS = 100;
 const MIN_PIXEL_BLOCK_SIZE = 4;
-const MAX_PIXEL_BLOCK_SIZE = 40;
+const MAX_PIXEL_BLOCK_SIZE = 100;
 /** Height cap for the stage's "fit" size — same technique as Image Cropper's own
  *  `MAX_STAGE_HEIGHT_REM`, kept as one constant so the inline width formula and the scroll
  *  wrapper's own max-height can never drift apart. */
