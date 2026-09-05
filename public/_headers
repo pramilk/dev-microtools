@@ -31,12 +31,18 @@
 # JOINED WITH A COMMA (https://developers.cloudflare.com/workers/static-assets/headers/),
 # which silently mangles a second Content-Security-Policy into garbage rather than replacing
 # the first. Since every path (including this one) also matches the site-wide "/*" block
-# above, the "! Content-Security-Policy" line below is required to detach that inherited
-# header before setting this route's own value — without it, this whole block is a no-op and
-# the WASM instantiation is silently blocked by the site-wide policy again.
+# above, EVERY header this block also sets needs its own "! HeaderName" line first to detach
+# the inherited copy — otherwise the response carries the header twice (harmless for the
+# identical ones below, but still wrong, and a silent no-op for Content-Security-Policy since
+# its two differing values get comma-joined into something no browser can parse correctly).
 # Everything else in the policy is identical to the default above; keep the two in sync if
 # the shared policy ever changes.
 /background-remover/
+  ! X-Content-Type-Options
+  ! X-Frame-Options
+  ! Referrer-Policy
+  ! Permissions-Policy
+  ! Strict-Transport-Security
   ! Content-Security-Policy
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
@@ -44,3 +50,20 @@
   Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=(), usb=(), interest-cohort=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
+
+# Build-output JS/CSS/wasm chunks (Astro emits them all here, regardless of which page(s)
+# import them) must NOT carry their own Content-Security-Policy header. These files are
+# never navigated to directly, so a CSP on the asset response itself is normally a no-op —
+# except when a script here is loaded as a dedicated Worker (as onnxruntime-web does for its
+# threaded WASM backend, used by Background Remover): per the CSP spec, a same-origin worker
+# inherits its CREATING DOCUMENT's policy only if the worker script's own HTTP response has
+# no explicit Content-Security-Policy header. Because the site-wide "/*" rule above sets one
+# on every response, /_astro/ort.wasm.bundle*.js was carrying the SITE-WIDE DEFAULT policy
+# (no 'wasm-unsafe-eval') and the worker enforced that instead of inheriting
+# /background-remover/'s correct one — silently breaking WASM instantiation regardless of
+# what the *page's* CSP said, and regardless of caching. Removing the header here (rather
+# than trying to special-case one chunk's filename, which is hashed and changes every build)
+# fixes this for any current or future worker-based library, with no security loss: these
+# files were never meaningfully protected by their own CSP header in the first place.
+/_astro/*
+  ! Content-Security-Policy
