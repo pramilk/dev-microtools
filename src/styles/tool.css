@@ -381,6 +381,15 @@
 
 .seg {
   display: inline-flex;
+  /* Without this, a `.seg` with many buttons (the background-remover mode picker, the
+     8-direction gradient dial, etc.) refuses to shrink below the combined width of every
+     button — as a flex child it just overflows its row on a narrow phone, and since
+     `overflow: hidden` clips that overflow with no scrollbar, the extra buttons become
+     entirely invisible and untappable rather than merely squeezed. Wrapping keeps every
+     button reachable; `overflow: hidden` still clips corners to the (now taller) box's own
+     border-radius. */
+  flex-wrap: wrap;
+  max-width: 100%;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   overflow: hidden;
@@ -406,7 +415,12 @@
   border-left: 1px solid var(--border-strong);
 }
 
-.seg__btn:hover:not(:disabled) {
+/* :not([aria-pressed='true']) keeps this from outranking the pressed-state rule below on
+   specificity — without it, hovering the currently-selected segment (exactly what happens
+   right after clicking it, since the pointer is left resting there) painted it back to the
+   plain hover gray instead of staying the accent color, making the active choice look
+   unselected the moment you picked it. */
+.seg__btn:hover:not(:disabled):not([aria-pressed='true']) {
   background: var(--surface-2);
   color: var(--text);
 }

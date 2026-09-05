@@ -51,6 +51,7 @@ import JsonLdGenerator from '../islands/JsonLdGenerator';
 import SecurityTxtGenerator from '../islands/SecurityTxtGenerator';
 import BackgroundRemover from '../islands/BackgroundRemover';
 import FacePlateBlur from '../islands/FacePlateBlur';
+import ImageUpscaler from '../islands/ImageUpscaler';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -127,3 +128,4 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'security-txt-generator' && <SecurityTxtGenerator client:load />}
 {slug === 'background-remover' && <BackgroundRemover client:load />}
 {slug === 'face-plate-blur' && <FacePlateBlur client:load />}
+{slug === 'image-upscaler' && <ImageUpscaler client:load />}

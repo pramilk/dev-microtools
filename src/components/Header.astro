@@ -139,4 +139,22 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
   .github-link:hover {
     color: var(--text);
   }
+
+  /* Below this width, the wordmark + 3 nav links + GitHub icon + theme toggle no longer
+     fit on one line — without this, `overflow-x: hidden` on `html` (there to suppress the
+     mobile sidebar's off-canvas phantom scrollbar, see global.css) was silently clipping
+     "Feedback" and the two icon buttons off the right edge instead of wrapping them, making
+     them entirely unreachable rather than just visually squeezed. Letting the row wrap
+     drops the nav (plus the GitHub/theme icons that no longer fit beside it) onto its own
+     second line, keeping every control on-screen and tappable at its normal size instead of
+     shrinking 5 items onto one illegible line. `--header-height` (global.css) has a matching
+     override at this same breakpoint for the sticky sidebar/expand-tab measured against it. */
+  @media (max-width: 30rem) {
+    .site-header__inner {
+      flex-wrap: wrap;
+      row-gap: 0;
+      min-height: auto;
+      padding-block: var(--space-2);
+    }
+  }
 </style>

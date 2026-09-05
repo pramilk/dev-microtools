@@ -30,6 +30,17 @@ import type { ImageCompressWorkerRequest, ImageCompressWorkerResult } from '../w
 
 type BackgroundMode = 'transparent' | 'color' | 'gradient' | 'image' | 'blur' | 'template';
 type BlurStyle = 'blur' | 'pixelate';
+/** Backs both the wide-screen `.seg` button row and its narrow-screen `<select>` fallback
+ *  below (same pattern as the QR Code Generator's content-type picker) — one array so the
+ *  two views can never drift apart on labels or ordering. */
+const BACKGROUND_MODES: { value: BackgroundMode; label: string; title: string }[] = [
+  { value: 'transparent', label: 'Transparent', title: 'Keep the cut-out area transparent — a PNG with an alpha channel.' },
+  { value: 'color', label: 'Color', title: 'Fill the cut-out area with a solid color.' },
+  { value: 'gradient', label: 'Gradient', title: 'Fill the cut-out area with a two-color gradient.' },
+  { value: 'blur', label: 'Blur', title: 'Blur or pixelate the original background instead of replacing it — the subject stays sharp.' },
+  { value: 'image', label: 'Image', title: 'Place the cutout on another image — drag, resize and rotate it freely.' },
+  { value: 'template', label: 'Template', title: 'Fill the cut-out area with a ready-made background pattern.' },
+];
 /** Direction presets for the gradient fill, in the same 0°=right/90°=down clockwise
  *  convention `computeLinearGradientLine` uses, ordered like a compass starting at "up".
  *  Deliberately a fixed set of eight rather than a full angle dial — the common cases, not a
@@ -57,11 +68,12 @@ type PlaceDragMode = 'move' | 'scale' | 'rotate';
  *    is `null` only for public-domain photos, which carry no attribution requirement. */
 type BackgroundTemplate =
   | { id: string; label: string; title: string; category: 'art'; kind: 'art'; draw: (ctx: CanvasRenderingContext2D, width: number, height: number) => void }
-  | { id: string; label: string; title: string; category: 'photo'; kind: 'photo'; url: string; credit: string | null };
+  | { id: string; label: string; title: string; category: 'photo' | 'landmark'; kind: 'photo'; url: string; credit: string | null };
 
-const TEMPLATE_CATEGORIES: { id: 'art' | 'photo'; label: string }[] = [
+const TEMPLATE_CATEGORIES: { id: 'art' | 'photo' | 'landmark'; label: string }[] = [
   { id: 'art', label: 'Art & patterns' },
   { id: 'photo', label: 'Nature photos' },
+  { id: 'landmark', label: 'Landmarks' },
 ];
 
 /** Draws `bitmap` cover-fit into a `width`×`height` rect — scaled up to fully cover it,
@@ -583,15 +595,6 @@ const BACKGROUND_TEMPLATES: BackgroundTemplate[] = [
     credit: null,
   },
   {
-    id: 'photo-canyon',
-    label: 'Canyon',
-    title: 'Kolob Canyon, Zion National Park.',
-    category: 'photo',
-    kind: 'photo',
-    url: '/samples/bg-canyon.jpg',
-    credit: 'InSapphoWeTrust, CC BY-SA 2.0',
-  },
-  {
     id: 'photo-dunes',
     label: 'Dunes',
     title: 'The gypsum dunefield at White Sands National Park.',
@@ -879,6 +882,86 @@ const BACKGROUND_TEMPLATES: BackgroundTemplate[] = [
     url: '/samples/bg-river.jpg',
     credit: 'Michael Gäbler, CC BY 3.0',
   },
+  // Landmarks — real, recognizable world landmarks rather than natural scenery, kept as
+  // their own category (below) instead of stretching "Nature photos" to cover them. Chichen
+  // Itza and the Colosseum were deliberately left out of this set despite being two of the
+  // New 7 Wonders: every clean, correctly-licensed Commons photo found for either one had
+  // identifiable tourists in the shot, which is a worse fit for a background a photo subject
+  // gets composited onto than an empty landscape.
+  {
+    id: 'landmark-great-wall',
+    label: 'Great Wall',
+    title: 'The Great Wall of China at Jinshanling.',
+    category: 'landmark',
+    kind: 'photo',
+    url: '/samples/bg-great-wall.jpg',
+    credit: 'Vincent Ndaku, CC BY-SA 3.0',
+  },
+  {
+    id: 'landmark-petra',
+    label: 'Petra',
+    title: 'The Treasury (Al-Khazneh), Petra, Jordan.',
+    category: 'landmark',
+    kind: 'photo',
+    url: '/samples/bg-petra.jpg',
+    credit: 'Rob Oo, CC BY 2.0',
+  },
+  {
+    id: 'landmark-christ-redeemer',
+    label: 'Christ the Redeemer',
+    title: 'Christ the Redeemer, Rio de Janeiro.',
+    category: 'landmark',
+    kind: 'photo',
+    url: '/samples/bg-christ-redeemer.jpg',
+    credit: 'Arturdiasr, CC BY-SA 4.0',
+  },
+  {
+    id: 'landmark-machu-picchu',
+    label: 'Machu Picchu',
+    title: 'Machu Picchu, Peru.',
+    category: 'landmark',
+    kind: 'photo',
+    url: '/samples/bg-machu-picchu.jpg',
+    credit: 'Pedro Szekely, CC BY-SA 2.0',
+  },
+  {
+    id: 'landmark-taj-mahal',
+    label: 'Taj Mahal',
+    title: 'The Taj Mahal, Agra, India.',
+    category: 'landmark',
+    kind: 'photo',
+    url: '/samples/bg-taj-mahal.jpg',
+    credit: 'Yann, CC BY-SA 4.0',
+  },
+  // Beaches & islands — grouped into the existing Nature photos category, alongside the
+  // beach/mountain/meadow photos above, rather than a fourth category for just three photos.
+  {
+    id: 'photo-santorini',
+    label: 'Santorini',
+    title: 'Cliffside houses of Oia, Santorini, Greece.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-santorini.jpg',
+    credit: 'Rambling Traveler, CC BY-SA 3.0',
+  },
+  {
+    id: 'photo-bora-bora',
+    label: 'Bora Bora',
+    title: 'Aerial view of Bora Bora, French Polynesia.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-bora-bora.jpg',
+    credit: 'Julius Silver, CC BY-SA 4.0',
+  },
+  {
+    id: 'photo-trunk-bay',
+    label: 'Trunk Bay',
+    title: 'Trunk Bay, Virgin Islands National Park.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-trunk-bay.jpg',
+    credit: 'Barry Haynes, CC BY-SA 3.0',
+  },
 ];
 
 const DEFAULT_TEMPLATE_ID = BACKGROUND_TEMPLATES[0]!.id;
@@ -1129,7 +1212,7 @@ export default function BackgroundRemover() {
     // until the visitor actually drags to resize.
     const fresh =
       backgroundMode === 'template'
-        ? { x: target.width / 2, y: target.height / 2, scale: 1, rotation: 0 }
+        ? { x: target.width / 2, y: target.height / 2, scale: 1, rotation: 0, flipX: false, flipY: false }
         : defaultPlacement(cutoutPixels.width, cutoutPixels.height, target.width, target.height);
     setPlacement(fresh);
     setDebouncedPlacement(fresh);
@@ -1410,11 +1493,11 @@ export default function BackgroundRemover() {
         }
 
         if (placementTarget) {
-          const { x, y, scale, rotation } = placementTarget.placement;
+          const { x, y, scale, rotation, flipX, flipY } = placementTarget.placement;
           context.save();
           context.translate(x, y);
           context.rotate((rotation * Math.PI) / 180);
-          context.scale(scale, scale);
+          context.scale(scale * (flipX ? -1 : 1), scale * (flipY ? -1 : 1));
           context.drawImage(cutoutCanvas, -cutoutPixels.width / 2, -cutoutPixels.height / 2);
           context.restore();
         } else {
@@ -1605,6 +1688,16 @@ export default function BackgroundRemover() {
     placeDragRef.current = null;
   };
 
+  const toggleFlipX = () => {
+    if (!placement) return;
+    setPlacement({ ...placement, flipX: !placement.flipX });
+  };
+
+  const toggleFlipY = () => {
+    if (!placement) return;
+    setPlacement({ ...placement, flipY: !placement.flipY });
+  };
+
   const download = () => {
     if (!exportResult || !file) return;
     const suffix =
@@ -1644,7 +1737,7 @@ export default function BackgroundRemover() {
   if (placementReady) {
     const { size, placement: p, cutout } = placementReady;
     const widthPct = (cutout.width / size.width) * 100;
-    cutoutStyle = `left:${(p.x / size.width) * 100}%; top:${(p.y / size.height) * 100}%; width:${widthPct}%; transform: translate(-50%, -50%) rotate(${p.rotation}deg) scale(${p.scale})`;
+    cutoutStyle = `left:${(p.x / size.width) * 100}%; top:${(p.y / size.height) * 100}%; width:${widthPct}%; transform: translate(-50%, -50%) rotate(${p.rotation}deg) scale(${p.scale}) scaleX(${p.flipX ? -1 : 1}) scaleY(${p.flipY ? -1 : 1})`;
 
     const rotateLocal = rotatePoint(p.x, p.y - (cutout.height / 2) * ROTATE_HANDLE_MARGIN * p.scale, p.x, p.y, p.rotation);
     rotateHandleStyle = `left:${(rotateLocal.x / size.width) * 100}%; top:${(rotateLocal.y / size.height) * 100}%`;
@@ -1693,62 +1786,39 @@ export default function BackgroundRemover() {
           {cutoutPixels && (
             <>
               <div class="bg-options">
-                <div class="seg" role="group" aria-label="Replacement background">
-                  <button
-                    type="button"
-                    class="seg__btn"
-                    aria-pressed={backgroundMode === 'transparent'}
-                    onClick={() => selectBackgroundMode('transparent')}
-                    title="Keep the cut-out area transparent — a PNG with an alpha channel."
-                  >
-                    Transparent
-                  </button>
-                  <button
-                    type="button"
-                    class="seg__btn"
-                    aria-pressed={backgroundMode === 'color'}
-                    onClick={() => selectBackgroundMode('color')}
-                    title="Fill the cut-out area with a solid color."
-                  >
-                    Color
-                  </button>
-                  <button
-                    type="button"
-                    class="seg__btn"
-                    aria-pressed={backgroundMode === 'gradient'}
-                    onClick={() => selectBackgroundMode('gradient')}
-                    title="Fill the cut-out area with a two-color gradient."
-                  >
-                    Gradient
-                  </button>
-                  <button
-                    type="button"
-                    class="seg__btn"
-                    aria-pressed={backgroundMode === 'blur'}
-                    onClick={() => selectBackgroundMode('blur')}
-                    title="Blur or pixelate the original background instead of replacing it — the subject stays sharp."
-                  >
-                    Blur
-                  </button>
-                  <button
-                    type="button"
-                    class="seg__btn"
-                    aria-pressed={backgroundMode === 'image'}
-                    onClick={() => selectBackgroundMode('image')}
-                    title="Place the cutout on another image — drag, resize and rotate it freely."
-                  >
-                    Image
-                  </button>
-                  <button
-                    type="button"
-                    class="seg__btn"
-                    aria-pressed={backgroundMode === 'template'}
-                    onClick={() => selectBackgroundMode('template')}
-                    title="Fill the cut-out area with a ready-made background pattern."
-                  >
-                    Template
-                  </button>
+                {/* A 6-way `.seg` never fits a phone width even wrapped onto multiple rows —
+                    the last row lands short of the full container width, leaving a ragged
+                    empty gap inside the shared pill border that reads as a rendering glitch.
+                    Below the tablet breakpoint this swaps to a plain `<select>` instead, the
+                    same fallback the QR Code Generator's 6-way content-type picker uses. */}
+                <div class="bg-mode-wide">
+                  <div class="seg" role="group" aria-label="Replacement background">
+                    {BACKGROUND_MODES.map((mode) => (
+                      <button
+                        key={mode.value}
+                        type="button"
+                        class="seg__btn"
+                        aria-pressed={backgroundMode === mode.value}
+                        onClick={() => selectBackgroundMode(mode.value)}
+                        title={mode.title}
+                      >
+                        {mode.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                <select
+                  class="select bg-mode-narrow"
+                  value={backgroundMode}
+                  aria-label="Replacement background"
+                  onChange={(event) => selectBackgroundMode((event.target as HTMLSelectElement).value as BackgroundMode)}
+                >
+                  {BACKGROUND_MODES.map((mode) => (
+                    <option key={mode.value} value={mode.value}>
+                      {mode.label}
+                    </option>
+                  ))}
+                </select>
 
                 {backgroundMode === 'color' && (
                   <label class="control control--inline" title="Pick the solid color to fill the removed background with.">
@@ -1915,6 +1985,33 @@ export default function BackgroundRemover() {
                           onPointerUp={endPlaceDrag}
                         />
                       </div>
+                      {/* A floating corner toolbar directly on the stage, same visual language
+                          (dark semi-opaque icon buttons) as this tool's own CompareSlider zoom
+                          controls below — flip is a property of the cutout, not of where it's
+                          positioned, so it lives fixed to the stage's own corner rather than
+                          moving/rotating with the cutout the way the resize/rotate handles do. */}
+                      <div class="place-flip" role="group" aria-label="Flip cutout">
+                        <button
+                          type="button"
+                          class="place-flip__btn"
+                          aria-pressed={placement?.flipX ?? false}
+                          onClick={toggleFlipX}
+                          title="Flip horizontal — mirror the cutout left-to-right"
+                          aria-label="Flip horizontal"
+                        >
+                          ⇄
+                        </button>
+                        <button
+                          type="button"
+                          class="place-flip__btn"
+                          aria-pressed={placement?.flipY ?? false}
+                          onClick={toggleFlipY}
+                          title="Flip vertical — mirror the cutout top-to-bottom"
+                          aria-label="Flip vertical"
+                        >
+                          ⇅
+                        </button>
+                      </div>
                       <div
                         class="place-handle place-handle--rotate"
                         style={rotateHandleStyle}
@@ -2048,6 +2145,11 @@ export default function BackgroundRemover() {
         .bg-remove-result { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: var(--space-3); }
         .bg-remove-result__stats { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin: 0; }
         .bg-options { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+        .bg-mode-narrow { display: none; }
+        @media (max-width: 48rem) {
+          .bg-mode-wide { display: none; }
+          .bg-mode-narrow { display: block; width: auto; min-width: 10rem; }
+        }
         /* Same weight/size/color tokens as .field__label (tool.css) so this reads as a prominent
            status, not a passive hint — recompositing at this tool's model resolution genuinely
            takes noticeable time, and this message shouldn't blend into the byte-size readout next
@@ -2086,11 +2188,15 @@ export default function BackgroundRemover() {
         .bg-template-thumb__img { background: var(--surface-2); }
         .bg-template-thumb__label { font-size: var(--text-xs); color: var(--text-subtle); text-align: center; }
 
-        .place-section { display: flex; flex-direction: column; gap: var(--space-2); }
+        .place-section { display: flex; flex-direction: column; gap: var(--space-3); }
         /* Top/side padding gives the rotate/scale handles room to sit outside the canvas
            frame (a cutout scaled to fill it pushes its handles past the frame's own edges)
-           without overlapping the hint text above or getting clipped by a narrower viewport. */
-        .place-stage-wrap { display: flex; padding: 1.5rem 1.5rem 0; }
+           without overlapping the hint text above or getting clipped by a narrower viewport.
+           2rem top rather than 1.5rem: Template mode starts cutouts at native scale (1), not
+           the ~90%-contain-fit Image mode uses, so the rotate handle's fixed offset above the
+           cutout's own top edge can clear the frame by more than 1.5rem for a tall cutout —
+           without the extra headroom the handle could poke up into the hint text above it. */
+        .place-stage-wrap { display: flex; padding: 2rem 1.5rem 0; }
         .place-stage { position: relative; margin: 0; touch-action: none; user-select: none; }
         /* Everything that's actually part of the exported image lives in this clipped inner
            layer; the handles below are meta-UI drawn on top of it and must stay reachable
@@ -2115,6 +2221,19 @@ export default function BackgroundRemover() {
         }
         .place-handle--scale { cursor: nwse-resize; }
         .place-handle--rotate { cursor: alias; }
+        /* Anchored to the stage's own top-left corner (not the frame's — same "sibling of the
+           clipped layer, not a child of it" reasoning as the resize/rotate handles above) so
+           it never scrolls out of the visible canvas area or gets clipped by the frame's own
+           overflow:hidden, regardless of the cutout's current position/rotation. */
+        .place-flip { position: absolute; top: var(--space-2); left: var(--space-2); z-index: 3; display: flex; gap: var(--space-1); }
+        .place-flip__btn {
+          display: inline-flex; align-items: center; justify-content: center;
+          width: 1.75rem; height: 1.75rem; padding: 0; border-radius: var(--radius-sm);
+          border: none; background: rgb(0 0 0 / 0.55);
+          color: #fff; font-size: 1rem; line-height: 1; cursor: pointer;
+        }
+        .place-flip__btn:hover { background: rgb(0 0 0 / 0.7); }
+        .place-flip__btn[aria-pressed='true'] { background: var(--accent); color: var(--accent-contrast); }
         /* .job__spinner (shared with every other worker-backed tool) lives in src/styles/tool.css. */
       `}</style>
     </div>

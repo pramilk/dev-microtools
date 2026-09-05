@@ -153,6 +153,27 @@ describe('<CompareSlider />', () => {
     expect(zoomOut).toBeDisabled();
   });
 
+  it('starts at a given initial zoom instead of always fitting the box at 100%', () => {
+    render(<CompareSlider {...props} width={800} height={400} initialZoom={2} />);
+    expect(zoomPercent()).toContain('(200%)');
+  });
+
+  it('clamps an out-of-range initial zoom to the same bounds as the zoom buttons', () => {
+    const { rerender } = render(<CompareSlider {...props} width={800} height={400} initialZoom={10} />);
+    expect(zoomPercent()).toContain('(400%)');
+
+    rerender(<CompareSlider {...props} width={800} height={400} initialZoom={0.01} />);
+    expect(zoomPercent()).toContain('(33%)');
+  });
+
+  it('re-applies the initial zoom when it changes even though beforeUrl did not, e.g. Image Upscaler switching multipliers', () => {
+    const { rerender } = render(<CompareSlider {...props} width={800} height={400} initialZoom={1} />);
+    expect(zoomPercent()).toContain('(100%)');
+
+    rerender(<CompareSlider {...props} width={800} height={400} initialZoom={4} />);
+    expect(zoomPercent()).toContain('(400%)');
+  });
+
   it('resets the zoom when a new pair of images is compared', () => {
     // Carrying a 4x zoom over to whatever the user compares next would be a surprise.
     const { rerender } = render(<CompareSlider {...props} width={800} height={400} />);
@@ -161,6 +182,19 @@ describe('<CompareSlider />', () => {
 
     rerender(<CompareSlider beforeUrl="blob:before2" afterUrl="blob:after2" width={800} height={400} />);
     expect(zoomPercent()).toContain('(100%)');
+  });
+
+  it('keeps the zoom level when only the result changes, e.g. a quality/setting tweak re-exporting the same file', () => {
+    // Every caller re-derives `afterUrl` from the same source on every settings change
+    // (quality, format, crop, blur radius, …), producing a fresh blob URL each time even
+    // though it's still the same comparison — this used to wipe out the user's zoom on
+    // every such tweak, which is the bug this test guards against.
+    const { rerender } = render(<CompareSlider {...props} width={800} height={400} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    expect(zoomPercent()).toContain('(150%)');
+
+    rerender(<CompareSlider {...props} afterUrl="blob:after2" width={800} height={400} />);
+    expect(zoomPercent()).toContain('(150%)');
   });
 
   it('zooms on Ctrl+scroll but leaves a plain scroll alone to pan', () => {
@@ -250,6 +284,19 @@ describe('<CompareSlider />', () => {
 
     rerender(<CompareSlider {...props} transparent />);
     expect(stage().className).toContain('checkerboard');
+  });
+
+  it('leaves the before image at the browser default rendering unless asked for pixelated', () => {
+    render(<CompareSlider {...props} />);
+    expect(screen.getByAltText('Original')).not.toHaveAttribute('style');
+  });
+
+  it('forces the before image to render pixelated when asked, for an honest naive-stretch baseline', () => {
+    render(<CompareSlider {...props} beforeImageRendering="pixelated" />);
+    expect(screen.getByAltText('Original')).toHaveStyle('image-rendering: pixelated');
+    // The after image (the real result) is never affected by this — only the "before"
+    // naive-stretch baseline should look deliberately unsmoothed.
+    expect(screen.getByAltText('Compressed')).not.toHaveAttribute('style');
   });
 
   it('keeps the on-image captions out of the accessibility tree', () => {

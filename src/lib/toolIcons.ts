@@ -63,6 +63,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'security-txt-generator': 'SEC',
   'background-remover': 'BG',
   'face-plate-blur': 'BLR',
+  'image-upscaler': 'UPS',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

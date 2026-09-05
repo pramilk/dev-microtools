@@ -90,7 +90,7 @@ describe('defaultPlacement', () => {
   });
 
   it('falls back to a centered, unscaled placement for a degenerate (zero-size) cutout', () => {
-    expect(defaultPlacement(0, 0, 200, 100)).toEqual({ x: 100, y: 50, scale: 1, rotation: 0 });
+    expect(defaultPlacement(0, 0, 200, 100)).toEqual({ x: 100, y: 50, scale: 1, rotation: 0, flipX: false, flipY: false });
   });
 });
 

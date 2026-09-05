@@ -52,6 +52,7 @@ import JsonLdGenerator from '../islands/JsonLdGenerator';
 import SecurityTxtGenerator from '../islands/SecurityTxtGenerator';
 import BackgroundRemover from '../islands/BackgroundRemover';
 import FacePlateBlur from '../islands/FacePlateBlur';
+import ImageUpscaler from '../islands/ImageUpscaler';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -113,6 +114,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'security-txt-generator': SecurityTxtGenerator,
   'background-remover': BackgroundRemover,
   'face-plate-blur': FacePlateBlur,
+  'image-upscaler': ImageUpscaler,
 };
 
 /**

@@ -499,6 +499,28 @@ const currentPath = Astro.url.pathname;
       box-shadow: var(--shadow);
     }
 
+    /* Taken out of the `.shell` flex row here too — left at `position: sticky` (its
+       desktop value), this still reserved its own 1.75rem-plus-border column in the flex
+       row permanently, on every mobile page, even though the sidebar it opens is already
+       an off-canvas overlay with nothing left in the flow to share space with. That
+       reserved strip was pure wasted width down the left edge of every tool. `position:
+       fixed` floats it over the content instead, so `.shell__main` gets the full viewport
+       width back — but docked to the top edge (its desktop position) it then floated
+       straight on top of the breadcrumb row's "Home" link on every page, since a fixed
+       element no longer pushes in-flow content aside the way its old flex-flow box did. A
+       round floating button in the bottom-left corner, clear of any page content on every
+       tool, avoids that regardless of how long or short a given page is. */
+    .sidebar-tab {
+      position: fixed;
+      inset: auto auto var(--space-4) var(--space-4);
+      z-index: 21;
+      width: 2.75rem;
+      height: 2.75rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 50%;
+      box-shadow: var(--shadow);
+    }
+
     .sidebar__inner {
       width: 100%;
     }

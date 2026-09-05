@@ -1,0 +1,69 @@
+---
+title: Image Upscaler
+headline: Image Upscaler — enlarge a photo 2x-8x without uploading it
+description: Enlarge a JPEG, PNG, or WebP image 2x, 4x, 6x, or 8x with a high-quality Lanczos resample, entirely in your browser. No upload, no account. Free.
+summary: Enlarge a photo 2x-8x with a sharp Lanczos resample — right in your browser, no upload required.
+category: Images
+order: 54
+updated: 2026-09-05
+whatIsIt: >-
+  This tool enlarges a photo to 2x, 4x, 6x, or 8x its original width and height using a
+  Lanczos-3 resample — a windowed-sinc filter that reconstructs each new pixel from a wide
+  neighborhood of surrounding source pixels, rather than the simple bilinear blend a
+  browser's default image resize uses. The result is noticeably sharper edges and finer
+  detail than a plain drag-and-resize, especially on text, line art, and anything with hard
+  edges, though it cannot invent detail that was never captured in the original photo the
+  way a dedicated AI super-resolution model can — this tool trades that (much heavier, much
+  slower) capability for something that runs instantly, on any device, with no model
+  download. Drop in an image, pick a multiplier, and the resample runs in a background
+  thread so the tab never freezes. The larger multipliers (6x, 8x) are capped more tightly
+  than 2x/4x — meant for enlarging a small icon or avatar, not blowing up an already-large
+  photo to an unreasonable size. Compare the result against the original with a drag slider
+  showing the exact pixel dimensions of both — the "before" side is deliberately shown with
+  no smoothing of its own, so the comparison is honest — then download it as PNG, JPEG, or
+  WebP with the same quality/compression controls as this site's Image Compressor. Nothing
+  you upload is ever sent anywhere — the entire resample happens on your own device.
+useCases:
+  - Enlarging a small product photo or thumbnail to meet a marketplace listing's minimum image dimensions.
+  - Upscaling a low-resolution screenshot or scanned image before printing or embedding it in a document.
+  - Sharpening up an old or small avatar/profile photo before using it somewhere that expects a larger image.
+  - Enlarging a small icon or logo asset for a mockup or presentation without it turning to mush.
+  - Preparing a bigger version of a graphic for a print layout that needs more pixels than the original file has.
+howTo:
+  - Drop an image in, or choose one from your device.
+  - Pick 2x, 4x, 6x, or 8x — the projected output size updates immediately.
+  - Wait a moment while the resample runs in the background (a spinner shows while it's working).
+  - Drag the before/after slider to compare the original against the enlarged result.
+  - Pick an output format and quality, then download the finished file.
+example:
+  label: A small real photo with fine, irregular detail, enlarged 4x.
+  input: 'A 300×225 photo of a cat, with fine fur and whisker detail throughout.'
+  output: 'The same photo at 1,200×900, noticeably sharper than a plain browser resize on that same fine detail.'
+  note: Press "Load example" to try the actual bundled sample photo and see the real result for yourself.
+faq:
+  - q: Does this use AI to add detail that isn't in the original photo?
+    a: No — this uses a Lanczos-3 resample, a high-quality mathematical resampling filter, not an AI super-resolution model. It produces noticeably sharper results than a plain browser resize by reconstructing each new pixel from a wide neighborhood of source pixels, but it cannot invent texture or detail that was never captured in the original image. An AI model can do that, at the cost of being far slower and requiring a large model download — this tool trades that capability for something instant and lightweight.
+  - q: Does this upload my photo anywhere?
+    a: No. The entire resample runs locally in your browser, in a background thread so the tab stays responsive. Nothing you drop in is ever sent to a server — this is true of every tool on this site, not just this one.
+  - q: Why does it only offer 2x, 4x, 6x and 8x, not any custom multiplier?
+    a: A fixed choice keeps the control a simple toggle rather than a free-typed number that could produce an unreasonably large (and slow, or memory-heavy) result. These four cover the overwhelming majority of real "enlarge this image" requests, from a modest bump to blowing up a small icon or avatar.
+  - q: Is there a size limit?
+    a: Yes, two. The source file itself is capped at 25MB, the same limit as this site's other image tools. Separately, the *output* is capped at 40 megapixels regardless of the source file's size — a very large or mostly-solid-color image can decode to a huge pixel grid even from a small file, and enlarging that further could hang the tab or exhaust its memory. This cap bites much sooner at 6x/8x than at 2x/4x, by design — those larger multipliers are meant for small source images (icons, avatars), not for blowing up an already-large photo. If you hit the cap, try a smaller multiplier or crop/resize the source down first.
+  - q: What file formats does this accept, and what does it output?
+    a: It accepts any common raster format your browser can decode — JPEG, PNG, WebP, BMP. Output can be PNG, JPEG, or WebP, with the same quality slider and PNG lossless/lossy controls as the Image Compressor. An animated GIF or an SVG isn't accepted, for the same reasons the Image Compressor and Image Cropper don't take them either.
+  - q: Will this make a blurry photo sharp again?
+    a: Not exactly — a Lanczos resample sharpens the *resizing* itself (avoiding the extra softness a plain bilinear resize adds), but it can't recover detail that was genuinely lost to the original photo's low resolution, heavy compression, or camera blur. It's best thought of as "the best possible resize," not "an unblur tool."
+related:
+  - image-compressor
+  - image-cropper
+  - image-format-converter
+  - background-remover
+---
+
+## License and attribution
+
+The "Load example" sample photo is a small (300×225) downscale of
+[Stray cat on wall.jpg](https://commons.wikimedia.org/wiki/File:Stray_cat_on_wall.jpg) by
+Neal Ziring, released into the public domain — the same already-verified source photo
+Background Remover's own "Load example" uses, resized down to match this tool's own use
+case (enlarging a small photo) instead of a print-resolution one.

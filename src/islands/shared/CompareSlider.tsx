@@ -23,6 +23,24 @@ interface Props {
    *  transparent area (e.g. a PNG with alpha) reads as "see-through" rather than as
    *  whatever the theme's surface color happens to be. */
   transparent?: boolean;
+  /** `'pixelated'` forces the *before* image to render with `image-rendering: pixelated`
+   *  instead of the browser's own (fairly good, bilinear-ish) upscaling filter — for a tool
+   *  whose whole point is showing off a *better* resampling algorithm (Image Upscaler), a
+   *  "before" comparison that quietly benefits from the browser's own smoothing understates
+   *  the difference, or on a low-detail photo can make the two sides look nearly identical.
+   *  Forcing a naive, visibly blocky stretch on the before side is the honest baseline: "no
+   *  real resampling at all," not "some other resampling the browser happened to do for
+   *  free." Every other caller leaves this at the default, unaffected. */
+  beforeImageRendering?: 'auto' | 'pixelated';
+  /** Zoom level (e.g. `2` for 200%) to reset to whenever `beforeUrl` or this prop itself
+   *  changes, instead of always resetting to 100%. Clamped to the same [33%, 400%] range as
+   *  the zoom buttons. For Image Upscaler: a fixed-size comparison box necessarily looks
+   *  identical at every multiplier (the whole point of "fit the box" is that display size
+   *  no longer depends on source resolution), so the only honest way to show more multiplier
+   *  = more visible blockiness is to start the comparison already zoomed in further — the
+   *  box's own "fit" footprint never changes, only how much of it you're looking at.
+   *  Every other caller omits this and keeps the always-reset-to-100% behavior. */
+  initialZoom?: number;
 }
 
 /**
@@ -39,6 +57,8 @@ export function CompareSlider({
   beforeLabel = 'Original',
   afterLabel = 'Compressed',
   transparent = false,
+  beforeImageRendering = 'auto',
+  initialZoom,
 }: Props) {
   const [split, setSplit] = useState(50);
   const [zoom, setZoom] = useState(1);
@@ -55,11 +75,20 @@ export function CompareSlider({
   // rather than accumulating per-event deltas (which drifts if an event is missed).
   const panOriginRef = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number } | null>(null);
 
-  // A fresh comparison (new before/after pair) starts unzoomed — carrying over a zoom
-  // level from whatever was previously being inspected would be a confusing surprise.
+  // A genuinely new subject (a different file loaded, or a different job selected out of
+  // a batch) starts unzoomed (or at `initialZoom`, when a caller supplies one) — carrying
+  // over a zoom level from whatever was previously being inspected would be a confusing
+  // surprise. Keyed on `beforeUrl`, not `afterUrl`: every caller re-derives `afterUrl` from
+  // the *same* source file on every settings tweak (quality, format, crop box, blur
+  // radius, …), producing a fresh blob URL each time even though it's still the same
+  // comparison — resetting zoom on that as well meant every quality-slider nudge threw away
+  // whatever close-up the user had zoomed in to check. `beforeUrl` only changes when the
+  // actual input file does. Also keyed on `initialZoom` itself, so a caller that ties it to
+  // something other than the file (Image Upscaler's multiplier) gets a fresh reset whenever
+  // that changes, even though `beforeUrl` didn't.
   useEffect(() => {
-    setZoom(1);
-  }, [beforeUrl, afterUrl]);
+    setZoom(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, initialZoom ?? 1)));
+  }, [beforeUrl, initialZoom]);
 
   // Re-measures after every zoom change (and once the images have their real dimensions),
   // rather than assuming zoom > 1 implies overflow.
@@ -189,7 +218,13 @@ export function CompareSlider({
                 even when it didn't. Complementary clip-paths keep the two from ever
                 overlapping, so each one's own transparency shows the checkerboard correctly. */}
             <div class="compare__before" style={`clip-path: inset(0 ${100 - split}% 0 0)`}>
-              <img src={beforeUrl} alt={beforeLabel} class="compare__img" draggable={false} />
+              <img
+                src={beforeUrl}
+                alt={beforeLabel}
+                class="compare__img"
+                draggable={false}
+                style={beforeImageRendering === 'pixelated' ? 'image-rendering: pixelated' : undefined}
+              />
             </div>
             <div class="compare__after" style={`clip-path: inset(0 0 0 ${split}%)`}>
               <img src={afterUrl} alt={afterLabel} class="compare__img" draggable={false} />

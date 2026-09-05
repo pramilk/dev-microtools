@@ -103,6 +103,7 @@ request at all. You can verify this yourself: open DevTools → Network while us
 | [Favicon Generator](https://devmicrotools.com/favicon-generator/) | Generate favicon.ico, every standard PNG size, apple-touch-icon, Android/PWA icons and a web manifest — plus the HTML snippet — from one uploaded image. |
 | [Background Remover](https://devmicrotools.com/background-remover/) | Remove a photo's background with an on-device AI model (u2netp via onnxruntime-web/WASM) — no upload, runs entirely in your browser. |
 | [Face & Plate Blur](https://devmicrotools.com/face-plate-blur/) | Blur, pixelate, or black out faces (auto-detected on-device), license plates, or anything else sensitive in a photo — right in your browser. |
+| [Image Upscaler](https://devmicrotools.com/image-upscaler/) | Enlarge a photo 2x-8x with a sharp Lanczos resample — right in your browser, no upload required. |
 
 ### CSS
 

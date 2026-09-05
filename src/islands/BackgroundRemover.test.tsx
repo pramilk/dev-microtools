@@ -366,6 +366,36 @@ describe('<BackgroundRemover />', () => {
       expect(scaleSpy).toHaveBeenCalled();
     });
 
+    it('flips the cutout horizontally and vertically, negating the canvas scale factors the export uses', async () => {
+      render(<BackgroundRemover />);
+      dropFile(new File([PNG_SIGNATURE], 'photo.jpg', { type: 'image/jpeg' }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /download png/i })).toBeInTheDocument());
+      chooseBgImage();
+      await waitFor(() => expect(document.querySelector('.place-stage')).toBeInTheDocument());
+      await waitFor(() => expect(scaleSpy).toHaveBeenCalled());
+
+      const flipX = screen.getByRole('button', { name: /flip horizontal/i });
+      const flipY = screen.getByRole('button', { name: /flip vertical/i });
+      expect(flipX).toHaveAttribute('aria-pressed', 'false');
+      expect(flipY).toHaveAttribute('aria-pressed', 'false');
+
+      scaleSpy.mockClear();
+      fireEvent.click(flipX);
+      expect(flipX).toHaveAttribute('aria-pressed', 'true');
+      await waitFor(() => expect(scaleSpy).toHaveBeenCalled());
+      let [sx, sy] = scaleSpy.mock.calls[scaleSpy.mock.calls.length - 1]!;
+      expect(sx).toBeLessThan(0);
+      expect(sy).toBeGreaterThan(0);
+
+      scaleSpy.mockClear();
+      fireEvent.click(flipY);
+      expect(flipY).toHaveAttribute('aria-pressed', 'true');
+      await waitFor(() => expect(scaleSpy).toHaveBeenCalled());
+      [sx, sy] = scaleSpy.mock.calls[scaleSpy.mock.calls.length - 1]!;
+      expect(sx).toBeLessThan(0);
+      expect(sy).toBeLessThan(0);
+    });
+
     it('clears the placement stage and its background image when switching back to Transparent', async () => {
       render(<BackgroundRemover />);
       dropFile(new File([PNG_SIGNATURE], 'photo.jpg', { type: 'image/jpeg' }));

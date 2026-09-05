@@ -168,27 +168,31 @@ export function rotatePoint(x: number, y: number, cx: number, cy: number, angleD
 
 /** A cutout's placement on top of a replacement background image: `x`/`y` are its center, in
  *  the background canvas's own pixel coordinates; `scale` is a multiplier on the cutout's own
- *  natural size (1 = original size); `rotation` is clockwise degrees. Deliberately allows the
- *  cutout to sit partially or fully outside the canvas bounds — the canvas clips whatever
- *  hangs off the edge automatically, and "half off-frame" is a legitimate composition choice
- *  a placement editor shouldn't block. */
+ *  natural size (1 = original size); `rotation` is clockwise degrees; `flipX`/`flipY` mirror
+ *  the cutout horizontally/vertically in its own local (unrotated) frame, independent of
+ *  rotation — flipping doesn't change which way is "up" for the rotate handle. Deliberately
+ *  allows the cutout to sit partially or fully outside the canvas bounds — the canvas clips
+ *  whatever hangs off the edge automatically, and "half off-frame" is a legitimate composition
+ *  choice a placement editor shouldn't block. */
 export interface Placement {
   x: number;
   y: number;
   scale: number;
   rotation: number;
+  flipX: boolean;
+  flipY: boolean;
 }
 
 /**
  * The initial placement for a freshly chosen (subject, background) pair: centered on the
  * canvas, scaled to comfortably fit within it (contain-fit with a 10% margin, so the cutout
- * starts fully visible and not touching the edges), with no rotation.
+ * starts fully visible and not touching the edges), with no rotation or flip.
  */
 export function defaultPlacement(cutoutWidth: number, cutoutHeight: number, canvasWidth: number, canvasHeight: number): Placement {
   const center = { x: canvasWidth / 2, y: canvasHeight / 2 };
-  if (cutoutWidth <= 0 || cutoutHeight <= 0) return { ...center, scale: 1, rotation: 0 };
+  if (cutoutWidth <= 0 || cutoutHeight <= 0) return { ...center, scale: 1, rotation: 0, flipX: false, flipY: false };
   const fit = Math.min(canvasWidth / cutoutWidth, canvasHeight / cutoutHeight) * 0.9;
-  return { ...center, scale: fit > 0 ? fit : 1, rotation: 0 };
+  return { ...center, scale: fit > 0 ? fit : 1, rotation: 0, flipX: false, flipY: false };
 }
 
 export interface GradientLine {

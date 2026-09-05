@@ -92,6 +92,16 @@
   color-scheme: light;
 }
 
+/* Matches Header.astro's own `max-width: 30rem` breakpoint, where the nav wraps onto a
+   second row — every sticky/fixed element measured against `--header-height` (the sidebar,
+   its collapsed expand-tab, its mobile backdrop) needs the taller value at the same
+   breakpoint or they'd sit either under the header's second row or with a gap above it. */
+@media (max-width: 30rem) {
+  :root {
+    --header-height: 5.5rem;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0d1117;
