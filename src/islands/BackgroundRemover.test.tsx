@@ -53,10 +53,22 @@ const { translateSpy, rotateSpy, scaleSpy, createLinearGradientSpy, addColorStop
 
 class FakeCanvasContext {
   fillStyle = '';
+  strokeStyle = '';
+  lineWidth = 1;
+  globalAlpha = 1;
   drawImage() {}
   fillRect() {}
+  strokeRect() {}
   save() {}
   restore() {}
+  beginPath() {}
+  closePath() {}
+  moveTo() {}
+  lineTo() {}
+  bezierCurveTo() {}
+  arc() {}
+  fill() {}
+  stroke() {}
   translate(x: number, y: number) {
     translateSpy(x, y);
   }
@@ -69,6 +81,9 @@ class FakeCanvasContext {
   createLinearGradient(...args: number[]) {
     createLinearGradientSpy(...args);
     return { addColorStop: addColorStopSpy };
+  }
+  createRadialGradient() {
+    return { addColorStop: vi.fn() };
   }
   getImageData(_x: number, _y: number, width: number, height: number) {
     return { data: new Uint8ClampedArray(width * height * 4).fill(128), width, height };
@@ -102,6 +117,9 @@ function stubCanvasAndDecode() {
   vi.spyOn(proto, 'toBlob').mockImplementation(function (this: HTMLCanvasElement, callback: BlobCallback) {
     callback(new Blob([new Uint8Array(24)], { type: 'image/png' }));
   });
+  // Used by the Template gallery's art-preview effect (`canvas.toDataURL('image/png')`) to
+  // build the placement stage's background `<img>` for a procedurally-drawn template.
+  vi.spyOn(proto, 'toDataURL').mockReturnValue('data:image/png;base64,fake');
 
   vi.stubGlobal('URL', {
     ...URL,
@@ -304,45 +322,34 @@ describe('<BackgroundRemover />', () => {
       chooseBgImage();
 
       await waitFor(() => expect(document.querySelector('.place-stage')).toBeInTheDocument());
+      expect(document.querySelector('.place-stage__cutout')).toBeInTheDocument();
       expect(document.querySelector('.place-handle--scale')).toBeInTheDocument();
       expect(document.querySelector('.place-handle--rotate')).toBeInTheDocument();
-      expect(screen.getByLabelText(/cutout horizontal position/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/cutout vertical position/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/cutout scale/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/cutout rotation/i)).toBeInTheDocument();
     });
 
-    it('repositions, rescales and rotates the cutout via the numeric fields', async () => {
+    it('moves the cutout by dragging it, changing the canvas translate call the export uses', async () => {
       render(<BackgroundRemover />);
       dropFile(new File([PNG_SIGNATURE], 'photo.jpg', { type: 'image/jpeg' }));
       await waitFor(() => expect(screen.getByRole('button', { name: /download png/i })).toBeInTheDocument());
       chooseBgImage();
       await waitFor(() => expect(document.querySelector('.place-stage')).toBeInTheDocument());
+      await waitFor(() => expect(translateSpy).toHaveBeenCalled());
+      translateSpy.mockClear();
 
-      fireEvent.input(screen.getByLabelText(/cutout horizontal position/i), { target: { value: '5' } });
-      expect((screen.getByLabelText(/cutout horizontal position/i) as HTMLInputElement).value).toBe('5');
+      const cutout = document.querySelector('.place-stage__cutout')!;
+      const stage = document.querySelector('.place-stage')!;
+      vi.spyOn(stage, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 40, height: 20, right: 40, bottom: 20 } as DOMRect);
+      fireEvent.pointerDown(cutout, { clientX: 10, clientY: 5 });
+      fireEvent.pointerMove(cutout, { clientX: 20, clientY: 15 });
+      fireEvent.pointerUp(cutout);
 
-      fireEvent.input(screen.getByLabelText(/cutout scale/i), { target: { value: '150' } });
-      expect((screen.getByLabelText(/cutout scale/i) as HTMLInputElement).value).toBe('150');
-
-      fireEvent.input(screen.getByLabelText(/cutout rotation/i), { target: { value: '45' } });
-      expect((screen.getByLabelText(/cutout rotation/i) as HTMLInputElement).value).toBe('45');
-    });
-
-    it('resets placement back to its centered default when "Reset placement" is clicked', async () => {
-      render(<BackgroundRemover />);
-      dropFile(new File([PNG_SIGNATURE], 'photo.jpg', { type: 'image/jpeg' }));
-      await waitFor(() => expect(screen.getByRole('button', { name: /download png/i })).toBeInTheDocument());
-      chooseBgImage();
-      await waitFor(() => expect(document.querySelector('.place-stage')).toBeInTheDocument());
-
-      const originalX = (screen.getByLabelText(/cutout horizontal position/i) as HTMLInputElement).value;
-      fireEvent.input(screen.getByLabelText(/cutout horizontal position/i), { target: { value: '999' } });
-      expect((screen.getByLabelText(/cutout horizontal position/i) as HTMLInputElement).value).toBe('999');
-
-      fireEvent.click(screen.getByRole('button', { name: /reset placement/i }));
-
-      expect((screen.getByLabelText(/cutout horizontal position/i) as HTMLInputElement).value).toBe(originalX);
+      await waitFor(() => expect(translateSpy).toHaveBeenCalled());
+      const [x, y] = translateSpy.mock.calls[translateSpy.mock.calls.length - 1]!;
+      // Started centered at (20, 10) for a 40x20 canvas; dragging by +10/+10 screen px (1:1
+      // scale, since the stubbed stage rect matches the canvas's own pixel size) should move
+      // the placement by the same amount.
+      expect(x).toBeCloseTo(30);
+      expect(y).toBeCloseTo(20);
     });
 
     it('applies a canvas translate/rotate/scale transform only once a background image is actually placed', async () => {
@@ -368,6 +375,73 @@ describe('<BackgroundRemover />', () => {
       fireEvent.click(screen.getByRole('button', { name: /^transparent$/i }));
 
       expect(document.querySelector('.place-stage')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('blur background', () => {
+    it('switches to Blur, defaulting to the Blur style with a strength slider', async () => {
+      render(<BackgroundRemover />);
+      dropFile(new File([PNG_SIGNATURE], 'photo.jpg', { type: 'image/jpeg' }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /download png/i })).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole('button', { name: /^blur$/i }));
+
+      // Two buttons now match "Blur": the mode-select segment and the Blur/Pixelate style
+      // toggle underneath it — both should read as pressed once Blur mode is active.
+      const blurButtons = screen.getAllByRole('button', { name: /^blur$/i });
+      expect(blurButtons).toHaveLength(2);
+      for (const button of blurButtons) expect(button).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByLabelText(/blur strength/i)).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole('button', { name: /download jpeg|download webp|download png/i })).toBeInTheDocument());
+    });
+
+    it('switches the strength slider to a block-size control when Pixelate is chosen', async () => {
+      render(<BackgroundRemover />);
+      dropFile(new File([PNG_SIGNATURE], 'photo.jpg', { type: 'image/jpeg' }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /download png/i })).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('button', { name: /^blur$/i }));
+
+      fireEvent.click(screen.getByRole('button', { name: /^pixelate$/i }));
+
+      expect(screen.getByLabelText(/pixelate block size/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('background templates', () => {
+    it('shows a categorized, scrollable gallery of art and photo templates', async () => {
+      render(<BackgroundRemover />);
+      dropFile(new File([PNG_SIGNATURE], 'photo.jpg', { type: 'image/jpeg' }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /download png/i })).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole('button', { name: /^template$/i }));
+
+      expect(screen.getByText(/art & patterns/i)).toBeInTheDocument();
+      expect(screen.getByText(/nature photos/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /studio/i })).toBeInTheDocument();
+    });
+
+    it('lets the cutout be freely placed on a template, same as a replacement image', async () => {
+      render(<BackgroundRemover />);
+      dropFile(new File([PNG_SIGNATURE], 'photo.jpg', { type: 'image/jpeg' }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /download png/i })).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole('button', { name: /^template$/i }));
+
+      await waitFor(() => expect(document.querySelector('.place-stage')).toBeInTheDocument());
+      expect(document.querySelector('.place-handle--scale')).toBeInTheDocument();
+      expect(document.querySelector('.place-handle--rotate')).toBeInTheDocument();
+    });
+
+    it('repaints the placement stage when a different template is picked', async () => {
+      render(<BackgroundRemover />);
+      dropFile(new File([PNG_SIGNATURE], 'photo.jpg', { type: 'image/jpeg' }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /download png/i })).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('button', { name: /^template$/i }));
+      await waitFor(() => expect(document.querySelector('.place-stage')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole('button', { name: /^beach$/i }));
+
+      await waitFor(() => expect(document.querySelector('.place-stage__bg')).toHaveAttribute('src', '/samples/bg-beach.jpg'));
     });
   });
 });

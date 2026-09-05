@@ -11,6 +11,7 @@ import {
   type PngMode,
 } from '../lib/tools/imageCompress';
 import { rotatePoint, defaultPlacement, computeLinearGradientLine, type RgbaImageData, type Placement } from '../lib/tools/backgroundRemove';
+import { applyBoxBlur, applyPixelate, DEFAULT_BLUR_RADIUS, DEFAULT_PIXEL_BLOCK_SIZE } from '../lib/tools/imageRedact';
 import { FileDropzone } from './shared/FileDropzone';
 import { CompareSlider } from './shared/CompareSlider';
 import { ErrorMessage } from './shared/ErrorMessage';
@@ -27,7 +28,8 @@ import type { ImageCompressWorkerRequest, ImageCompressWorkerResult } from '../w
 // disk, which can't (and shouldn't) be encoded into a URL. Same reasoning as every other
 // image tool on this site.
 
-type BackgroundMode = 'transparent' | 'color' | 'gradient' | 'image';
+type BackgroundMode = 'transparent' | 'color' | 'gradient' | 'image' | 'blur' | 'template';
+type BlurStyle = 'blur' | 'pixelate';
 /** Direction presets for the gradient fill, in the same 0°=right/90°=down clockwise
  *  convention `computeLinearGradientLine` uses, ordered like a compass starting at "up".
  *  Deliberately a fixed set of eight rather than a full angle dial — the common cases, not a
@@ -43,6 +45,872 @@ const GRADIENT_DIRECTIONS: { label: string; angle: number; title: string }[] = [
   { label: '↖', angle: 225, title: 'Bottom-right to top-left' },
 ];
 type PlaceDragMode = 'move' | 'scale' | 'rotate';
+
+/** A background "template" is one of two kinds:
+ *  - `'art'`: a small, deterministic canvas-drawing routine — zero added asset weight, no
+ *    license question. The exact same `draw` function paints both the full-size export and
+ *    its own gallery thumbnail, so a thumbnail can never drift from what actually exports.
+ *  - `'photo'`: a real bundled photo (`public/samples/bg-*.jpg`), drawn with a cover-fit
+ *    crop. Every one is either US-federal-government work (public domain) or a genuinely
+ *    freely-licensed Wikimedia Commons upload verified individually before being added here
+ *    — see this tool's content page for the full photographer credit/license list. `credit`
+ *    is `null` only for public-domain photos, which carry no attribution requirement. */
+type BackgroundTemplate =
+  | { id: string; label: string; title: string; category: 'art'; kind: 'art'; draw: (ctx: CanvasRenderingContext2D, width: number, height: number) => void }
+  | { id: string; label: string; title: string; category: 'photo'; kind: 'photo'; url: string; credit: string | null };
+
+const TEMPLATE_CATEGORIES: { id: 'art' | 'photo'; label: string }[] = [
+  { id: 'art', label: 'Art & patterns' },
+  { id: 'photo', label: 'Nature photos' },
+];
+
+/** Draws `bitmap` cover-fit into a `width`×`height` rect — scaled up to fully cover it,
+ *  centered, with whatever overflows on the long axis cropped off — the same behavior as
+ *  CSS `background-size: cover`, used for every real-photo template. */
+function drawImageCover(ctx: CanvasRenderingContext2D, bitmap: ImageBitmap, width: number, height: number): void {
+  const scale = Math.max(width / bitmap.width, height / bitmap.height);
+  const drawWidth = bitmap.width * scale;
+  const drawHeight = bitmap.height * scale;
+  ctx.drawImage(bitmap, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+}
+
+/** Caches each photo template's decoded bitmap by URL — selecting the same template twice
+ *  (or drawing its thumbnail and then its full export) never re-fetches or re-decodes it.
+ *  Module-scope, like Background Remover's own `sessionPromise`/`ortModulePromise` caches,
+ *  since the bitmap is immutable and safe to share across every instance of this island. */
+const templatePhotoCache = new Map<string, Promise<ImageBitmap>>();
+function loadTemplatePhoto(url: string): Promise<ImageBitmap> {
+  let cached = templatePhotoCache.get(url);
+  if (!cached) {
+    cached = fetch(url)
+      .then((response) => {
+        if (!response.ok) throw new Error('Could not load the template background image.');
+        return response.blob();
+      })
+      .then((blob) => createImageBitmap(blob));
+    templatePhotoCache.set(url, cached);
+  }
+  return cached;
+}
+
+/** Fixed (not `Math.random()`-generated) positions/colors for the templates below that use
+ *  scattered shapes — a template must paint identically every time it's selected, and must
+ *  match its own thumbnail pixel-for-pixel, which a fresh random draw on every render
+ *  couldn't guarantee. */
+const BOKEH_DOTS: { x: number; y: number; r: number; color: string }[] = [
+  { x: 0.15, y: 0.22, r: 0.16, color: '#38bdf8' },
+  { x: 0.42, y: 0.62, r: 0.22, color: '#f472b6' },
+  { x: 0.72, y: 0.28, r: 0.13, color: '#facc15' },
+  { x: 0.85, y: 0.78, r: 0.18, color: '#34d399' },
+  { x: 0.22, y: 0.85, r: 0.11, color: '#a78bfa' },
+  { x: 0.6, y: 0.1, r: 0.09, color: '#fb7185' },
+];
+
+const CONFETTI_DOTS: { x: number; y: number; r: number; color: string }[] = [
+  { x: 0.08, y: 0.15, r: 0.018, color: '#ef4444' },
+  { x: 0.2, y: 0.4, r: 0.012, color: '#3b82f6' },
+  { x: 0.33, y: 0.12, r: 0.014, color: '#f59e0b' },
+  { x: 0.46, y: 0.55, r: 0.02, color: '#10b981' },
+  { x: 0.58, y: 0.22, r: 0.011, color: '#a855f7' },
+  { x: 0.68, y: 0.68, r: 0.016, color: '#ef4444' },
+  { x: 0.78, y: 0.3, r: 0.013, color: '#3b82f6' },
+  { x: 0.88, y: 0.6, r: 0.019, color: '#f59e0b' },
+  { x: 0.12, y: 0.72, r: 0.015, color: '#10b981' },
+  { x: 0.3, y: 0.85, r: 0.012, color: '#a855f7' },
+  { x: 0.5, y: 0.9, r: 0.017, color: '#ef4444' },
+  { x: 0.7, y: 0.92, r: 0.011, color: '#3b82f6' },
+  { x: 0.92, y: 0.85, r: 0.014, color: '#f59e0b' },
+  { x: 0.95, y: 0.15, r: 0.013, color: '#10b981' },
+  { x: 0.4, y: 0.3, r: 0.01, color: '#a855f7' },
+];
+
+const WATERCOLOR_BLOBS: { x: number; y: number; r: number; color: string }[] = [
+  { x: 0.25, y: 0.3, r: 0.28, color: '#fbcfe8' },
+  { x: 0.6, y: 0.25, r: 0.22, color: '#bfdbfe' },
+  { x: 0.75, y: 0.65, r: 0.3, color: '#fde68a' },
+  { x: 0.3, y: 0.75, r: 0.25, color: '#bbf7d0' },
+];
+
+const MARBLE_SWIRLS: { x: number; y: number; r: number; color: string }[] = [
+  { x: 0.3, y: 0.3, r: 0.5, color: '#c7b9ad' },
+  { x: 0.7, y: 0.6, r: 0.45, color: '#a89685' },
+  { x: 0.5, y: 0.85, r: 0.4, color: '#8d7a68' },
+];
+
+/** Ridge outlines for the Mountain Sunset template's two silhouette layers, in the same
+ *  relative (0-1) coordinate convention as the dot/blob arrays above — a mountain skyline
+ *  reads as a fixed shape, not scattered points, so this is a path outline instead. */
+const MOUNTAIN_BACK_RIDGE: { x: number; y: number }[] = [
+  { x: 0, y: 0.62 },
+  { x: 0.15, y: 0.5 },
+  { x: 0.32, y: 0.6 },
+  { x: 0.5, y: 0.42 },
+  { x: 0.68, y: 0.58 },
+  { x: 0.85, y: 0.48 },
+  { x: 1, y: 0.6 },
+];
+const MOUNTAIN_FRONT_RIDGE: { x: number; y: number }[] = [
+  { x: 0, y: 0.82 },
+  { x: 0.2, y: 0.68 },
+  { x: 0.4, y: 0.78 },
+  { x: 0.6, y: 0.62 },
+  { x: 0.8, y: 0.76 },
+  { x: 1, y: 0.66 },
+];
+
+/** Fills the polygon formed by `ridge`'s points down to the bottom of the canvas — one
+ *  mountain silhouette layer. Shared by the Mountain Sunset template's back and front
+ *  layers, which differ only in their ridge outline and fill color. */
+function drawMountainLayer(ctx: CanvasRenderingContext2D, w: number, h: number, ridge: { x: number; y: number }[], color: string): void {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(0, h);
+  for (const point of ridge) ctx.lineTo(point.x * w, point.y * h);
+  ctx.lineTo(w, h);
+  ctx.closePath();
+  ctx.fill();
+}
+
+const BACKGROUND_TEMPLATES: BackgroundTemplate[] = [
+  {
+    id: 'studio-gray',
+    label: 'Studio',
+    title: 'A soft gray studio-backdrop vignette — the classic portrait/product-photo look.',
+    category: 'art',
+    kind: 'art',
+    draw: (ctx, w, h) => {
+      const radius = Math.max(w, h) * 0.75;
+      const gradient = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, radius);
+      gradient.addColorStop(0, '#e5e7eb');
+      gradient.addColorStop(1, '#6b7280');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+    },
+  },
+  {
+    id: 'sunset-mesh',
+    label: 'Sunset',
+    title: 'A warm diagonal gradient mesh, from orange through pink to purple.',
+    category: 'art',
+    kind: 'art',
+    draw: (ctx, w, h) => {
+      const gradient = ctx.createLinearGradient(0, 0, w, h);
+      gradient.addColorStop(0, '#ff9a76');
+      gradient.addColorStop(0.5, '#ff6f91');
+      gradient.addColorStop(1, '#6a3093');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+      const highlight = ctx.createRadialGradient(w * 0.3, h * 0.25, 0, w * 0.3, h * 0.25, Math.max(w, h) * 0.5);
+      highlight.addColorStop(0, 'rgba(255,255,255,0.35)');
+      highlight.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = highlight;
+      ctx.fillRect(0, 0, w, h);
+    },
+  },
+  {
+    id: 'bokeh-lights',
+    label: 'Bokeh',
+    title: 'Soft, colorful blurred lights on a dark background.',
+    category: 'art',
+    kind: 'art',
+    draw: (ctx, w, h) => {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, w, h);
+      const size = Math.max(w, h);
+      for (const dot of BOKEH_DOTS) {
+        const cx = dot.x * w;
+        const cy = dot.y * h;
+        const radius = dot.r * size;
+        const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+        gradient.addColorStop(0, `${dot.color}cc`);
+        gradient.addColorStop(1, `${dot.color}00`);
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    },
+  },
+  {
+    id: 'diagonal-stripes',
+    label: 'Stripes',
+    title: 'Dark two-tone diagonal stripes.',
+    category: 'art',
+    kind: 'art',
+    draw: (ctx, w, h) => {
+      ctx.fillStyle = '#111827';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#1f2937';
+      ctx.save();
+      ctx.translate(w / 2, h / 2);
+      ctx.rotate(-Math.PI / 6);
+      ctx.translate(-w / 2, -h / 2);
+      const diag = Math.sqrt(w * w + h * h);
+      const stripeWidth = Math.max(w, h) * 0.07;
+      for (let x = -diag; x < diag; x += stripeWidth * 2) {
+        ctx.fillRect(x, -diag, stripeWidth, diag * 3);
+      }
+      ctx.restore();
+    },
+  },
+  {
+    id: 'grid-paper',
+    label: 'Grid',
+    title: 'A light graph-paper grid on an off-white background.',
+    category: 'art',
+    kind: 'art',
+    draw: (ctx, w, h) => {
+      ctx.fillStyle = '#fafaf9';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#d6d3d1';
+      ctx.lineWidth = Math.max(1, Math.min(w, h) * 0.002);
+      const step = Math.max(w, h) * 0.05;
+      for (let x = 0; x <= w; x += step) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= h; y += step) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+    },
+  },
+  {
+    id: 'confetti-dots',
+    label: 'Confetti',
+    title: 'Scattered colorful dots on a white background.',
+    category: 'art',
+    kind: 'art',
+    draw: (ctx, w, h) => {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+      const size = Math.min(w, h);
+      for (const dot of CONFETTI_DOTS) {
+        ctx.fillStyle = dot.color;
+        ctx.beginPath();
+        ctx.arc(dot.x * w, dot.y * h, dot.r * size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    },
+  },
+  {
+    id: 'aurora-waves',
+    label: 'Aurora',
+    title: 'Flowing aurora-style color bands on a night sky.',
+    category: 'art',
+    kind: 'art',
+    draw: (ctx, w, h) => {
+      ctx.fillStyle = '#050b1a';
+      ctx.fillRect(0, 0, w, h);
+      const bands: { color: string; y: number; amp: number }[] = [
+        { color: '#22d3ee', y: 0.35, amp: 0.08 },
+        { color: '#34d399', y: 0.5, amp: 0.1 },
+        { color: '#a78bfa', y: 0.65, amp: 0.07 },
+      ];
+      for (const band of bands) {
+        ctx.save();
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = band.color;
+        ctx.beginPath();
+        ctx.moveTo(0, h * (band.y - band.amp));
+        ctx.bezierCurveTo(w * 0.3, h * (band.y + band.amp), w * 0.6, h * (band.y - band.amp * 1.5), w, h * band.y);
+        ctx.lineTo(w, h * (band.y + band.amp * 2));
+        ctx.bezierCurveTo(w * 0.6, h * (band.y + band.amp * 3), w * 0.3, h * (band.y + band.amp * 0.5), 0, h * (band.y + band.amp * 2.5));
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    },
+  },
+  {
+    id: 'ocean-horizon',
+    label: 'Ocean',
+    title: 'A sky-and-sea gradient with a sunlit horizon glow.',
+    category: 'art',
+    kind: 'art',
+    draw: (ctx, w, h) => {
+      const horizon = h * 0.55;
+      const sky = ctx.createLinearGradient(0, 0, 0, horizon);
+      sky.addColorStop(0, '#7dd3fc');
+      sky.addColorStop(1, '#e0f2fe');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, w, horizon);
+      const sea = ctx.createLinearGradient(0, horizon, 0, h);
+      sea.addColorStop(0, '#0284c7');
+      sea.addColorStop(1, '#0c4a6e');
+      ctx.fillStyle = sea;
+      ctx.fillRect(0, horizon, w, h - horizon);
+      const glow = ctx.createRadialGradient(w * 0.5, horizon, 0, w * 0.5, horizon, w * 0.25);
+      glow.addColorStop(0, 'rgba(255,255,255,0.6)');
+      glow.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, w, h);
+    },
+  },
+  {
+    id: 'mountain-sunset',
+    label: 'Mountains',
+    title: 'Layered mountain silhouettes against a sunset sky.',
+    category: 'art',
+    kind: 'art',
+    draw: (ctx, w, h) => {
+      const sky = ctx.createLinearGradient(0, 0, 0, h);
+      sky.addColorStop(0, '#fbbf7a');
+      sky.addColorStop(0.5, '#f97362');
+      sky.addColorStop(1, '#3b2352');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = 'rgba(255,244,214,0.85)';
+      ctx.beginPath();
+      ctx.arc(w * 0.5, h * 0.42, Math.min(w, h) * 0.11, 0, Math.PI * 2);
+      ctx.fill();
+      drawMountainLayer(ctx, w, h, MOUNTAIN_BACK_RIDGE, 'rgba(59,41,74,0.55)');
+      drawMountainLayer(ctx, w, h, MOUNTAIN_FRONT_RIDGE, '#241b36');
+    },
+  },
+  {
+    id: 'marble-swirl',
+    label: 'Marble',
+    title: 'Soft swirling marble-like bands on a pale background.',
+    category: 'art',
+    kind: 'art',
+    draw: (ctx, w, h) => {
+      ctx.fillStyle = '#f5f3f0';
+      ctx.fillRect(0, 0, w, h);
+      const size = Math.max(w, h);
+      ctx.globalAlpha = 0.28;
+      for (const swirl of MARBLE_SWIRLS) {
+        const gradient = ctx.createRadialGradient(swirl.x * w, swirl.y * h, 0, swirl.x * w, swirl.y * h, swirl.r * size);
+        gradient.addColorStop(0, swirl.color);
+        gradient.addColorStop(1, 'rgba(245,243,240,0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, w, h);
+      }
+      ctx.globalAlpha = 1;
+    },
+  },
+  {
+    id: 'retrowave-grid',
+    label: 'Retrowave',
+    title: 'A synthwave-style sunset with a perspective grid horizon.',
+    category: 'art',
+    kind: 'art',
+    draw: (ctx, w, h) => {
+      const horizon = h * 0.6;
+      const sky = ctx.createLinearGradient(0, 0, 0, horizon);
+      sky.addColorStop(0, '#1a0b2e');
+      sky.addColorStop(1, '#7b2d8e');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, w, horizon);
+      const sunY = h * 0.45;
+      const sunRadius = Math.min(w, h) * 0.22;
+      const sunGradient = ctx.createLinearGradient(0, sunY - sunRadius, 0, sunY + sunRadius);
+      sunGradient.addColorStop(0, '#ffd447');
+      sunGradient.addColorStop(1, '#ff5e7e');
+      ctx.fillStyle = sunGradient;
+      ctx.beginPath();
+      ctx.arc(w * 0.5, sunY, sunRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0d0221';
+      ctx.fillRect(0, horizon, w, h - horizon);
+      ctx.strokeStyle = 'rgba(255,100,200,0.5)';
+      ctx.lineWidth = Math.max(1, w * 0.003);
+      for (let i = -5; i <= 5; i++) {
+        ctx.beginPath();
+        ctx.moveTo(w * 0.5 + i * w * 0.15, h);
+        ctx.lineTo(w * 0.5, horizon);
+        ctx.stroke();
+      }
+      for (let j = 1; j <= 4; j++) {
+        const y = horizon + (h - horizon) * (j / 4) ** 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+    },
+  },
+  {
+    id: 'watercolor-wash',
+    label: 'Watercolor',
+    title: 'Soft overlapping pastel watercolor blobs on white.',
+    category: 'art',
+    kind: 'art',
+    draw: (ctx, w, h) => {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+      const size = Math.max(w, h);
+      ctx.globalAlpha = 0.55;
+      for (const blob of WATERCOLOR_BLOBS) {
+        const radius = blob.r * size;
+        const gradient = ctx.createRadialGradient(blob.x * w, blob.y * h, 0, blob.x * w, blob.y * h, radius);
+        gradient.addColorStop(0, blob.color);
+        gradient.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(blob.x * w, blob.y * h, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    },
+  },
+  {
+    id: 'color-blocks',
+    label: 'Color blocks',
+    title: 'A bold abstract composition of flat color blocks.',
+    category: 'art',
+    kind: 'art',
+    draw: (ctx, w, h) => {
+      ctx.fillStyle = '#fef3c7';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(0, 0, w * 0.55, h * 0.6);
+      ctx.fillStyle = '#1d4ed8';
+      ctx.fillRect(w * 0.55, 0, w * 0.45, h * 0.35);
+      ctx.fillStyle = '#111827';
+      ctx.fillRect(w * 0.55, h * 0.35, w * 0.45, h * 0.25);
+      ctx.fillRect(w * 0.3, h * 0.6, w * 0.7, h * 0.4);
+    },
+  },
+  {
+    id: 'halftone-dots',
+    label: 'Halftone',
+    title: 'A comic-print halftone dot pattern.',
+    category: 'art',
+    kind: 'art',
+    draw: (ctx, w, h) => {
+      ctx.fillStyle = '#fef2f2';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#dc2626';
+      const step = Math.max(w, h) * 0.045;
+      let row = 0;
+      for (let y = step / 2; y < h; y += step) {
+        row++;
+        const offset = row % 2 === 0 ? step / 2 : 0;
+        for (let x = step / 2 + offset; x < w; x += step) {
+          const distanceFromCenter = Math.hypot(x - w * 0.5, y - h * 0.5) / (Math.max(w, h) * 0.6);
+          const radius = Math.max(0.5, (1 - distanceFromCenter) * step * 0.45);
+          ctx.beginPath();
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    },
+  },
+  {
+    id: 'kraft-paper',
+    label: 'Kraft paper',
+    title: 'A warm, subtly textured kraft-paper background.',
+    category: 'art',
+    kind: 'art',
+    draw: (ctx, w, h) => {
+      ctx.fillStyle = '#c8a877';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = 'rgba(120,90,50,0.08)';
+      const step = Math.max(w, h) * 0.03;
+      let row = 0;
+      for (let y = 0; y < h; y += step) {
+        row++;
+        const offset = (row % 2) * (step / 2);
+        for (let x = offset; x < w; x += step) {
+          ctx.beginPath();
+          ctx.arc(x, y, step * 0.12, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    },
+  },
+  {
+    id: 'chevron-pattern',
+    label: 'Chevron',
+    title: 'A repeating two-tone chevron/zigzag pattern.',
+    category: 'art',
+    kind: 'art',
+    draw: (ctx, w, h) => {
+      ctx.fillStyle = '#0f766e';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#5eead4';
+      ctx.lineWidth = Math.max(2, Math.min(w, h) * 0.03);
+      const size = Math.max(w, h) * 0.09;
+      for (let y = -size; y < h + size; y += size) {
+        ctx.beginPath();
+        let x = -size;
+        let up = true;
+        ctx.moveTo(x, y + (up ? 0 : size));
+        while (x < w + size) {
+          x += size;
+          up = !up;
+          ctx.lineTo(x, y + (up ? 0 : size));
+        }
+        ctx.stroke();
+      }
+    },
+  },
+  // Real photos — every one is US-federal-government work (public domain, `credit: null`)
+  // or a Wikimedia Commons upload under a real free license, verified individually via its
+  // own Commons file page before being added here. See this tool's content page for the
+  // full photographer credit and license-link list.
+  { id: 'photo-beach', label: 'Beach', title: 'Ofu Beach, American Samoa.', category: 'photo', kind: 'photo', url: '/samples/bg-beach.jpg', credit: null },
+  {
+    id: 'photo-mountain',
+    label: 'Snowy peaks',
+    title: 'Snow-covered mountains, Joshua Tree National Park.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-mountain.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-meadow',
+    label: 'Wildflowers',
+    title: 'Coreopsis wildflowers, Wichita Mountains Wildlife Refuge.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-meadow.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-waterfall',
+    label: 'Waterfall',
+    title: 'A waterfall in Shenandoah National Park.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-waterfall.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-canyon',
+    label: 'Canyon',
+    title: 'Kolob Canyon, Zion National Park.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-canyon.jpg',
+    credit: 'InSapphoWeTrust, CC BY-SA 2.0',
+  },
+  {
+    id: 'photo-dunes',
+    label: 'Dunes',
+    title: 'The gypsum dunefield at White Sands National Park.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-dunes.jpg',
+    credit: 'dconvertini, CC BY-SA 2.0',
+  },
+  {
+    id: 'photo-glacier',
+    label: 'Glacier',
+    title: 'Glacier Bay National Park and Preserve, Alaska.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-glacier.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-lake',
+    label: 'Crater lake',
+    title: 'Crater Lake National Park, Oregon.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-lake.jpg',
+    credit: 'w_lemay, CC BY-SA 2.0',
+  },
+  {
+    id: 'photo-grand-canyon',
+    label: 'Grand Canyon',
+    title: 'The Grand Canyon at sunset.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-grand-canyon.jpg',
+    credit: 'Eric Kilby, CC BY-SA 2.0',
+  },
+  {
+    id: 'photo-coastal-cliffs',
+    label: 'Coastal cliffs',
+    title: 'Coastal cliffs at Acadia National Park, Maine.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-coastal-cliffs.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-prairie',
+    label: 'Prairie',
+    title: 'The tallgrass prairie of the Flint Hills, Kansas.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-prairie.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-wetland',
+    label: 'Wetland',
+    title: 'Sunset over the Everglades.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-wetland.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-aurora',
+    label: 'Aurora',
+    title: 'The aurora borealis over Denali National Park.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-aurora.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-badlands',
+    label: 'Badlands',
+    title: 'Badlands National Park, South Dakota.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-badlands.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-desert-badlands',
+    label: 'Desert badlands',
+    title: 'Zabriskie Point, Death Valley National Park.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-desert-badlands.jpg',
+    credit: 'Christian David, CC BY-SA 4.0',
+  },
+  {
+    id: 'photo-cherry-blossom',
+    label: 'Cherry blossoms',
+    title: 'Cherry blossoms at the Tidal Basin, Washington, D.C.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-cherry-blossom.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-rainforest',
+    label: 'Rainforest',
+    title: 'Rainforest canopy, El Yunque National Forest, Puerto Rico.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-rainforest.jpg',
+    credit: 'EgorovaSvetlana, CC BY-SA 4.0',
+  },
+  {
+    id: 'photo-starry-sky',
+    label: 'Night sky',
+    title: 'A dark sky full of stars over Death Valley National Park.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-starry-sky.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-autumn',
+    label: 'Autumn forest',
+    title: 'Autumn foliage in the Great Smoky Mountains.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-autumn.jpg',
+    credit: 'Jason Hollinger, CC BY 2.0',
+  },
+  {
+    id: 'photo-milky-way',
+    label: 'Milky Way',
+    title: 'The Milky Way over a Joshua tree, Joshua Tree National Park.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-milky-way.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-star-trails',
+    label: 'Star trails',
+    title: 'Star trails and Comet NEOWISE over Joshua Tree National Park.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-star-trails.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-building',
+    label: 'Capitol building',
+    title: 'The U.S. Capitol Building in spring.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-building.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-alaska-range',
+    label: 'Alaska Range',
+    title: 'The Alaska Range, Denali National Park and Preserve.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-alaska-range.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-galaxy',
+    label: 'Galaxy',
+    title: 'NGC 4414, a spiral galaxy imaged by the Hubble Space Telescope.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-galaxy.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-nebula',
+    label: 'Nebula',
+    title: 'The Orion Nebula, imaged by the Hubble Space Telescope.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-nebula.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-ocean-waves',
+    label: 'Ocean waves',
+    title: 'Big surf at Waimea Bay, Hawaii.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-ocean-waves.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-rainbow',
+    label: 'Rainbow',
+    title: 'A rainbow over Kīlauea Iki, Hawaiʻi Volcanoes National Park.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-rainbow.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-volcano',
+    label: 'Volcano',
+    title: 'The Kīlauea summit eruption, Hawaiʻi Volcanoes National Park.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-volcano.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-snow-satellite',
+    label: 'Snow from space',
+    title: 'A snow-covered United States, seen from satellite.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-snow-satellite.jpg',
+    credit: 'NASA Goddard Space Flight Center, CC BY 2.0',
+  },
+  {
+    id: 'photo-fog-forest',
+    label: 'Foggy forest',
+    title: 'Morning fog on the Firehole River, Yellowstone National Park.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-fog-forest.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-hurricane',
+    label: 'Hurricane',
+    title: 'A hurricane seen from a GOES weather satellite, NOAA.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-hurricane.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-meteor-shower',
+    label: 'Meteor shower',
+    title: 'The Perseid meteor shower, NASA.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-meteor-shower.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-solar-eclipse',
+    label: 'Solar eclipse',
+    title: 'A total solar eclipse, NASA.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-solar-eclipse.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-tide-pools',
+    label: 'Tide pools',
+    title: 'Tide pools with reflected light, Crescent City, California.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-tide-pools.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-wildfire',
+    label: 'Wildfire',
+    title: 'Dried desert vegetation carrying wildfire, Joshua Tree National Park.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-wildfire.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-lighthouse',
+    label: 'Lighthouse',
+    title: 'The Munising Range Light, Michigan.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-lighthouse.jpg',
+    credit: null,
+  },
+  {
+    id: 'photo-river',
+    label: 'River',
+    title: 'Oxbow Bend on the Snake River, Grand Teton National Park.',
+    category: 'photo',
+    kind: 'photo',
+    url: '/samples/bg-river.jpg',
+    credit: 'Michael Gäbler, CC BY 3.0',
+  },
+];
+
+const DEFAULT_TEMPLATE_ID = BACKGROUND_TEMPLATES[0]!.id;
+
+const MIN_BLUR_RADIUS = 4;
+const MAX_BLUR_RADIUS = 40;
+const MIN_PIXEL_BLOCK_SIZE = 4;
+const MAX_PIXEL_BLOCK_SIZE = 40;
+/** Cap on an art template's live preview canvas, in pixels on its longer edge — see the
+ *  `templateArtPreviewUrl` effect's comment for why this matters on a large source photo. */
+const TEMPLATE_PREVIEW_MAX_DIMENSION = 640;
+
+/** Paints a template's own `draw` routine onto a small `<canvas>` for the gallery button —
+ *  the exact same function that paints the full-size export, so a thumbnail can never drift
+ *  out of sync with what actually gets exported. */
+function TemplateThumb({ template, width, height }: { template: BackgroundTemplate; width: number; height: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    if (template.kind !== 'art') return;
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    template.draw(ctx, width, height);
+  }, [template, width, height]);
+  if (template.kind === 'photo') {
+    // `loading="lazy"` — a photo template's bytes are fetched only once its thumbnail is
+    // actually near the viewport, not for every template up front just because the gallery
+    // rendered; this is on top of the whole gallery only rendering once "Template" mode is
+    // chosen in the first place.
+    return <img src={template.url} width={width} height={height} loading="lazy" decoding="async" alt="" class="bg-template-thumb__canvas bg-template-thumb__img" />;
+  }
+  return <canvas ref={canvasRef} width={width} height={height} class="bg-template-thumb__canvas" aria-hidden="true" />;
+}
 
 interface ExportResult {
   blob: Blob;
@@ -118,6 +986,10 @@ export default function BackgroundRemover() {
   const [backgroundImageUrl, setBackgroundImageUrl] = useState('');
   const [backgroundImageSize, setBackgroundImageSize] = useState<{ width: number; height: number } | null>(null);
   const [backgroundImageError, setBackgroundImageError] = useState<string | null>(null);
+  const [blurStyle, setBlurStyle] = useState<BlurStyle>('blur');
+  const [blurStrength, setBlurStrength] = useState(DEFAULT_BLUR_RADIUS);
+  const [debouncedBlurStrength, setDebouncedBlurStrength] = useState(DEFAULT_BLUR_RADIUS);
+  const [templateId, setTemplateId] = useState(DEFAULT_TEMPLATE_ID);
 
   // How the cutout sits on top of the replacement background image: center position, scale,
   // rotation. Only meaningful (and only ever set) once both a cutout and a background image
@@ -175,6 +1047,11 @@ export default function BackgroundRemover() {
     return () => window.clearTimeout(timer);
   }, [placement]);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedBlurStrength(blurStrength), 200);
+    return () => window.clearTimeout(timer);
+  }, [blurStrength]);
+
   // Transparency only survives in PNG — switching to a solid/image background makes the
   // result fully opaque either way, but the format control still only offers JPEG/WebP once
   // there's an actual background to fill with, so this only fires on the transparent<->other
@@ -228,19 +1105,84 @@ export default function BackgroundRemover() {
     };
   }, [backgroundImageFile]);
 
-  // A brand-new (subject, background) pair starts centered, scaled to comfortably fit. Also
-  // clears placement outright once either half is missing, so a stale position never lingers
-  // (e.g. after switching background modes and back, or clearing the background image).
+  // A brand-new (subject, background) pair starts centered, scaled to comfortably fit — the
+  // same free placement (drag to move, corner handle to resize, top handle to rotate) is
+  // available in both Image mode (placed on the replacement photo's own dimensions) and
+  // Template mode (placed on a canvas sized to the cutout's own dimensions, since a template
+  // has no independent "background size" of its own). Deliberately keyed on `backgroundMode`
+  // too, unlike a single (cutout, target-size) pair would need — the trade-off is that
+  // placement resets on every mode switch (even Image -> Color -> Image) rather than only
+  // when the cutout or replacement image actually changes, but that's what makes one shared
+  // `placement` state safe to reuse across two differently-sized placement targets instead of
+  // needing a second, near-duplicate copy of every drag/resize/rotate handler below.
+  const templatePlacementWidth = backgroundMode === 'template' ? (cutoutPixels?.width ?? null) : null;
+  const templatePlacementHeight = backgroundMode === 'template' ? (cutoutPixels?.height ?? null) : null;
   useEffect(() => {
-    if (!cutoutPixels || !backgroundImageSize) {
+    const target =
+      backgroundMode === 'image'
+        ? backgroundImageSize
+        : backgroundMode === 'template' && templatePlacementWidth != null && templatePlacementHeight != null
+          ? { width: templatePlacementWidth, height: templatePlacementHeight }
+          : null;
+    if (!cutoutPixels || !target) {
       setPlacement(null);
       setDebouncedPlacement(null);
       return;
     }
-    const fresh = defaultPlacement(cutoutPixels.width, cutoutPixels.height, backgroundImageSize.width, backgroundImageSize.height);
+    // Template mode's canvas *is* the cutout's own natural size (there's no independently
+    // sized replacement image to fit into, unlike Image mode) — starting it at
+    // `defaultPlacement`'s 90%-contain-fit scale would shrink the subject the instant a
+    // template is picked, with no other setting having changed. Native size (scale 1),
+    // centered, keeps a freshly-picked template visually identical to Color/Gradient/Blur
+    // until the visitor actually drags to resize.
+    const fresh =
+      backgroundMode === 'template'
+        ? { x: target.width / 2, y: target.height / 2, scale: 1, rotation: 0 }
+        : defaultPlacement(cutoutPixels.width, cutoutPixels.height, target.width, target.height);
     setPlacement(fresh);
     setDebouncedPlacement(fresh);
-  }, [cutoutPixels, backgroundImageSize]);
+  }, [cutoutPixels, backgroundImageSize, backgroundMode, templatePlacementWidth, templatePlacementHeight]);
+
+  // A live preview of the currently-selected template, purely so the placement stage below
+  // has an `<img>` URL for its background layer — the export itself always redraws the
+  // template fresh onto the real full-resolution export canvas (see the compositing effect),
+  // this is display-only. A photo template already has a static URL (`template.url`, reused
+  // directly, `object-fit: cover` reproducing the same crop `drawImageCover` applies at
+  // export time); an art template has no such URL since it's painted live, so one is
+  // generated here via an offscreen canvas + `toDataURL`.
+  //
+  // Deliberately capped at `TEMPLATE_PREVIEW_MAX_DIMENSION`, not drawn at the cutout's own
+  // (potentially much larger, e.g. 4000x3000) pixel dimensions — every template's `draw`
+  // already scales its pattern proportionally to whatever `width`/`height` it's given, so a
+  // smaller preview looks pixel-identical once the stage's CSS scales it back up to display
+  // size, at a fraction of the drawing + PNG-encoding cost. Without this cap, switching
+  // between art templates on a large photo visibly lagged — the same drawing work the export
+  // does, just to fill a few-hundred-pixel-wide preview box.
+  const [templateArtPreviewUrl, setTemplateArtPreviewUrl] = useState('');
+  useEffect(() => {
+    if (backgroundMode !== 'template' || !cutoutPixels) {
+      setTemplateArtPreviewUrl('');
+      return;
+    }
+    const template = BACKGROUND_TEMPLATES.find((t) => t.id === templateId) ?? BACKGROUND_TEMPLATES[0]!;
+    if (template.kind !== 'art') {
+      setTemplateArtPreviewUrl('');
+      return;
+    }
+    const scale = Math.min(1, TEMPLATE_PREVIEW_MAX_DIMENSION / Math.max(cutoutPixels.width, cutoutPixels.height));
+    const previewWidth = Math.max(1, Math.round(cutoutPixels.width * scale));
+    const previewHeight = Math.max(1, Math.round(cutoutPixels.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = previewWidth;
+    canvas.height = previewHeight;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      setTemplateArtPreviewUrl('');
+      return;
+    }
+    template.draw(context, previewWidth, previewHeight);
+    setTemplateArtPreviewUrl(canvas.toDataURL('image/png'));
+  }, [backgroundMode, templateId, cutoutPixels]);
 
   useEffect(() => {
     return () => {
@@ -369,11 +1311,15 @@ export default function BackgroundRemover() {
 
     // Bundles the two pieces free placement needs together, rather than checking each
     // separately at every use below — also gives TypeScript a real narrowed, non-null type
-    // for both instead of requiring a `!` assertion at each read.
+    // for both instead of requiring a `!` assertion at each read. Template mode reuses the
+    // same free placement as Image mode, just against a canvas sized to the cutout's own
+    // dimensions rather than an independently-sized replacement photo.
     const placementTarget =
       backgroundMode === 'image' && backgroundImageFile && backgroundImageSize && debouncedPlacement
         ? { size: backgroundImageSize, placement: debouncedPlacement }
-        : null;
+        : backgroundMode === 'template' && debouncedPlacement
+          ? { size: { width: cutoutPixels.width, height: cutoutPixels.height }, placement: debouncedPlacement }
+          : null;
 
     const seq = (exportSeqRef.current += 1);
     const isStale = () => exportSeqRef.current !== seq;
@@ -433,6 +1379,42 @@ export default function BackgroundRemover() {
           // makes sense against the whole background image, not a "cover"-cropped slice of it.
           context.drawImage(bgBitmap, 0, 0, canvasWidth, canvasHeight);
           bgBitmap.close();
+        } else if (backgroundMode === 'blur' && file) {
+          // Re-decodes the original file rather than reusing `cutoutPixels` — the AI step
+          // transfers its RGBA buffer into the Worker (see Step 1's `transfer` option), which
+          // detaches it on the main thread, so the only remaining source for the *original*
+          // (un-cut-out) pixels this mode needs to blur is the file itself.
+          const sourceBitmap = await createImageBitmap(file);
+          if (cancelled || isStale()) {
+            sourceBitmap.close();
+            return;
+          }
+          const sourceCanvas = document.createElement('canvas');
+          sourceCanvas.width = canvasWidth;
+          sourceCanvas.height = canvasHeight;
+          const sourceContext = sourceCanvas.getContext('2d');
+          if (!sourceContext) {
+            sourceBitmap.close();
+            throw new Error('This browser does not support canvas image export.');
+          }
+          sourceContext.drawImage(sourceBitmap, 0, 0, canvasWidth, canvasHeight);
+          sourceBitmap.close();
+          const sourceImageData = sourceContext.getImageData(0, 0, canvasWidth, canvasHeight);
+          const wholeImageRect = { x: 0, y: 0, width: canvasWidth, height: canvasHeight };
+          const blurred =
+            blurStyle === 'pixelate'
+              ? applyPixelate({ data: sourceImageData.data, width: canvasWidth, height: canvasHeight }, wholeImageRect, debouncedBlurStrength)
+              : applyBoxBlur({ data: sourceImageData.data, width: canvasWidth, height: canvasHeight }, wholeImageRect, debouncedBlurStrength);
+          context.putImageData(new ImageData(blurred.data, canvasWidth, canvasHeight), 0, 0);
+        } else if (backgroundMode === 'template') {
+          const template = BACKGROUND_TEMPLATES.find((t) => t.id === templateId) ?? BACKGROUND_TEMPLATES[0]!;
+          if (template.kind === 'art') {
+            template.draw(context, canvasWidth, canvasHeight);
+          } else {
+            const photoBitmap = await loadTemplatePhoto(template.url);
+            if (cancelled || isStale()) return;
+            drawImageCover(context, photoBitmap, canvasWidth, canvasHeight);
+          }
         }
 
         if (placementTarget) {
@@ -492,6 +1474,9 @@ export default function BackgroundRemover() {
     backgroundImageFile,
     backgroundImageSize,
     debouncedPlacement,
+    blurStyle,
+    debouncedBlurStrength,
+    templateId,
     format,
     debouncedQuality,
     pngMode,
@@ -512,10 +1497,24 @@ export default function BackgroundRemover() {
     setGradientAngle(DEFAULT_GRADIENT_ANGLE);
     setBackgroundImageFile(null);
     setBackgroundImageError(null);
+    setBlurStyle('blur');
+    setBlurStrength(DEFAULT_BLUR_RADIUS);
+    setDebouncedBlurStrength(DEFAULT_BLUR_RADIUS);
+    setTemplateId(DEFAULT_TEMPLATE_ID);
     setFormat('image/png');
     setPngMode('lossless');
     setQuality(DEFAULT_QUALITY);
     setDebouncedQuality(DEFAULT_QUALITY);
+  };
+
+  // A style switch resets intensity to that style's own default — blur radius and pixelate
+  // block size are unrelated units, so there's no meaningful "previous value" to carry over
+  // between them (same reasoning as Face/Plate Blur's `updateRegionStyle`).
+  const updateBlurStyle = (style: BlurStyle) => {
+    setBlurStyle(style);
+    const next = style === 'pixelate' ? DEFAULT_PIXEL_BLOCK_SIZE : DEFAULT_BLUR_RADIUS;
+    setBlurStrength(next);
+    setDebouncedBlurStrength(next);
   };
 
   const chooseBackgroundImage = (event: Event) => {
@@ -532,20 +1531,17 @@ export default function BackgroundRemover() {
     setBackgroundImageFile(chosen);
   };
 
-  const resetPlacement = () => {
-    if (!cutoutPixels || !backgroundImageSize) return;
-    const fresh = defaultPlacement(cutoutPixels.width, cutoutPixels.height, backgroundImageSize.width, backgroundImageSize.height);
-    setPlacement(fresh);
-    setDebouncedPlacement(fresh);
-  };
-
   /** Converts a pointer event's client coordinates into the background canvas's own pixel
    *  space, using the stage's rendered (CSS-scaled) size to recover the ratio — the same
    *  `scaleFactor()` technique the Image Cropper uses for its crop box. */
   const pointerToCanvasPoint = (event: PointerEvent): { x: number; y: number } | null => {
     const rect = placeStageRef.current?.getBoundingClientRect();
-    if (!rect || rect.width === 0 || !backgroundImageSize) return null;
-    const scale = backgroundImageSize.width / rect.width;
+    // The placement canvas's own pixel width — the replacement image's natural width in
+    // Image mode, or the cutout's own natural width in Template mode (a template has no
+    // independently-sized "background" of its own; see the placement-reset effect above).
+    const targetWidth = backgroundMode === 'image' ? backgroundImageSize?.width : backgroundMode === 'template' ? cutoutPixels?.width : undefined;
+    if (!rect || rect.width === 0 || targetWidth == null) return null;
+    const scale = targetWidth / rect.width;
     return { x: (event.clientX - rect.left) * scale, y: (event.clientY - rect.top) * scale };
   };
 
@@ -600,7 +1596,8 @@ export default function BackgroundRemover() {
 
   const download = () => {
     if (!exportResult || !file) return;
-    const suffix = backgroundMode === 'transparent' ? 'no-bg' : 'new-bg';
+    const suffix =
+      backgroundMode === 'transparent' ? 'no-bg' : backgroundMode === 'blur' ? 'blurred-bg' : backgroundMode === 'template' ? 'template-bg' : 'new-bg';
     downloadUrl(exportResult.url, `${baseName(file.name)}-${suffix}.${OUTPUT_FORMAT_EXTENSIONS[format]}`);
   };
 
@@ -608,10 +1605,27 @@ export default function BackgroundRemover() {
 
   // The placement stage only renders once every piece it needs actually exists — computed
   // once per render rather than re-checked at each JSX use site below.
+  const selectedTemplate = BACKGROUND_TEMPLATES.find((t) => t.id === templateId) ?? BACKGROUND_TEMPLATES[0]!;
+  const templateBackgroundUrl = selectedTemplate.kind === 'photo' ? selectedTemplate.url : templateArtPreviewUrl;
+
   const placementReady =
     backgroundMode === 'image' && backgroundImageFile && backgroundImageUrl && backgroundImageSize && placement && cutoutPixels && cutoutPreviewUrl
-      ? { url: backgroundImageUrl, size: backgroundImageSize, placement, cutout: cutoutPixels, cutoutUrl: cutoutPreviewUrl }
-      : null;
+      ? { url: backgroundImageUrl, size: backgroundImageSize, placement, cutout: cutoutPixels, cutoutUrl: cutoutPreviewUrl, cover: false }
+      : backgroundMode === 'template' && templateBackgroundUrl && placement && cutoutPixels && cutoutPreviewUrl
+        ? {
+            url: templateBackgroundUrl,
+            size: { width: cutoutPixels.width, height: cutoutPixels.height },
+            placement,
+            cutout: cutoutPixels,
+            cutoutUrl: cutoutPreviewUrl,
+            // A photo template is cover-fit cropped at export time (`drawImageCover`) since
+            // its own aspect ratio rarely matches the cutout's — the stage's background
+            // `<img>` needs the same crop to preview accurately. An art template's preview is
+            // rendered pixel-for-pixel at the canvas's own size already, so a plain stretch
+            // (the `<img>` default) reproduces it exactly with nothing to crop.
+            cover: selectedTemplate.kind === 'photo',
+          }
+        : null;
 
   let cutoutStyle = '';
   let rotateHandleStyle = '';
@@ -705,6 +1719,24 @@ export default function BackgroundRemover() {
                   >
                     Image
                   </button>
+                  <button
+                    type="button"
+                    class="seg__btn"
+                    aria-pressed={backgroundMode === 'blur'}
+                    onClick={() => setBackgroundMode('blur')}
+                    title="Blur or pixelate the original background instead of replacing it — the subject stays sharp."
+                  >
+                    Blur
+                  </button>
+                  <button
+                    type="button"
+                    class="seg__btn"
+                    aria-pressed={backgroundMode === 'template'}
+                    onClick={() => setBackgroundMode('template')}
+                    title="Fill the cut-out area with a ready-made background pattern."
+                  >
+                    Template
+                  </button>
                 </div>
 
                 {backgroundMode === 'color' && (
@@ -771,6 +1803,70 @@ export default function BackgroundRemover() {
                   </div>
                 )}
                 <ErrorMessage message={backgroundImageError} />
+
+                {backgroundMode === 'blur' && (
+                  <>
+                    <div class="seg" role="group" aria-label="Blur style">
+                      <button
+                        type="button"
+                        class="seg__btn"
+                        aria-pressed={blurStyle === 'blur'}
+                        onClick={() => updateBlurStyle('blur')}
+                        title="Soft Gaussian-style blur — the least visually jarring option."
+                      >
+                        Blur
+                      </button>
+                      <button
+                        type="button"
+                        class="seg__btn"
+                        aria-pressed={blurStyle === 'pixelate'}
+                        onClick={() => updateBlurStyle('pixelate')}
+                        title="Classic mosaic blocks."
+                      >
+                        Pixelate
+                      </button>
+                    </div>
+                    <label
+                      class="control"
+                      title={blurStyle === 'pixelate' ? 'Larger blocks hide more background detail but look blockier.' : 'A larger radius blurs the background more strongly.'}
+                    >
+                      <span class="field__hint">{blurStyle === 'pixelate' ? `Block size (${blurStrength}px)` : `Blur strength (${blurStrength}px)`}</span>
+                      <input
+                        type="range"
+                        min={blurStyle === 'pixelate' ? MIN_PIXEL_BLOCK_SIZE : MIN_BLUR_RADIUS}
+                        max={blurStyle === 'pixelate' ? MAX_PIXEL_BLOCK_SIZE : MAX_BLUR_RADIUS}
+                        value={blurStrength}
+                        aria-label={blurStyle === 'pixelate' ? 'Pixelate block size' : 'Blur strength'}
+                        onInput={(event) => setBlurStrength(Number((event.target as HTMLInputElement).value))}
+                      />
+                    </label>
+                  </>
+                )}
+
+                {backgroundMode === 'template' && (
+                  <div class="bg-template-scroll">
+                    {TEMPLATE_CATEGORIES.map((cat) => (
+                      <div key={cat.id} class="bg-template-category">
+                        <h4 class="bg-template-category__title">{cat.label}</h4>
+                        <div class="bg-template-gallery" role="group" aria-label={cat.label}>
+                          {BACKGROUND_TEMPLATES.filter((template) => template.category === cat.id).map((template) => (
+                            <button
+                              key={template.id}
+                              type="button"
+                              class="bg-template-thumb"
+                              aria-pressed={templateId === template.id}
+                              onClick={() => setTemplateId(template.id)}
+                              title={template.kind === 'photo' && template.credit ? `${template.title} Photo: ${template.credit}.` : template.title}
+                            >
+                              <TemplateThumb template={template} width={64} height={40} />
+                              <span class="bg-template-thumb__label">{template.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {placementReady && (
@@ -791,7 +1887,12 @@ export default function BackgroundRemover() {
                           handle for a cutout scaled to fill the frame can easily land above
                           or beside the canvas itself and must stay visible/reachable there. */}
                       <div class="place-stage__frame">
-                        <img src={placementReady.url} alt="" class="place-stage__bg" draggable={false} />
+                        <img
+                          src={placementReady.url}
+                          alt=""
+                          class={`place-stage__bg${placementReady.cover ? ' place-stage__bg--cover' : ''}`}
+                          draggable={false}
+                        />
                         <img
                           src={placementReady.cutoutUrl}
                           alt=""
@@ -826,55 +1927,6 @@ export default function BackgroundRemover() {
                         ⤡
                       </div>
                     </div>
-                  </div>
-                  <div class="place-fields">
-                    <label class="control">
-                      <span class="field__hint">X</span>
-                      <input
-                        type="number"
-                        class="input"
-                        value={Math.round(placementReady.placement.x)}
-                        aria-label="Cutout horizontal position in pixels"
-                        onInput={(event) => setPlacement({ ...placementReady.placement, x: Number((event.target as HTMLInputElement).value) })}
-                      />
-                    </label>
-                    <label class="control">
-                      <span class="field__hint">Y</span>
-                      <input
-                        type="number"
-                        class="input"
-                        value={Math.round(placementReady.placement.y)}
-                        aria-label="Cutout vertical position in pixels"
-                        onInput={(event) => setPlacement({ ...placementReady.placement, y: Number((event.target as HTMLInputElement).value) })}
-                      />
-                    </label>
-                    <label class="control">
-                      <span class="field__hint">Scale (%)</span>
-                      <input
-                        type="number"
-                        class="input"
-                        min={Math.round(MIN_PLACEMENT_SCALE * 100)}
-                        value={Math.round(placementReady.placement.scale * 100)}
-                        aria-label="Cutout scale as a percentage"
-                        onInput={(event) => {
-                          const percent = Number((event.target as HTMLInputElement).value);
-                          setPlacement({ ...placementReady.placement, scale: Math.max(MIN_PLACEMENT_SCALE, percent / 100) });
-                        }}
-                      />
-                    </label>
-                    <label class="control">
-                      <span class="field__hint">Rotation (°)</span>
-                      <input
-                        type="number"
-                        class="input"
-                        value={Math.round(placementReady.placement.rotation)}
-                        aria-label="Cutout rotation in degrees"
-                        onInput={(event) => setPlacement({ ...placementReady.placement, rotation: Number((event.target as HTMLInputElement).value) })}
-                      />
-                    </label>
-                    <button type="button" class="btn" onClick={resetPlacement} title="Recenter the cutout and reset its scale and rotation">
-                      Reset placement
-                    </button>
                   </div>
                 </div>
               )}
@@ -989,6 +2041,28 @@ export default function BackgroundRemover() {
         .control--inline { flex-direction: row; align-items: center; gap: var(--space-2); }
         .color-input { width: 2.5rem; height: 2rem; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); background: none; cursor: pointer; }
 
+        /* A capped-height, vertically scrolling section — the gallery has grown past what
+           fits inline (two categories, dozens of thumbnails), so it scrolls internally
+           rather than pushing the rest of the tool's controls far down the page. */
+        .bg-template-scroll { display: flex; flex-direction: column; gap: var(--space-3); max-height: 16rem; overflow-y: auto; padding-right: var(--space-1); }
+        .bg-template-category { display: flex; flex-direction: column; gap: var(--space-2); }
+        .bg-template-category__title {
+          font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .08em;
+          color: var(--text-subtle); font-family: var(--font-mono); font-weight: 600; margin: 0;
+          position: sticky; top: 0; background: var(--surface); padding-block: 2px;
+        }
+        .bg-template-gallery { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+        .bg-template-thumb {
+          display: flex; flex-direction: column; align-items: center; gap: var(--space-1);
+          width: 4.5rem; padding: var(--space-1); border: 2px solid transparent; border-radius: var(--radius);
+          background: none; cursor: pointer;
+        }
+        .bg-template-thumb:hover { border-color: var(--border); }
+        .bg-template-thumb[aria-pressed="true"] { border-color: var(--accent); }
+        .bg-template-thumb__canvas { display: block; width: 4rem; height: 2.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border); object-fit: cover; }
+        .bg-template-thumb__img { background: var(--surface-2); }
+        .bg-template-thumb__label { font-size: var(--text-xs); color: var(--text-subtle); text-align: center; }
+
         .place-section { display: flex; flex-direction: column; gap: var(--space-2); }
         /* Top/side padding gives the rotate/scale handles room to sit outside the canvas
            frame (a cutout scaled to fill it pushes its handles past the frame's own edges)
@@ -1004,6 +2078,7 @@ export default function BackgroundRemover() {
           border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2);
         }
         .place-stage__bg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+        .place-stage__bg--cover { object-fit: cover; }
         .place-stage__cutout {
           position: absolute; top: 0; left: 0; height: auto; max-width: none;
           cursor: move; touch-action: none;
@@ -1017,10 +2092,6 @@ export default function BackgroundRemover() {
         }
         .place-handle--scale { cursor: nwse-resize; }
         .place-handle--rotate { cursor: alias; }
-        .place-fields { display: grid; grid-template-columns: repeat(4, 1fr) auto; gap: var(--space-2); align-items: end; }
-        @media (max-width: 40rem) {
-          .place-fields { grid-template-columns: 1fr 1fr; }
-        }
         /* .job__spinner (shared with every other worker-backed tool) lives in src/styles/tool.css. */
       `}</style>
     </div>

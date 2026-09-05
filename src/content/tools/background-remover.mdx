@@ -12,9 +12,12 @@ whatIsIt: >-
   model that powers most "AI background remover" web apps, except nothing here is ever sent
   to a server. Drop in a photo and the model finds the main subject and builds a transparency
   mask around it. From there you can keep the cut-out area transparent, fill it with a solid
-  color or a two-color gradient (in any of eight directions), or drop in a different image as
-  a replacement background — and freely drag, resize and rotate the cutout on top of it to
-  place it exactly where you want. Export as PNG, JPEG, or WebP, with the same
+  color or a two-color gradient (in any of eight directions), drop in a different image as a
+  replacement background, blur or pixelate the *original* background while keeping the
+  subject sharp, or pick a ready-made background from the Template gallery — dozens of
+  procedurally-drawn art patterns and real, license-verified nature photos, grouped by
+  category. With a replacement image, freely drag, resize and rotate the cutout on top of it
+  to place it exactly where you want. Export as PNG, JPEG, or WebP, with the same
   quality/compression controls as this site's Image Compressor, so the final file is small as
   well as clean. The very first image processed on a given device downloads the model and its
   WebAssembly runtime (roughly 18 MB combined); the browser caches both, so every image after
@@ -24,12 +27,14 @@ useCases:
   - Cutting a product photo's background out for a marketplace listing or an e-commerce catalog.
   - Compositing a subject onto a different photo — a new backdrop for a portrait, or a product shot moved onto a lifestyle scene — with full control over its position, size and angle.
   - Swapping a photo's background for a solid color or a brand-colored gradient to match a product-listing or marketing style.
+  - Blurring the background behind a video-call screenshot or headshot so the subject stands out without a full background swap.
+  - Dropping a subject onto a ready-made scenic or patterned backdrop from the Template gallery when you don't have a replacement photo of your own.
   - Preparing a transparent PNG logo or graphic from a photo of a printed or physical version.
   - Removing a distracting background from a screenshot or photo before pasting it into a document.
 howTo:
   - Drop a photo in, or choose one from your device.
   - Wait a few seconds while the AI model analyzes the image (longer the first time, while the model downloads).
-  - Choose what replaces the background — transparent, a solid color, a gradient, or another image.
+  - Choose what replaces the background — transparent, a solid color, a gradient, another image, a blur/pixelate of the original background, or a template from the gallery.
   - For a replacement image, drag the cutout to position it, its corner handle to resize it, and its top handle to rotate it.
   - Once the result is opaque, pick an output format and quality.
   - Drag the before/after slider to check the result against a checkerboard transparency background, then download the finished file.
@@ -50,9 +55,13 @@ faq:
   - q: What file formats does this accept, and what does it output?
     a: It accepts any common raster format your browser can decode — JPEG, PNG, WebP, BMP. Output stays PNG-only while the background is Transparent, since PNG is the format that actually supports the transparent pixels a cutout needs — once you switch to a solid color, a gradient, or a replacement image, the result is fully opaque and JPEG or WebP become available too, with the same quality slider and PNG lossless/lossy controls as the Image Compressor. An animated GIF or an SVG isn't accepted, for the same reasons the Image Compressor and Image Cropper don't take them either.
   - q: Can I replace the background instead of just removing it?
-    a: Yes — once the cutout is ready, switch from Transparent to Color (any solid color), Gradient (two colors in any of eight directions), or Image (upload a replacement photo). Switching the background never re-runs the AI model — only the first cutout does that — so trying a few different backgrounds or colors is instant.
+    a: Yes — once the cutout is ready, switch from Transparent to Color (any solid color), Gradient (two colors in any of eight directions), Image (upload a replacement photo), Blur (soften the original background instead of replacing it), or Template (pick from a gallery of ready-made backgrounds). Switching the background never re-runs the AI model — only the first cutout does that — so trying a few different backgrounds is instant.
   - q: Can I position, resize or rotate the subject on the replacement image?
     a: Yes — once you choose a replacement background image, the cutout becomes fully adjustable on top of it. Drag it to move it, drag its corner handle to resize it, or drag its top handle to rotate it, with a live preview as you go; the same four values (X, Y, scale, rotation) are also plain number fields underneath for precise or keyboard-only adjustment. The output image is sized to the replacement photo's own dimensions, and the cutout can be placed fully or partially outside the frame if that's the composition you want — whatever hangs off the edge is simply cropped out of the final export, the same way it would be in any layered image editor.
+  - q: How does the Blur background option work?
+    a: It keeps the subject the AI model found perfectly sharp and applies a soft Gaussian-style blur or a mosaic pixelate effect (your choice, with an adjustable strength slider) to everything behind it — the classic "portrait mode" look, done entirely with pixel math on your own device, no second AI model involved.
+  - q: Where do the Template gallery's backgrounds come from?
+    a: Two sources. "Art & patterns" are drawn live with Canvas — gradients, bokeh, stripes and the like — so they add no download weight and raise no licensing question at all. "Nature photos" are real bundled photographs, each one either genuine U.S. federal government work (public domain) or a Wikimedia Commons upload under a Creative Commons license that was individually checked before being added — see the License and attribution section below for the full photographer credits.
 related:
   - image-cropper
   - image-compressor
@@ -88,3 +97,33 @@ no request containing your photo is ever made to either project or to any server
 controls. The "Load example" sample photo is
 [Stray cat on wall.jpg](https://commons.wikimedia.org/wiki/File:Stray_cat_on_wall.jpg) by
 Neal Ziring, released into the public domain.
+
+### Template gallery photo credits
+
+Every "Art & patterns" template is drawn locally with the Canvas API — no bundled image, no
+external source, no license to track. Every "Nature photos" template is a real photo from
+[Wikimedia Commons](https://commons.wikimedia.org/), individually verified before being
+added. Most are U.S. federal government work (National Park Service, U.S. Fish & Wildlife
+Service, or Department of Transportation employees photographing as part of their official
+duties) and are in the public domain in the United States, requiring no attribution. The
+remainder are Creative Commons–licensed uploads, credited here as their license requires:
+
+- Kolob Canyon, Zion National Park — [InSapphoWeTrust](https://commons.wikimedia.org/wiki/File:Kolob_Canyon,_Zion_National_Park_(5682207147).jpg), CC BY-SA 2.0
+- White Sands National Park dunefield — [dconvertini](https://commons.wikimedia.org/wiki/File:White_Sands_National_Park,_New_Mexico,_USA18.jpg), CC BY-SA 2.0
+- Crater Lake National Park — [w_lemay](https://commons.wikimedia.org/wiki/File:Crater_Lake,_Crater_Lake_National_Park,_Crater_Lake,_OR_-_53848151122.jpg), CC BY-SA 2.0
+- Grand Canyon at sunset — [Eric Kilby](https://commons.wikimedia.org/wiki/File:Grand_Canyon_After_Sunset_-_Grand_Canyon_National_Park.jpg), CC BY-SA 2.0
+- Zabriskie Point, Death Valley National Park — [Christian David](https://commons.wikimedia.org/wiki/File:Manly_Beacon_and_the_badlands_from_Zabriskie_Point,_panorama,_Death_Valley_National_Park,_California.jpg), CC BY-SA 4.0
+- El Yunque National Forest rainforest canopy — [EgorovaSvetlana](https://commons.wikimedia.org/wiki/File:Rainforest_Canopy_El_Yunque_National_Forest.jpg), CC BY-SA 4.0
+- Autumn foliage, Great Smoky Mountains — [Jason Hollinger](https://commons.wikimedia.org/wiki/File:Autumn_colors_-_Flickr_-_pellaea.jpg), CC BY 2.0
+- Badlands National Park (Toadstool Rock) — [DimiTalen](https://commons.wikimedia.org/wiki/File:Looking_up_Badlands_Loop_Road_near_Toadstool_Rock,_Badlands_National_Park,_2009.jpg), CC0 1.0 (public domain dedication)
+- A snow-covered United States from satellite — [NASA Goddard Space Flight Center](https://commons.wikimedia.org/wiki/File:A_NASA_Snapshot-_A_Snowy_U.S._Panorama_by_Satellite_(5428234047).jpg), CC BY 2.0
+- Oxbow Bend, Grand Teton National Park — [Michael Gäbler](https://commons.wikimedia.org/wiki/File:Oxbow_Bend_outlook_in_the_Grand_Teton_National_Park.jpg), CC BY 3.0
+
+Every other Nature photo (beach, snowy mountains, wildflower meadow, waterfall, glacier,
+coastal cliffs, prairie, wetland, aurora, cherry blossoms, night sky, Milky Way, star trails,
+the U.S. Capitol Building, the Alaska Range, a Hubble Space Telescope galaxy and nebula,
+ocean waves, a rainbow, a volcanic eruption, fog, a hurricane satellite image, a
+meteor shower, a solar eclipse, tide pools, wildfire, and a lighthouse) is public-domain U.S.
+federal government work — National Park Service, U.S. Fish & Wildlife Service, NOAA, NASA,
+USGS, the Architect of the Capitol, the Department of Transportation, and the National
+Archives — sourced from official photography on Wikimedia Commons.
