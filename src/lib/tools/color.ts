@@ -252,6 +252,43 @@ export const rgbToOklch = ({ r, g, b }: Rgb): { l: number; c: number; h: number 
   return { l: okL, c: chroma, h: hue };
 };
 
+/** Linear light -> sRGB gamma, the inverse of `toLinear`. */
+const fromLinear = (channel: number): number => {
+  const c = clamp(channel, 0, 1);
+  return c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055;
+};
+
+/**
+ * The inverse of `rgbToOklch`. An out-of-gamut OKLCH value (very high chroma at an
+ * extreme lightness) is clamped in linear light rather than rejected, which desaturates
+ * it slightly instead of producing invalid RGB — the same trade-off browsers make
+ * rendering `oklch()` today.
+ */
+export const oklchToRgb = (l: number, c: number, h: number, a = 1): Rgb => {
+  const hueRad = (h * Math.PI) / 180;
+  const okA = c * Math.cos(hueRad);
+  const okB = c * Math.sin(hueRad);
+
+  const l_ = l + 0.3963377774 * okA + 0.2158037573 * okB;
+  const m_ = l - 0.1055613458 * okA - 0.0638541728 * okB;
+  const s_ = l - 0.0894841775 * okA - 1.291485548 * okB;
+
+  const lCubed = l_ ** 3;
+  const mCubed = m_ ** 3;
+  const sCubed = s_ ** 3;
+
+  const rLin = 4.0767416621 * lCubed - 3.3077115913 * mCubed + 0.2309699292 * sCubed;
+  const gLin = -1.2684380046 * lCubed + 2.6097574011 * mCubed - 0.3413193965 * sCubed;
+  const bLin = -0.0041960863 * lCubed - 0.7034186147 * mCubed + 1.707614701 * sCubed;
+
+  return {
+    r: Math.round(fromLinear(rLin) * 255),
+    g: Math.round(fromLinear(gLin) * 255),
+    b: Math.round(fromLinear(bLin) * 255),
+    a,
+  };
+};
+
 /** WCAG relative luminance. */
 export const luminance = ({ r, g, b }: Rgb): number =>
   0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);

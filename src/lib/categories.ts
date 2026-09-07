@@ -56,7 +56,7 @@ export function categoryFromSlug(slug: string): Category | undefined {
  */
 export const CATEGORY_INTROS: Record<Category, string> = {
   Convert:
-    'Convert data between the formats developers hit every day: Base64/Base32/Base58, JSON/YAML/CSV/XML, Unix timestamps and ISO dates, CSS colour spaces, Docker run commands and Compose files, and JSON/XML into typed source code. Every converter shows both directions at once, so you can check a round trip instantly.',
+    'Convert data between the formats developers hit every day: Base64/Base32/Base58, JSON/YAML/CSV/XML, Unix timestamps and ISO dates, CSS colour spaces, Unix chmod permissions between octal and symbolic notation, Docker run commands and Compose files, and JSON/XML into typed source code. Every converter shows both directions at once, so you can check a round trip instantly.',
   Format:
     "Beautify or minify code without installing a linter or IDE plugin: pretty-print and validate JSON, format SQL queries, indent XML, minify HTML/CSS/JavaScript for production, and preview Markdown as rendered HTML. Paste malformed input and get a clear error pointing at exactly what's wrong.",
   Generate:
@@ -66,10 +66,10 @@ export const CATEGORY_INTROS: Record<Category, string> = {
   Text: 'Manipulate and inspect plain text: test a regex against sample input live, diff two blocks of text or JSON line by line, count words and characters, convert between camelCase/snake_case/Title Case, strip duplicate lines, and reveal invisible Unicode characters hiding in pasted text.',
   AI: 'Tools for working with AI systems and the crawlers behind them: count how many tokens a prompt costs against a model’s context window, and generate a robots.txt with an explicit policy for which AI crawlers may train on or cite your site.',
   'Web & Network':
-    'Inspect the networking and browser details behind a request: parse a URL into its components, decode a User-Agent string, calculate an IPv4 subnet’s usable range, explain what a cron expression schedules, check an npm package’s real install size, look up ASCII/Unicode keycodes, and see what your browser exposes via fingerprinting.',
+    'Inspect the networking and browser details behind a request: parse a URL into its components, decode a User-Agent string, calculate an IPv4 subnet’s usable range, explain what a cron expression schedules or build one from scratch with checkboxes, check an npm package’s real install size, look up ASCII/Unicode keycodes, and see what your browser exposes via fingerprinting.',
   Images:
     'Edit and convert images entirely on-device: remove a photo’s background, blur faces and license plates, crop and resize, compress without a quality hit, convert between PNG/JPEG/WebP, upscale a small image up to 8x, optimize an SVG’s file size, embed an image as Base64, and generate a full favicon package from one source file.',
-  CSS: 'Build CSS visual effects with a live preview and copyable output: layered box-shadows with adjustable blur, spread and colour, and linear/radial gradients with multiple colour stops — tweak with controls and copy the finished CSS straight into your stylesheet.',
+  CSS: 'Build CSS visual effects with a live preview and copyable output: layered box-shadows with adjustable blur, spread and colour, linear/radial gradients with multiple colour stops, and a full 50-950 tint/shade scale plus colour harmonies generated from one base colour — tweak with controls and copy the finished CSS straight into your stylesheet.',
 };
 
 /** Short, distinct <title>/H1 per category page — not a templated "X Tools" for all nine. */

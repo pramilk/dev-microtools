@@ -1,0 +1,63 @@
+---
+title: Color Palette Generator
+headline: Color Palette / Shade Generator
+description: Turn one colour into a full 50-950 tint/shade scale plus five colour-harmony sets, exportable as CSS variables, Tailwind config, SCSS, or JSON. Free.
+summary: Generate a full tint/shade scale and colour harmonies from one base colour.
+category: CSS
+order: 55
+updated: 2026-09-05
+whatIsIt: >-
+  Modern design systems don't ship a single brand colour — they ship a scale of it, from a
+  near-white tint used as a subtle background to a near-black shade used for text on a
+  light surface, the exact pattern Tailwind and most component libraries use for every
+  colour token. Hand-picking eleven consistent, evenly-spaced shades of one colour by eye
+  is slow and easy to get visually uneven — a common failure mode is a scale that looks
+  fine at the light end and muddy or oversaturated at the dark end. This tool generates the
+  full scale for you from one starting colour, using the OKLCH colour space (the
+  perceptually-uniform space modern CSS now supports natively) so lightness steps look
+  evenly spaced to the eye rather than just evenly spaced numerically. Alongside the scale,
+  it also generates five standard colour-harmony sets — complementary, analogous, triadic,
+  split-complementary, and tetradic — for picking accent colours that work with your base
+  colour by colour theory rather than guesswork, and exports the whole scale as CSS custom
+  properties, a Tailwind config fragment, SCSS variables, or plain JSON.
+useCases:
+  - Turning a single brand colour into a full 50-950 shade scale for a design system or component library.
+  - Generating the CSS custom properties or Tailwind config entry for a new brand colour in one step.
+  - Finding an accent colour that pairs well with an existing brand colour, using an actual colour-harmony rule instead of trial and error.
+  - Checking whether a colour has enough range to produce both a readable light-background tint and a readable dark-background shade.
+howTo:
+  - Enter a base colour as hex, rgb(), or hsl() — or pick one with the colour picker.
+  - Review the 11-step shade scale; the step closest to your original colour is marked "Base".
+  - Browse the five harmony sections for accent-colour ideas that work with the base colour by colour theory.
+  - Click any swatch to copy its hex value, or choose an export format and copy the generated CSS variables, Tailwind config, SCSS, or JSON.
+example:
+  label: A typical brand teal.
+  input: '#3cbcd4'
+  output: '--color-brand-500: #3cbcd4;'
+  note: The 500 step lands closest to the original colour; 50 is a near-white tint and 950 is a near-black shade of the same hue.
+faq:
+  - q: Why does the tool use OKLCH instead of simpler HSL lightness steps?
+    a: Plain HSL lightness steps don't look evenly spaced to the human eye — a blue and a yellow at the same HSL lightness value can look very different in perceived brightness, and lightening or darkening in HSL often drifts the apparent hue or crushes chroma unevenly. OKLCH is built specifically to fix this — an equal step in OKLCH lightness looks like an equal step in perceived brightness regardless of hue, which is why it's what modern browsers' native `oklch()` CSS function and newer design systems (including Tailwind's own v4 palette) are built on.
+  - q: Why is my base colour not exactly one of the 11 shades?
+    a: The scale uses 11 fixed lightness targets (50 through 950) so every generated palette spans the same visual range and different palettes stay comparable to each other. Your base colour is placed at whichever step's target lightness is closest to it — marked "Base" — but unless you happened to enter a colour at exactly that lightness, the swatch won't be pixel-identical to your input. The hue and relative saturation are preserved throughout the scale either way.
+  - q: What's the difference between the five harmony types?
+    a: 'Complementary is the base colour plus its direct opposite on the colour wheel (180° apart) — high contrast, classic accent pairing. Analogous is the base colour with its two near neighbours (±30°) — a calm, low-contrast set. Triadic is three colours 120° apart — balanced and vibrant. Split-complementary swaps the single opposite for its two neighbours (±150°/±210°) — nearly as much contrast as complementary but softer. Tetradic is four colours 90° apart — the most colours at once, best used with one dominant and the rest as accents.'
+  - q: Can I use the exported CSS variables directly in my project?
+    a: 'Yes — the CSS export is a complete `:root { --color-<name>-<step>: #hex; }` block ready to paste into a stylesheet, the Tailwind export is a config object fragment to drop into your `theme.extend.colors`, and the SCSS export is a flat list of `$color-<name>-<step>` variables. The palette name field controls the `<name>` portion of every generated identifier.'
+  - q: Does this check contrast or accessibility?
+    a: Each swatch picks whichever of black or white text reads better on it, so the labels stay legible, but this tool doesn't compute a WCAG contrast ratio between two arbitrary colours you choose yourself — use the Color Converter's contrast section for that, especially before pairing a specific shade with specific body text.
+related:
+  - color-converter
+  - css-gradient-generator
+  - css-box-shadow-generator
+---
+
+## Reading the shade scale
+
+The scale runs from `50` (lightest) to `950` (darkest), the same numbering convention used
+by Tailwind CSS and most component libraries, so a generated palette drops straight into an
+existing design system's naming without renaming anything. Lightness is fixed per step —
+`50` always targets the same perceived brightness regardless of the base colour — while hue
+stays constant throughout and chroma (colour intensity) tapers toward both ends, since a
+colour pushed to near-white or near-black can't hold as much saturation without either
+clipping or reading as a plain tinted grey.

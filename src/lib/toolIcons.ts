@@ -64,6 +64,9 @@ export const TOOL_ICONS: Record<string, string> = {
   'background-remover': 'BG',
   'face-plate-blur': 'BLR',
   'image-upscaler': 'UPS',
+  'chmod-calculator': '777',
+  'color-palette-generator': 'PAL',
+  'cron-expression-generator': 'CRN',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

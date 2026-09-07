@@ -1,0 +1,61 @@
+---
+title: Cron Generator
+headline: Cron Expression Generator
+description: Build a cron expression from simple controls — minutes, hours, days, months, weekdays — and see its plain-English meaning and next 5 run times live. Free.
+summary: Build a cron expression with checkboxes and dropdowns instead of writing it by hand.
+category: Web & Network
+order: 40
+updated: 2026-09-05
+whatIsIt: >-
+  A cron expression schedules a recurring job on Unix-like systems using five
+  space-separated fields — minute, hour, day-of-month, month, and day-of-week — each of
+  which accepts a wildcard, a single value, a range, a step, or a comma-separated list.
+  Writing one correctly by hand means remembering the field order (it's easy to
+  transpose minute and hour), which values are wildcards versus specific, and the
+  interaction between day-of-month and day-of-week — often just for a schedule as ordinary
+  as "every weekday morning". This tool goes the other direction from a typical cron
+  reference: instead of writing the expression and looking up what it means, you build the
+  schedule from controls — every field gets an "every", "every N", or "specific values"
+  choice, and clicking a value like an hour or a weekday name — and it assembles the
+  correct expression for you, live, along with a plain-English description and the next 5
+  times it would actually fire.
+useCases:
+  - Building a cron schedule for a deploy pipeline, backup job, or scheduled task without writing raw cron syntax from memory.
+  - Constructing a schedule with a specific set of days or hours (e.g. "the 1st and 15th of every month" or "9am, 1pm, and 5pm") that's awkward to write correctly by hand.
+  - Checking a schedule's actual next run times before committing it to a crontab or a CI/CD scheduled workflow.
+  - Teaching or learning how cron's five fields work, by seeing the expression update live as each control changes.
+howTo:
+  - Start from a common preset, or set each field's mode to "Every", "Every N", or "Specific" using the controls.
+  - For "Every N", enter the interval — e.g. every 15 minutes, or every 6 hours.
+  - For "Specific", click the individual values you want — hours, days, months, or weekdays.
+  - Copy the generated cron expression, and check the plain-English description and next 5 run times to confirm it does what you expect.
+example:
+  label: A backup job that runs at 9am and 5pm on weekdays.
+  input: 'Minute: specific (0); Hour: specific (9, 17); Day of week: specific (Mon-Fri)'
+  output: '0 9,17 * * 1,2,3,4,5'
+  note: Day-of-month and month are left on "Every", so only the hour and weekday restrictions apply.
+faq:
+  - q: Why does the day-of-month field say "day 15" instead of matching a specific weekday and day of the month together?
+    a: Standard cron ORs day-of-month and day-of-week when both are restricted at once, rather than ANDing them — "day-of-month 15 AND Monday" isn't expressible in POSIX cron; setting both fields fires on the 15th of the month, or every Monday, whichever comes first. This is a well-known cron surprise, and the description below the generated expression always spells out the OR explicitly so it isn't missed.
+  - q: What does "Every N" actually generate?
+    a: A step expression like `*/15` for the minute field, meaning "every 15 units within this field's full range starting from 0" — not starting from whatever value happens to be selected elsewhere. `*/15` in the minute field always means :00, :15, :30, :45, regardless of what the hour field is set to.
+  - q: Can I generate a 6-field expression with a seconds column?
+    a: No — this generator produces standard 5-field POSIX cron (minute hour day-of-month month day-of-week), the dialect supported by cron, most CI/CD schedulers (GitHub Actions, GitLab CI), and Kubernetes CronJobs. Seconds-level scheduling (the Quartz/Spring convention) is a different, less common dialect this tool doesn't target.
+  - q: Why are my next-run times different from what I expect?
+    a: The next-run times are calculated in your browser's local timezone, not UTC or the timezone of whatever server will actually run the job. Most CI/CD schedulers and many crontabs run in UTC by default — if the job's actual execution environment uses a different timezone than your browser, convert accordingly before relying on the exact times shown here.
+  - q: How is this different from the Cron Expression Explainer?
+    a: They're inverses of the same problem. The Explainer takes a cron expression you already have (typed, pasted, or found in a config file) and tells you what it means. This generator goes the other way — you describe the schedule you want using controls, and it produces the correct expression, so you never have to write cron syntax by hand at all.
+related:
+  - cron-expression-explainer
+  - timestamp-converter
+  - curl-command-builder
+---
+
+## The day-of-month / day-of-week trap
+
+The single most common cron mistake is expecting `0 9 15 * 1` to mean "9am on the 15th,
+but only if it's a Monday". POSIX cron doesn't work that way: when both day-of-month and
+day-of-week are restricted, the schedule fires if *either* condition is true, not both. This
+generator can't stop you from setting both fields to specific values, but it always shows
+the honest OR relationship in the description below the generated expression, so the
+behavior is visible before it ships to a crontab.

@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { parseCronExpression, nextCronRuns, CRON_MACROS, CRON_PRESETS } from './cron';
+import {
+  parseCronExpression,
+  nextCronRuns,
+  CRON_MACROS,
+  CRON_PRESETS,
+  formatCronField,
+  buildCronExpression,
+  cronBuilderStateFromParsed,
+  DEFAULT_CRON_BUILDER_STATE,
+  type CronFieldState,
+} from './cron';
 
 const expectDescription = (expr: string, expected: string) => {
   const result = parseCronExpression(expr);
@@ -201,5 +211,78 @@ describe('nextCronRuns', () => {
     expect(runs).toHaveLength(1);
     // Next weekday 09:00 after Friday 10:00 is Monday 2026-01-05.
     expect(runs[0]).toEqual(new Date(2026, 0, 5, 9, 0, 0));
+  });
+});
+
+describe('formatCronField', () => {
+  it('renders "every" as a wildcard', () => {
+    expect(formatCronField({ mode: 'every', step: 1, values: [] })).toBe('*');
+  });
+
+  it('renders "step" as a wildcard step', () => {
+    expect(formatCronField({ mode: 'step', step: 15, values: [] })).toBe('*/15');
+  });
+
+  it('falls back to 1 for an invalid step', () => {
+    expect(formatCronField({ mode: 'step', step: 0, values: [] })).toBe('*/1');
+    expect(formatCronField({ mode: 'step', step: -5, values: [] })).toBe('*/1');
+  });
+
+  it('renders "specific" as a sorted, de-duplicated comma list', () => {
+    expect(formatCronField({ mode: 'specific', step: 1, values: [30, 0, 15, 0] })).toBe('0,15,30');
+  });
+
+  it('falls back to a wildcard when "specific" has no values', () => {
+    expect(formatCronField({ mode: 'specific', step: 1, values: [] })).toBe('*');
+  });
+});
+
+describe('buildCronExpression', () => {
+  it('builds the default builder state into a valid, parseable expression', () => {
+    const expression = buildCronExpression(DEFAULT_CRON_BUILDER_STATE);
+    expect(expression).toBe('0 9 * * *');
+    expect(parseCronExpression(expression).ok).toBe(true);
+  });
+
+  it('builds every field independently', () => {
+    const state = {
+      minute: { mode: 'step', step: 15, values: [] } as CronFieldState,
+      hour: { mode: 'specific', step: 1, values: [9, 17] } as CronFieldState,
+      dayOfMonth: { mode: 'every', step: 1, values: [] } as CronFieldState,
+      month: { mode: 'every', step: 1, values: [] } as CronFieldState,
+      dayOfWeek: { mode: 'specific', step: 1, values: [1, 2, 3, 4, 5] } as CronFieldState,
+    };
+    expect(buildCronExpression(state)).toBe('*/15 9,17 * * 1,2,3,4,5');
+  });
+});
+
+describe('cronBuilderStateFromParsed', () => {
+  it('round-trips every preset through the builder', () => {
+    for (const preset of CRON_PRESETS) {
+      const parsed = parseCronExpression(preset.expression);
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) continue;
+
+      const builderState = cronBuilderStateFromParsed(parsed.value);
+      const rebuilt = buildCronExpression(builderState);
+      const reparsed = parseCronExpression(rebuilt);
+      expect(reparsed.ok).toBe(true);
+      if (!reparsed.ok) continue;
+
+      // Builder mode collapses range syntax to explicit values, so compare the
+      // matched value sets rather than expecting identical expression text.
+      expect([...reparsed.value.minute.values]).toEqual([...parsed.value.minute.values]);
+      expect([...reparsed.value.hour.values]).toEqual([...parsed.value.hour.values]);
+      expect([...reparsed.value.dayOfWeek.values]).toEqual([...parsed.value.dayOfWeek.values].sort((a, b) => a - b));
+    }
+  });
+
+  it('derives a wildcard-step mode from a "*/N" field', () => {
+    const parsed = parseCronExpression('*/15 * * * *');
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const builderState = cronBuilderStateFromParsed(parsed.value);
+    expect(builderState.minute).toEqual({ mode: 'step', step: 15, values: [] });
   });
 });

@@ -14,25 +14,30 @@ request at all. You can verify this yourself: open DevTools → Network while us
 
 ## Tools
 
+Within each category, tools are ordered by importance (highest first) — the same order
+used on the site's homepage directory. Related tools are kept adjacent (e.g. the two Cron
+tools, the three CSS generators).
+
 ### Convert
 
 | Tool | Description |
 |---|---|
+| [Docker Run ↔ Compose Converter](https://devmicrotools.com/docker-run-compose-converter/) | Convert a docker run command into a compose service, or a compose service back into a docker run command. |
 | [Base Converter](https://devmicrotools.com/base-encode-decode/) | Encode and decode Base64, Base32 and Base58 in one tool — text or file, with format-specific options for each. |
 | [URL Encoder & Decoder](https://devmicrotools.com/url-encode-decode/) | Percent-encode or decode URLs, and break one down into its parts. |
 | [Timestamp Converter](https://devmicrotools.com/timestamp-converter/) | Convert Unix epoch timestamps to dates and back, with a live current time. |
 | [Color Converter](https://devmicrotools.com/color-converter/) | Convert between HEX, RGB, HSL and OKLCH, with WCAG contrast checking. |
+| [Chmod Calculator](https://devmicrotools.com/chmod-calculator/) | Convert Unix file permissions between octal (755) and symbolic (rwxr-xr-x) notation, with checkboxes and setuid/setgid/sticky bits. |
 | [JSON, YAML, CSV & XML Converter](https://devmicrotools.com/data-format-converter/) | Convert data between JSON, YAML, CSV and XML in either direction. |
 | [JSON & XML to Types](https://devmicrotools.com/json-to-types/) | Turn a JSON or XML sample into TypeScript, Go, Java, C#, Kotlin, Swift, Rust or Python type definitions, with nested objects and optional fields inferred. |
-| [Docker Run ↔ Compose Converter](https://devmicrotools.com/docker-run-compose-converter/) | Convert a docker run command into a compose service, or a compose service back into a docker run command. |
 
 ### Format
 
 | Tool | Description |
 |---|---|
 | [JSON Formatter](https://devmicrotools.com/json-formatter/) | Beautify, minify, validate and repair broken JSON entirely in your browser. |
-| [SQL Formatter](https://devmicrotools.com/sql-formatter/) | Beautify a SQL query with consistent indentation and keyword casing. |
 | [HTML / CSS / JS Minifier](https://devmicrotools.com/html-css-js-minifier/) | Shrink HTML, CSS or JavaScript by stripping comments and unnecessary whitespace. |
+| [SQL Formatter](https://devmicrotools.com/sql-formatter/) | Beautify a SQL query with consistent indentation and keyword casing. |
 | [XML Formatter](https://devmicrotools.com/xml-formatter/) | Pretty-print, minify, validate, or convert XML to JSON — all in the browser. |
 | [Markdown Previewer](https://devmicrotools.com/markdown-previewer/) | Live-preview Markdown as HTML, or convert HTML back into Markdown, right in your browser. |
 
@@ -40,23 +45,23 @@ request at all. You can verify this yourself: open DevTools → Network while us
 
 | Tool | Description |
 |---|---|
-| [UUID Generator](https://devmicrotools.com/uuid-generator/) | Generate v4 or time-ordered v7 UUIDs in bulk, and inspect existing ones. |
 | [QR Code Generator](https://devmicrotools.com/qr-code-generator/) | Turn text or a URL into a scannable QR code — download as PNG or SVG. |
-| [Fake Data Generator](https://devmicrotools.com/fake-data-generator/) | Generate realistic fake names, emails, addresses and more as JSON or CSV. |
-| [cURL Command Builder](https://devmicrotools.com/curl-command-builder/) | Turn a method, URL, headers, body and auth into a correctly-escaped curl command. |
+| [UUID Generator](https://devmicrotools.com/uuid-generator/) | Generate v4 or time-ordered v7 UUIDs in bulk, and inspect existing ones. |
 | [Lorem Ipsum Generator](https://devmicrotools.com/lorem-ipsum-generator/) | Generate Lorem Ipsum placeholder text as paragraphs, sentences or words. |
+| [Fake Data Generator](https://devmicrotools.com/fake-data-generator/) | Generate realistic fake names, emails, addresses and more as JSON or CSV. |
+| [Barcode Generator](https://devmicrotools.com/barcode-generator/) | Turn text or digits into a real, scannable Code 128, Code 39, EAN-13, or UPC-A barcode. |
+| [cURL Command Builder](https://devmicrotools.com/curl-command-builder/) | Turn a method, URL, headers, body and auth into a correctly-escaped curl command. |
 | [Slug Generator](https://devmicrotools.com/slug-generator/) | Turn a title into a clean, URL-friendly slug — separator, casing and length options. |
 | [Meta Tag & Open Graph Generator](https://devmicrotools.com/meta-tag-generator/) | Build SEO, Open Graph and Twitter Card meta tags for a page, with a live search-result and social-card preview. |
-| [Barcode Generator](https://devmicrotools.com/barcode-generator/) | Turn text or digits into a real, scannable Code 128, Code 39, EAN-13, or UPC-A barcode. |
 | [JSON-LD Schema Generator](https://devmicrotools.com/json-ld-generator/) | Build Article, Product, FAQ, How-to, Organization or Breadcrumb structured data from a form. |
 
 ### Security
 
 | Tool | Description |
 |---|---|
-| [JWT Debugger](https://devmicrotools.com/jwt-decoder/) | Decode, verify and sign JSON Web Tokens without uploading them anywhere. |
-| [Hash Generator](https://devmicrotools.com/hash-generator/) | Compute MD5, SHA-1 and SHA-2 digests, and verify a checksum against them. |
 | [Password Generator](https://devmicrotools.com/password-generator/) | Create strong random passwords with adjustable length and character types. |
+| [Hash Generator](https://devmicrotools.com/hash-generator/) | Compute MD5, SHA-1 and SHA-2 digests, and verify a checksum against them. |
+| [JWT Debugger](https://devmicrotools.com/jwt-decoder/) | Decode, verify and sign JSON Web Tokens without uploading them anywhere. |
 | [Bcrypt Generator](https://devmicrotools.com/bcrypt-generator/) | Generate a bcrypt hash from a password, or verify a password against one. |
 | [CSP Header Builder & Analyzer](https://devmicrotools.com/csp-header-builder/) | Build a Content-Security-Policy header from a form, or paste one to get it linted and explained. |
 | [security.txt Generator](https://devmicrotools.com/security-txt-generator/) | Build a standards-compliant security.txt file (RFC 9116) with validated Contact and Expires fields. |
@@ -66,10 +71,10 @@ request at all. You can verify this yourself: open DevTools → Network while us
 | Tool | Description |
 |---|---|
 | [Regex Tester](https://devmicrotools.com/regex-tester/) | Test regular expressions with live highlighting, groups and replace preview. |
-| [Diff Checker](https://devmicrotools.com/diff-checker/) | Compare two texts or JSON documents and see exactly what changed. |
 | [Word Counter](https://devmicrotools.com/word-counter/) | Count words and characters, convert text case, and find and replace text. |
-| [Duplicate Line Remover](https://devmicrotools.com/duplicate-line-remover/) | Find duplicate lines, sentences, or paragraphs and remove one, some, or all of them. |
+| [Diff Checker](https://devmicrotools.com/diff-checker/) | Compare two texts or JSON documents and see exactly what changed. |
 | [Case Converter](https://devmicrotools.com/case-converter/) | Convert text between nine common casing styles, plus a smarter AI-assisted Sentence case. |
+| [Duplicate Line Remover](https://devmicrotools.com/duplicate-line-remover/) | Find duplicate lines, sentences, or paragraphs and remove one, some, or all of them. |
 | [Invisible & Homoglyph Inspector](https://devmicrotools.com/invisible-char-inspector/) | Find zero-width characters, bidi overrides, odd whitespace and Latin-lookalike homoglyphs, then clean them. |
 
 ### AI
@@ -83,33 +88,35 @@ request at all. You can verify this yourself: open DevTools → Network while us
 
 | Tool | Description |
 |---|---|
-| [User-Agent Parser](https://devmicrotools.com/user-agent-parser/) | Parse a User-Agent string into browser, OS, rendering engine and device type. |
-| [Cron Expression Explainer](https://devmicrotools.com/cron-expression-explainer/) | Explain a cron expression in plain English and see its next run times. |
-| [CIDR / Subnet Calculator](https://devmicrotools.com/cidr-subnet-calculator/) | Calculate network address, broadcast address, host range and mask from a CIDR block. |
-| [URL Parser](https://devmicrotools.com/url-parser/) | Decompose a URL into its parts and edit its query parameters live. |
 | [Bundle Size Checker](https://devmicrotools.com/bundle-size-checker/) | Check an npm package's real minified + gzipped size, or check every dependency in a package.json at once. |
-| [Browser Fingerprint Inspector](https://devmicrotools.com/browser-fingerprint-inspector/) | See what your browser's JavaScript reveals (fonts, canvas/WebGL, permissions, timezone) and what the server already saw on the request (IP, geo, headers). |
 | [ASCII, Unicode & Keycode Inspector](https://devmicrotools.com/ascii-unicode-keycode-inspector/) | Look up any ASCII or Unicode character by code, hex, or name, and inspect a live keyboard event's key, code, keyCode and modifiers as you press it. |
+| [Cron Expression Explainer](https://devmicrotools.com/cron-expression-explainer/) | Explain a cron expression in plain English and see its next run times. |
+| [Cron Expression Generator](https://devmicrotools.com/cron-expression-generator/) | Build a cron expression from simple field controls instead of writing the syntax by hand, with a live plain-English description and next run times. |
+| [CIDR / Subnet Calculator](https://devmicrotools.com/cidr-subnet-calculator/) | Calculate network address, broadcast address, host range and mask from a CIDR block. |
+| [User-Agent Parser](https://devmicrotools.com/user-agent-parser/) | Parse a User-Agent string into browser, OS, rendering engine and device type. |
+| [URL Parser](https://devmicrotools.com/url-parser/) | Decompose a URL into its parts and edit its query parameters live. |
+| [Browser Fingerprint Inspector](https://devmicrotools.com/browser-fingerprint-inspector/) | See what your browser's JavaScript reveals (fonts, canvas/WebGL, permissions, timezone) and what the server already saw on the request (IP, geo, headers). |
 
 ### Images
 
 | Tool | Description |
 |---|---|
-| [Image ↔ Base64 Converter](https://devmicrotools.com/image-base64-converter/) | Convert an image to base64 for inlining in CSS/HTML, or decode base64 back into an image. |
 | [Image Compressor](https://devmicrotools.com/image-compressor/) | Compress JPEG, PNG, or WebP images in your browser — batch multiple files, compare before/after, download as a zip. |
-| [SVG Optimizer](https://devmicrotools.com/svg-optimizer/) | Strip comments, metadata, and editor cruft from SVG markup — tune precision, compare before/after, download. |
-| [Image Cropper](https://devmicrotools.com/image-cropper/) | Crop an image to a selected area and resize it to exact pixel dimensions, right in your browser. |
+| [Background Remover](https://devmicrotools.com/background-remover/) | Remove a photo's background with an on-device AI model (u2netp via onnxruntime-web/WASM) — no upload, runs entirely in your browser. |
 | [Image Format Converter](https://devmicrotools.com/image-format-converter/) | Convert one or many images between PNG, JPEG, WebP, BMP and ICO — including SVG rasterization — right in your browser. |
 | [Favicon Generator](https://devmicrotools.com/favicon-generator/) | Generate favicon.ico, every standard PNG size, apple-touch-icon, Android/PWA icons and a web manifest — plus the HTML snippet — from one uploaded image. |
-| [Background Remover](https://devmicrotools.com/background-remover/) | Remove a photo's background with an on-device AI model (u2netp via onnxruntime-web/WASM) — no upload, runs entirely in your browser. |
-| [Face & Plate Blur](https://devmicrotools.com/face-plate-blur/) | Blur, pixelate, or black out faces (auto-detected on-device), license plates, or anything else sensitive in a photo — right in your browser. |
+| [Image Cropper](https://devmicrotools.com/image-cropper/) | Crop an image to a selected area and resize it to exact pixel dimensions, right in your browser. |
 | [Image Upscaler](https://devmicrotools.com/image-upscaler/) | Enlarge a photo 2x-8x with a sharp Lanczos resample — right in your browser, no upload required. |
+| [Image ↔ Base64 Converter](https://devmicrotools.com/image-base64-converter/) | Convert an image to base64 for inlining in CSS/HTML, or decode base64 back into an image. |
+| [SVG Optimizer](https://devmicrotools.com/svg-optimizer/) | Strip comments, metadata, and editor cruft from SVG markup — tune precision, compare before/after, download. |
+| [Face & Plate Blur](https://devmicrotools.com/face-plate-blur/) | Blur, pixelate, or black out faces (auto-detected on-device), license plates, or anything else sensitive in a photo — right in your browser. |
 
 ### CSS
 
 | Tool | Description |
 |---|---|
 | [CSS Gradient Generator](https://devmicrotools.com/css-gradient-generator/) | Build linear, radial and conic gradients visually and copy the CSS. |
+| [Color Palette Generator](https://devmicrotools.com/color-palette-generator/) | Turn one colour into a full 50-950 tint/shade scale plus five colour-harmony sets, exportable as CSS, Tailwind, SCSS, or JSON. |
 | [CSS Box-Shadow Generator](https://devmicrotools.com/css-box-shadow-generator/) | Build single or layered box-shadows visually and copy the CSS. |
 
 ## Stack

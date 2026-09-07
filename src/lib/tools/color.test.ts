@@ -4,6 +4,8 @@ import {
   convertColor,
   rgbToHex,
   rgbToHsl,
+  rgbToOklch,
+  oklchToRgb,
   contrastRatio,
   luminance,
   nearestAccessibleShade,
@@ -165,6 +167,38 @@ describe('luminance', () => {
   it('is 0 for black and 1 for white', () => {
     expect(luminance({ r: 0, g: 0, b: 0, a: 1 })).toBeCloseTo(0, 5);
     expect(luminance({ r: 255, g: 255, b: 255, a: 1 })).toBeCloseTo(1, 5);
+  });
+});
+
+describe('oklchToRgb', () => {
+  it('round-trips a saturated colour through rgbToOklch', () => {
+    const original = { r: 60, g: 188, b: 212, a: 1 };
+    const { l, c, h } = rgbToOklch(original);
+    const roundTripped = oklchToRgb(l, c, h);
+    expect(Math.abs(roundTripped.r - original.r)).toBeLessThanOrEqual(2);
+    expect(Math.abs(roundTripped.g - original.g)).toBeLessThanOrEqual(2);
+    expect(Math.abs(roundTripped.b - original.b)).toBeLessThanOrEqual(2);
+  });
+
+  it('maps zero chroma to a neutral grey regardless of hue', () => {
+    const rgb = oklchToRgb(0.5, 0, 123);
+    expect(rgb.r).toBe(rgb.g);
+    expect(rgb.g).toBe(rgb.b);
+  });
+
+  it('maps L=1 to white and L=0 to black', () => {
+    expect(oklchToRgb(1, 0, 0)).toMatchObject({ r: 255, g: 255, b: 255 });
+    expect(oklchToRgb(0, 0, 0)).toMatchObject({ r: 0, g: 0, b: 0 });
+  });
+
+  it('clamps an out-of-gamut request instead of returning invalid channel values', () => {
+    const rgb = oklchToRgb(0.95, 0.5, 30);
+    expect(rgb.r).toBeGreaterThanOrEqual(0);
+    expect(rgb.r).toBeLessThanOrEqual(255);
+    expect(rgb.g).toBeGreaterThanOrEqual(0);
+    expect(rgb.g).toBeLessThanOrEqual(255);
+    expect(rgb.b).toBeGreaterThanOrEqual(0);
+    expect(rgb.b).toBeLessThanOrEqual(255);
   });
 });
 

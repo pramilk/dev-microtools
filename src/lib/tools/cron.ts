@@ -8,7 +8,7 @@ import { type ToolResult, ok, err } from './result';
  */
 const FIELD_MIN = { minute: 0, hour: 0, dayOfMonth: 1, month: 1, dayOfWeek: 0 } as const;
 const FIELD_MAX = { minute: 59, hour: 23, dayOfMonth: 31, month: 12, dayOfWeek: 7 } as const;
-type FieldName = keyof typeof FIELD_MIN;
+export type FieldName = keyof typeof FIELD_MIN;
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -57,7 +57,7 @@ interface RangePart {
   isWildcard: boolean;
 }
 
-interface ParsedField {
+export interface ParsedField {
   values: Set<number>;
   parts: RangePart[];
   isWildcard: boolean;
@@ -427,4 +427,85 @@ export function nextCronRuns(parsed: ParsedCron, count: number, from: Date = new
   }
 
   return results;
+}
+
+/* ------------------------------------------------------------------- builder */
+
+/**
+ * Builder-side representation of one field, for a UI that constructs an expression
+ * from controls rather than free text. Deliberately simpler than the general syntax
+ * `parseField` accepts (no arbitrary ranges) — a builder only ever needs to express
+ * "every", "every N", or an explicit set of values, and collapsing everything else
+ * (an odd range, a mix of ranges and singles) down to an equivalent list of specific
+ * values keeps the three-mode UI exhaustive without needing a range-picking control.
+ */
+export type CronFieldMode = 'every' | 'step' | 'specific';
+
+export interface CronFieldState {
+  mode: CronFieldMode;
+  /** Used only when mode is "step". */
+  step: number;
+  /** Used only when mode is "specific". */
+  values: number[];
+}
+
+export interface CronBuilderState {
+  minute: CronFieldState;
+  hour: CronFieldState;
+  dayOfMonth: CronFieldState;
+  month: CronFieldState;
+  dayOfWeek: CronFieldState;
+}
+
+/** A sensible non-empty starting point: every day at 09:00. */
+export const DEFAULT_CRON_BUILDER_STATE: CronBuilderState = {
+  minute: { mode: 'specific', step: 1, values: [0] },
+  hour: { mode: 'specific', step: 1, values: [9] },
+  dayOfMonth: { mode: 'every', step: 1, values: [] },
+  month: { mode: 'every', step: 1, values: [] },
+  dayOfWeek: { mode: 'every', step: 1, values: [] },
+};
+
+/** Renders one field's builder state as the token cron expects: a wildcard, a wildcard step (e.g. every 15), or "1,15,30". */
+export function formatCronField(state: CronFieldState): string {
+  if (state.mode === 'every') return '*';
+  if (state.mode === 'step') {
+    const step = Number.isInteger(state.step) && state.step > 0 ? state.step : 1;
+    return `*/${step}`;
+  }
+  const sorted = [...new Set(state.values)].sort((a, b) => a - b);
+  return sorted.length > 0 ? sorted.join(',') : '*';
+}
+
+/** Builds a full 5-field cron expression from a builder state. */
+export function buildCronExpression(fields: CronBuilderState): string {
+  return [fields.minute, fields.hour, fields.dayOfMonth, fields.month, fields.dayOfWeek]
+    .map(formatCronField)
+    .join(' ');
+}
+
+/**
+ * Derives a field's builder state from an already-parsed field — used to load a preset
+ * expression (typed as a string, e.g. from `CRON_PRESETS`) into the builder controls.
+ * A wildcard step (e.g. every 6) round-trips exactly; anything else (a range, a list, a single
+ * value) collapses to an equivalent explicit value set, which the "specific" mode can
+ * always represent exactly even though it can't be typed back out in range syntax.
+ */
+export function cronFieldStateFromParsed(field: ParsedField): CronFieldState {
+  if (field.isWildcard) return { mode: 'every', step: 1, values: [] };
+  if (field.parts.length === 1 && field.parts[0]!.isWildcard && field.parts[0]!.step > 1) {
+    return { mode: 'step', step: field.parts[0]!.step, values: [] };
+  }
+  return { mode: 'specific', step: 1, values: [...field.values].sort((a, b) => a - b) };
+}
+
+/** Loads a full preset/typed expression into builder state for every field at once. */
+export function cronBuilderStateFromParsed(parsed: ParsedCron): CronBuilderState {
+  return {
+    minute: cronFieldStateFromParsed(parsed.minute),
+    hour: cronFieldStateFromParsed(parsed.hour),
+    dayOfMonth: cronFieldStateFromParsed(parsed.dayOfMonth),
+    month: cronFieldStateFromParsed(parsed.month),
+    dayOfWeek: cronFieldStateFromParsed(parsed.dayOfWeek),
+  };
 }

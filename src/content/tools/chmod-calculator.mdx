@@ -1,0 +1,69 @@
+---
+title: Chmod Calculator
+headline: Chmod / Unix Permissions Calculator
+description: Convert between octal (755) and symbolic (rwxr-xr-x) Unix file permissions with checkboxes for owner, group, and others, plus special bits. Free.
+summary: Convert Unix file permissions between octal and symbolic notation with a checkbox grid.
+category: Convert
+order: 6
+updated: 2026-09-05
+whatIsIt: >-
+  Every file and directory on a Unix-like system (Linux, macOS, BSD) carries a permission
+  mode that controls who can read it, write to it, or execute it — split three ways across
+  the file's owner, its group, and everyone else. That mode is usually written in one of
+  two notations: octal, a 3- or 4-digit number like `755` or `4750`, or symbolic, a
+  9-character string like `rwxr-xr-x`. Both encode the exact same information, but neither
+  is easy to produce or read at a glance — working out which octal digit corresponds to
+  "read and write but not execute" (it's 6) is the kind of arithmetic every developer
+  re-derives from scratch each time rather than actually memorizing. This tool converts
+  between the two instantly: type either notation and see the other, or tick the
+  read/write/execute checkboxes for owner, group, and others (plus setuid, setgid, and the
+  sticky bit) and get both notations, a plain-English explanation, and ready-to-paste
+  `chmod` commands.
+useCases:
+  - Working out what octal value to pass to chmod for a specific permission you have in mind, like "owner can write, everyone can read".
+  - Reading an unfamiliar permission string from `ls -l` output or a Dockerfile's `COPY --chmod` flag and understanding exactly what it grants.
+  - Deciding on the right permissions for a new deploy script, config file, or shared directory without guessing at octal digits.
+  - Understanding what the setuid, setgid, or sticky bit actually does before applying it to an executable or a shared directory like /tmp.
+howTo:
+  - Type a permission into the field — either octal (e.g. "755") or symbolic (e.g. "rwxr-xr-x") — or start from one of the common presets above it.
+  - Toggle the read, write, and execute checkboxes for owner, group, and others to build a permission from scratch.
+  - Toggle setuid, setgid, or the sticky bit if the file needs one of those special behaviors.
+  - Copy the octal or symbolic output, or the ready-made `chmod` command, straight into your terminal or Dockerfile.
+example:
+  label: A typical executable script.
+  input: '755'
+  output: 'rwxr-xr-x'
+  note: Owner gets full read/write/execute; group and others get read and execute only, so anyone can run the script but only the owner can edit it.
+faq:
+  - q: What do the three digits in an octal permission mean?
+    a: Each digit is a sum of read (4), write (2), and execute (1), and there are three digits for owner, group, and others in that order. "755" is owner=7 (4+2+1, full access), group=5 (4+1, read+execute), others=5 (4+1, read+execute). A fourth, leading digit — as in "4755" — carries the setuid, setgid, and sticky bits instead, using the same 4/2/1 scheme (setuid=4, setgid=2, sticky=1), and is only shown when at least one of those bits is set.
+  - q: What's the difference between "s" and "S" (or "t" and "T") in symbolic notation?
+    a: Lowercase means the special bit is set and the underlying execute permission is also granted; uppercase means the special bit is set but execute is not. For example "rwsr-xr-x" has setuid and owner-execute both on, while "rwSr-xr-x" has setuid on but owner-execute off — a state that's rare in practice (setuid is only meaningful on an executable) but valid, so the tool represents it exactly rather than rounding it away.
+  - q: What does the setuid bit actually do?
+    a: On an executable file, setuid makes the program run with the privileges of the file's owner rather than the user who launched it — classic examples are `passwd` and `sudo`, which need to briefly act as root regardless of who runs them. It has no effect on a directory, and combining it with a script (rather than a compiled binary) is ignored or actively blocked by most modern systems for security reasons.
+  - q: What does the sticky bit do?
+    a: On a directory, the sticky bit restricts deleting or renaming a file inside it to that file's owner (or root), even when the directory itself is writable by everyone — this is exactly the setup on `/tmp` on most systems, where every user can create files but can't delete each other's. On a regular file, the sticky bit has no effect on modern Linux and is simply ignored.
+  - q: Why does chmod use octal (base 8) instead of decimal?
+    a: Because each of the three permission bits (read, write, execute) fits neatly into one octal digit, since 8 = 2³. A single octal digit from 0-7 can represent every combination of the three bits with no wasted values, which decimal or hex don't do as cleanly for a 3-bit field.
+related:
+  - docker-run-compose-converter
+  - base-encode-decode
+  - security-txt-generator
+  - csp-header-builder
+---
+
+## Octal quick reference
+
+| Octal | Symbolic | Meaning |
+|---|---|---|
+| 0 | `---` | No permissions |
+| 1 | `--x` | Execute only |
+| 2 | `-w-` | Write only |
+| 3 | `-wx` | Write and execute |
+| 4 | `r--` | Read only |
+| 5 | `r-x` | Read and execute |
+| 6 | `rw-` | Read and write |
+| 7 | `rwx` | Read, write, and execute |
+
+A full permission is three of these digits in a row — owner, group, then others — so `750`
+reads as owner `rwx`, group `r-x`, others `---`.
