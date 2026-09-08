@@ -58,6 +58,7 @@ import ColorPaletteGenerator from '../islands/ColorPaletteGenerator';
 import CronGenerator from '../islands/CronGenerator';
 import AsciiArtGenerator from '../islands/AsciiArtGenerator';
 import MermaidDiagramGenerator from '../islands/MermaidDiagramGenerator';
+import TextBannerGenerator from '../islands/TextBannerGenerator';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -125,6 +126,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'cron-expression-generator': CronGenerator,
   'ascii-art-generator': AsciiArtGenerator,
   'mermaid-diagram-generator': MermaidDiagramGenerator,
+  'ascii-text-banner-generator': TextBannerGenerator,
 };
 
 /**

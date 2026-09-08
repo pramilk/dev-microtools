@@ -69,6 +69,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'color-palette-generator': 'PAL',
   'cron-expression-generator': 'CRN',
   'mermaid-diagram-generator': 'MMD',
+  'ascii-text-banner-generator': 'BNR',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

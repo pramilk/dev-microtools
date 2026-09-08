@@ -54,6 +54,7 @@ import FacePlateBlur from '../islands/FacePlateBlur';
 import ImageUpscaler from '../islands/ImageUpscaler';
 import AsciiArtGenerator from '../islands/AsciiArtGenerator';
 import MermaidDiagramGenerator from '../islands/MermaidDiagramGenerator';
+import TextBannerGenerator from '../islands/TextBannerGenerator';
 import ChmodCalculator from '../islands/ChmodCalculator';
 import ColorPaletteGenerator from '../islands/ColorPaletteGenerator';
 import CronGenerator from '../islands/CronGenerator';
@@ -139,3 +140,4 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'cron-expression-generator' && <CronGenerator client:load />}
 {slug === 'ascii-art-generator' && <AsciiArtGenerator client:load />}
 {slug === 'mermaid-diagram-generator' && <MermaidDiagramGenerator client:load />}
+{slug === 'ascii-text-banner-generator' && <TextBannerGenerator client:load />}

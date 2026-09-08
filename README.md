@@ -77,6 +77,7 @@ tools, the three CSS generators).
 | [Case Converter](https://devmicrotools.com/case-converter/) | Convert text between nine common casing styles, plus a smarter AI-assisted Sentence case. |
 | [Duplicate Line Remover](https://devmicrotools.com/duplicate-line-remover/) | Find duplicate lines, sentences, or paragraphs and remove one, some, or all of them. |
 | [Invisible & Homoglyph Inspector](https://devmicrotools.com/invisible-char-inspector/) | Find zero-width characters, bidi overrides, odd whitespace and Latin-lookalike homoglyphs, then clean them. |
+| [ASCII Text Banner Generator](https://devmicrotools.com/ascii-text-banner-generator/) | Convert any text into big block-letter ASCII art — pick the fill character, size and spacing, then copy or download. |
 
 ### AI
 

@@ -1,0 +1,71 @@
+---
+title: ASCII Text Banner Generator
+headline: ASCII Text Banner Generator — Big Block Letters from Any Text
+description: Turn any text into big block-letter ASCII art in your browser. Pick the fill character, size and letter spacing, then copy or download the banner. Free.
+summary: Convert any text into big block-letter ASCII art — pick the fill character, size and spacing, then copy or download.
+category: Text
+order: 59
+updated: 2026-09-08
+whatIsIt: >-
+  This tool spells out whatever you type as big block letters made entirely of text
+  characters — the classic "banner" style used for terminal splash screens, README headers
+  and code-comment titles, in the tradition of tools like figlet. Every letter, digit and a
+  wide set of punctuation is drawn from a built-in 5×7 dot-matrix font: each character is
+  looked up, converted to a small grid of "ink" and "blank" cells, and rendered with whichever
+  fill character you choose — a solid Unicode block by default, or plain-ASCII presets like
+  `#`, `*` and `@`, or any single character you type yourself. Two more controls shape the
+  result: Size repeats every cell to make the letters bigger, and Letter spacing adds blank
+  columns between characters so a banner doesn't read as cramped. Type more than one line and
+  each line becomes its own stacked banner, so a short two-line message becomes a two-line
+  poster. The font only defines uppercase forms, so lowercase input is automatically
+  capitalized — the same convention every classic banner generator uses, since a font this
+  small has no real room for genuine ascenders and descenders. A character the font doesn't
+  recognize renders as a blank space rather than breaking the layout, and is called out so
+  nothing silently vanishes. Everything runs in your browser — nothing you type is ever sent
+  anywhere.
+useCases:
+  - Making a bold terminal splash screen or MOTD banner that shows a project or command name the moment a shell opens.
+  - Adding an eye-catching title to a README, a code comment, or a commit message using nothing but plain text.
+  - Turning a short message into a text-only "poster" to paste into a chat client, forum post, or plain-text email that strips images.
+  - Building retro or demoscene-styled text art for a personal site, a CLI tool's `--help` output, or a zine.
+  - Previewing how a short product or project name reads as a big block-letter wordmark before committing to a real logo.
+howTo:
+  - Type or paste your text — put each separate line of a message on its own line, since each becomes its own stacked banner.
+  - Pick a fill character — Block (the default) gives solid poster-like output, or switch to Hash, Star, At, or type your own single custom character.
+  - Drag Size to make the letters bigger, and Letter spacing to open up or tighten the gap between them.
+  - Copy the result or download it as a .txt file — or copy a share link that restores your exact text and settings.
+example:
+  label: A two-word banner at the default size, using the solid Block fill character.
+  input: 'HELLO WORLD'
+  output: |-
+    Seven rows tall, drawn from the built-in 5×7 font, each letter filled with solid █
+    blocks and separated by one blank column of letter spacing.
+  note: Press "Load example" to see the real rendered result, then try the Hash or Custom fill options for a plain-ASCII look.
+faq:
+  - q: Why does my text come out in all capitals?
+    a: The built-in font only defines uppercase glyphs — a 5-column-wide cell has no real room to draw a genuine lowercase form with an ascender or descender that actually looks different from its capital. Every classic text-banner tool, figlet included, makes the same trade-off in its simpler fonts. Lowercase input is automatically upper-cased before rendering, so "hello" and "HELLO" produce identical output.
+  - q: Why did some of my characters turn into blank spaces?
+    a: The built-in font covers the 26 letters, the 10 digits, and a wide set of common punctuation, but not everything — accented letters, most symbols, and non-Latin scripts aren't included. Any character outside that set renders as a blank cell so the rest of the banner keeps its alignment, and the tool tells you exactly which characters were skipped just below the controls.
+  - q: What's the difference between the fill character presets?
+    a: They're purely cosmetic — every preset draws the exact same letter shapes, just filled with a different character. Block uses the solid Unicode █ character, which reads as a poster at a glance; Hash, Star and At use plain ASCII (#, * and @), which pastes reliably anywhere Unicode might not render, like an old terminal or a legacy system. Custom lets you type any single character of your own, including an emoji.
+  - q: How do Size and Letter spacing work?
+    a: Size repeats every cell of the 5×7 font in both directions, so 2x makes each letter twice as tall and twice as wide, and 3x three times both ways — it's the same grid, just drawn with bigger cells rather than a different, more detailed font. Letter spacing inserts extra blank columns between adjacent letters; the default of 1 keeps letters from touching, and 0 packs them tight.
+  - q: Can I make a multi-line banner?
+    a: Yes — put each line of your message on its own line in the text box, and each one is rendered as its own stacked banner, in order, separated by nothing but the font's own blank rows. A blank line in your input becomes a single blank line of spacing in the output.
+  - q: Is there a limit on how much text I can convert?
+    a: Yes, by design — up to 6 lines of up to 24 characters each. This is a banner tool for short headlines and titles, not a paragraph-to-ASCII converter; past that length the result stops fitting anywhere a banner is actually used (a terminal window, a README, a commit message) and becomes unwieldy to even preview.
+  - q: Does my text get uploaded anywhere?
+    a: No. The font lookup and rendering both happen entirely in your browser, and nothing you type is sent to a server. That's true of every tool on this site.
+related:
+  - ascii-art-generator
+  - ascii-unicode-keycode-inspector
+  - case-converter
+  - word-counter
+---
+
+## Credits
+
+The built-in 5×7 dot-matrix font was hand-drawn for this tool rather than reproducing any
+particular published figlet font — dot-matrix letterforms at this size are a generic,
+functional style (the same one used across countless LED signs and character LCDs), not a
+distinctive typeface, so there's no font file or license involved at all.
