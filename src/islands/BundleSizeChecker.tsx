@@ -14,17 +14,39 @@ import {
   type SortKey,
   type SortDirection,
   type SizeResult,
+  type ModuleFormat,
+  type EsmSupport,
 } from '../lib/tools/bundleSize';
+import {
+  parseRepositoryUrl,
+  readmeLinkBases,
+  rewriteReadmeLinks,
+  buildNpmPackageUrl,
+  formatCompactNumber,
+  formatRelativeTime,
+  yearsSince,
+  sparklinePoints,
+  sumDownloads,
+  type RepositoryRef,
+  type DownloadDay,
+} from '../lib/tools/packageInsights';
+import { markdownToHtml } from '../lib/tools/markdownPreview';
 import {
   fetchPackageOverview,
   fetchResolvedVersion,
   fetchWeeklyDownloads,
   fetchBundledSource,
+  fetchRepoStats,
+  fetchCommitActivity,
+  fetchReadme,
+  fetchDownloadTrend,
   searchPackages,
   runWithConcurrency,
   type PackageOverview,
   type ResolvedVersionInfo,
   type PackageSuggestion,
+  type RepoStats,
+  type CommitActivity,
 } from '../lib/npmRegistry';
 import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
@@ -51,6 +73,23 @@ const BREAKDOWN_CONCURRENCY = 4;
 const MAJOR_HISTORY_CONCURRENCY = 3;
 const MAJOR_HISTORY_LIMIT = 6;
 
+/**
+ * How long to wait after the last keystroke before checking a package on its own.
+ * There is no "Check size" button any more — every complete choice runs itself — so this
+ * is the one thing standing between a half-typed name and a real request to two public
+ * services. It is deliberately longer than the 250ms search debounce: search is a cheap
+ * registry lookup, a size check bundles and downloads an entire package.
+ */
+const AUTO_CHECK_DELAY_MS = 700;
+
+/** package.json mode fans out one bundle fetch per dependency, so it waits longer still
+ *  before deciding that a paste has settled. */
+const AUTO_BULK_DELAY_MS = 900;
+
+/** A README far past this is a manual (some packages publish their whole docs site as
+ *  one file); rendering it would block the main thread for no real benefit. */
+const MAX_README_BYTES = 400_000;
+
 interface ShareState {
   mode: Mode;
   spec: string;
@@ -63,6 +102,10 @@ interface SingleResult {
   resolvedVersion: string;
   info: ResolvedVersionInfo;
   size: SizeResult;
+  /** Total published versions, from the same overview used to resolve the range. */
+  versionCount: number;
+  /** When anything was last published to this package, ISO-8601. */
+  lastPublished: string | null;
 }
 
 interface BreakdownRow {
@@ -104,17 +147,81 @@ function resolveVersion(range: string | null, overview: PackageOverview): string
 const sumBytes = (rows: BulkRow[], field: 'minifiedBytes' | 'gzipBytes'): number =>
   rows.reduce((sum, r) => sum + (r[field] ?? 0), 0);
 
+/** Identifies one dependency set, so a paste that only reformats whitespace or reorders
+ *  keys doesn't trigger a fresh round of network requests for the same packages. */
+const dependencySignature = (deps: { name: string; range: string; source: string }[]): string =>
+  deps
+    .map((d) => `${d.source}:${d.name}@${d.range}`)
+    .sort()
+    .join('|');
+
+/** Plain text, because it is used as a `title` tooltip and an `aria-label` — no markup
+ *  survives either, so the code sample is written the way it would be typed. */
+const NAMED_IMPORTS_HELP =
+  `Leave empty to size the whole package. Fill it in to size only what you’d really import — entering "debounce" answers "how big is import { debounce } from 'lodash'?" rather than "how big is all of lodash?"`;
+
+const MODULE_FORMAT_LABEL: Record<ModuleFormat, string> = {
+  esm: 'ESM only',
+  dual: 'ESM + CommonJS',
+  cjs: 'CommonJS only',
+  unknown: 'No entry point declared',
+};
+
+const MODULE_FORMAT_TONE: Record<ModuleFormat, string> = {
+  esm: 'success',
+  dual: 'success',
+  cjs: 'warning',
+  unknown: 'neutral',
+};
+
+const MODULE_FORMAT_TOOLTIP: Record<ModuleFormat, string> = {
+  esm: 'Ships an ES module entry only — import/export, which a bundler can tree-shake.',
+  dual: 'Ships both an ES module and a CommonJS entry, so it works in either world.',
+  cjs: "Ships a CommonJS entry only (require/module.exports) — a bundler generally has to include all of it.",
+  unknown: 'Declares neither a recognisable ESM nor CommonJS entry point in its package.json.',
+};
+
+type SideEffects = EsmSupport['sideEffects'];
+
+/**
+ * The three `sideEffects` states, each with one fixed colour. "Unspecified" is
+ * deliberately neutral grey rather than a warning: a package that never added the field
+ * has not told you it is dirty, it has told you nothing — which is a different, and much
+ * more common, thing than declaring side effects.
+ */
+const SIDE_EFFECTS_LABEL: Record<SideEffects, string> = {
+  free: 'side-effect free',
+  'has-side-effects': 'has side effects',
+  unspecified: 'sideEffects unspecified',
+};
+
+const SIDE_EFFECTS_TONE: Record<SideEffects, string> = {
+  free: 'success',
+  'has-side-effects': 'warning',
+  unspecified: 'neutral',
+};
+
+const SIDE_EFFECTS_TOOLTIP: Record<SideEffects, string> = {
+  free: 'Declares "sideEffects": false — a bundler may drop any module you import but never use.',
+  'has-side-effects': 'Declares side effects, so a bundler keeps those modules even when nothing appears to use them.',
+  unspecified: 'No sideEffects field at all — not a claim either way, so bundlers tree-shake conservatively.',
+};
+
 interface DependencyTableProps {
   title: string;
   rows: BulkRow[];
   sortKey: SortKey;
   sortDirection: SortDirection;
   onToggleSort: (key: SortKey) => void;
+  /** Opens one dependency on its own in single-package mode. Passed in rather than
+   *  imported so the table stays a presentation component that knows nothing about how a
+   *  check is actually run. */
+  onInspect: (name: string, version: string | null) => void;
 }
 
 /** One dependencies/devDependencies table with its own total — factored out because bulk
  *  mode renders this twice (once per `source`) so the two never mix into one list or total. */
-function DependencyTable({ title, rows, sortKey, sortDirection, onToggleSort }: DependencyTableProps) {
+function DependencyTable({ title, rows, sortKey, sortDirection, onToggleSort, onInspect }: DependencyTableProps) {
   const sortIndicator = (key: SortKey) => (sortKey === key ? (sortDirection === 'asc' ? '▲' : '▼') : '');
 
   return (
@@ -152,7 +259,21 @@ function DependencyTable({ title, rows, sortKey, sortDirection, onToggleSort }: 
           <tbody>
             {rows.map((r) => (
               <tr key={r.name}>
-                <td>{r.name}</td>
+                <td>
+                  <button
+                    type="button"
+                    class="bsc-inspect"
+                    // Prefer the version this table actually resolved; before that lands,
+                    // fall back to the range the project asked for so the drill-in still
+                    // answers the same question the row does. A workspace/git/file range
+                    // can't be resolved against the registry at all, so that becomes
+                    // "whatever is latest" rather than a spec guaranteed to fail.
+                    onClick={() => onInspect(r.name, r.resolvedVersion ?? (isResolvableRange(r.range) ? r.range : null))}
+                    title={`Open ${r.name}${r.resolvedVersion ? `@${r.resolvedVersion}` : ''} on its own — README, project health and version history`}
+                  >
+                    {r.name}
+                  </button>
+                </td>
                 <td class="tnum">{r.range}</td>
                 <td class="tnum">{r.resolvedVersion ?? '—'}</td>
                 <td class="tnum">{r.minifiedBytes !== null ? formatBytes(r.minifiedBytes) : '—'}</td>
@@ -194,6 +315,34 @@ function DependencyTable({ title, rows, sortKey, sortDirection, onToggleSort }: 
   );
 }
 
+interface StatProps {
+  label: string;
+  value: string;
+  /** Full-precision or explanatory text for the hover — the tile itself stays compact. */
+  title?: string;
+  href?: string;
+}
+
+/** One number in the project-health row. A tile with a `href` links straight to the page
+ *  on the host that owns that number, so every figure shown is checkable at its source. */
+function Stat({ label, value, title, href }: StatProps) {
+  const body = (
+    <>
+      <span class="bsc-stat__value tnum">{value}</span>
+      <span class="bsc-stat__label">{label}</span>
+    </>
+  );
+  return href ? (
+    <a class="bsc-stat bsc-stat--link" href={href} title={title} target="_blank" rel="noopener noreferrer">
+      {body}
+    </a>
+  ) : (
+    <div class="bsc-stat" title={title}>
+      {body}
+    </div>
+  );
+}
+
 /** Renders one Markdown table (with its own total row) for a dependencies/devDependencies group. */
 function rowsAsMarkdownTable(title: string, rows: BulkRow[]): string {
   const header = `**${title}**\n\n| Package | Requested | Resolved | Minified | Gzipped | License | Status |\n|---|---|---|---|---|---|---|`;
@@ -207,6 +356,7 @@ function rowsAsMarkdownTable(title: string, rows: BulkRow[]): string {
 
 export default function BundleSizeChecker() {
   const [mode, setMode] = useState<Mode>('single');
+  const toolRef = useRef<HTMLDivElement | null>(null);
 
   // ---------------------------------------------------------------- single-package mode
   const [spec, setSpec] = useState('');
@@ -215,6 +365,18 @@ export default function BundleSizeChecker() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SingleResult | null>(null);
   const [downloads, setDownloads] = useState<number | null>(null);
+
+  const [repo, setRepo] = useState<RepositoryRef | null>(null);
+  const [repoStats, setRepoStats] = useState<RepoStats | null>(null);
+  const [commits, setCommits] = useState<CommitActivity | null>(null);
+  const [repoError, setRepoError] = useState<string | null>(null);
+  const [trend, setTrend] = useState<DownloadDay[]>([]);
+
+  const [readmeMarkdown, setReadmeMarkdown] = useState<string | null>(null);
+  const [readmeHtml, setReadmeHtml] = useState<string | null>(null);
+  const [readmeStatus, setReadmeStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+  const [readmeError, setReadmeError] = useState<string | null>(null);
+  const readmeRef = useRef<HTMLDivElement | null>(null);
 
   const [breakdownStatus, setBreakdownStatus] = useState<'idle' | 'loading' | 'done'>('idle');
   const [breakdown, setBreakdown] = useState<BreakdownRow[]>([]);
@@ -232,6 +394,17 @@ export default function BundleSizeChecker() {
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const searchAbortRef = useRef<AbortController | null>(null);
 
+  /**
+   * Incremented on every check. Because checks now start on their own — a preset, a
+   * suggestion, a settled keystroke — two can easily overlap, and without this the
+   * slower one would overwrite the newer one's results. Every async continuation compares
+   * the token it captured against the current one and drops its result if they differ.
+   */
+  const runTokenRef = useRef(0);
+  /** The spec+imports combination most recently *started*, so the auto-check effect never
+   *  re-runs a check the user already got an answer for. */
+  const lastRunKeyRef = useRef<string | null>(null);
+
   // ------------------------------------------------------------------------- bulk mode
   const [packageJsonText, setPackageJsonText] = useState('');
   const [includeDev, setIncludeDev] = useState(false);
@@ -242,8 +415,20 @@ export default function BundleSizeChecker() {
   const [sortKey, setSortKey] = useState<SortKey>('gzip');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const abortRef = useRef<AbortController | null>(null);
+  const lastBulkSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // A plain `?q=lodash` deep link, so the tool can be reached straight from a bookmark,
+    // a browser search keyword, or a link in a chat — no encoded share payload needed.
+    // Checked before the share fragment because it is the more explicit request of the two.
+    const query = new URLSearchParams(window.location.search).get('q');
+    if (query && query.trim() !== '') {
+      setMode('single');
+      setSpec(query.trim());
+      void checkSize(query.trim());
+      return;
+    }
+
     void readShareStateFromLocation<ShareState>().then((restored) => {
       if (!restored?.ok) return;
       const state = restored.value;
@@ -251,12 +436,20 @@ export default function BundleSizeChecker() {
       setSpec(state.spec);
       setNamedImports(state.namedImports);
       if (state.bulkDeps.length > 0) {
-        setPackageJsonText(
-          JSON.stringify({ dependencies: Object.fromEntries(state.bulkDeps.map((d) => [d.name, d.range])) }, null, 2)
+        const text = JSON.stringify(
+          { dependencies: Object.fromEntries(state.bulkDeps.map((d) => [d.name, d.range])) },
+          null,
+          2
         );
+        setPackageJsonText(text);
+        void runBulkCheck(text, false);
+      } else if (state.spec.trim() !== '') {
+        void checkSize(state.spec, state.namedImports);
       }
       history.replaceState(null, '', window.location.pathname);
     });
+    // Runs once on mount; `checkSize`/`runBulkCheck` are stable for this purpose.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Debounced package-name search, so a dropdown of matching packages appears as you
@@ -285,23 +478,84 @@ export default function BundleSizeChecker() {
     return () => window.clearTimeout(timer);
   }, [spec, mode]);
 
+  /**
+   * Checks a package on its own once typing settles — the reason there is no "Check size"
+   * button any more.
+   *
+   * The gate is that the typed name must appear in the suggestions already fetched for
+   * it. Those cost one cheap registry search that happens regardless, and they are proof
+   * the package actually exists, so a half-typed "reac" or a typo never fires a real
+   * bundle request at esm.sh and never flashes a "no such package" error at someone who
+   * is still typing. Pressing Enter bypasses this deliberately: an explicit submit
+   * deserves a real error message when the name is wrong.
+   */
+  useEffect(() => {
+    if (mode !== 'single') return;
+    const parsed = parsePackageSpec(spec);
+    if (!parsed.ok) return;
+    if (`${spec.trim()}|${namedImports.trim()}` === lastRunKeyRef.current) return;
+    if (!suggestions.some((s) => s.name === parsed.value.name)) return;
+
+    const timer = window.setTimeout(() => void checkSize(), AUTO_CHECK_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [spec, namedImports, suggestions, mode]);
+
+  /**
+   * The package.json equivalent: a paste or an edit that parses into a dependency set
+   * different from the one already on screen checks itself. Keyed on the dependency
+   * signature rather than the raw text so reformatting, reordering or editing an
+   * unrelated field (`name`, `scripts`) never re-fetches the same packages.
+   */
+  useEffect(() => {
+    if (mode !== 'bulk') return;
+    if (packageJsonText.trim() === '') return;
+    const parsed = parsePackageJsonDependencies(packageJsonText, includeDev);
+    if (!parsed.ok) {
+      // An error is worth showing once the text has settled, but not while it is a
+      // half-finished paste — so it waits for the same debounce a successful parse does.
+      const errorTimer = window.setTimeout(() => {
+        setBulkError(parsed.error);
+        setBulkStatus('error');
+      }, AUTO_BULK_DELAY_MS);
+      return () => window.clearTimeout(errorTimer);
+    }
+    if (dependencySignature(parsed.value) === lastBulkSignatureRef.current) return;
+
+    const timer = window.setTimeout(() => void runBulkCheck(), AUTO_BULK_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [packageJsonText, includeDev, mode]);
+
   const selectSuggestion = (suggestion: PackageSuggestion) => {
     setSpec(suggestion.name);
     setSuggestions([]);
     setSuggestionsOpen(false);
     setHighlightIndex(-1);
-    // Picking a suggestion is a complete choice, not a partial edit — run the check right
-    // away instead of making the user press "Check size" again for what they just picked.
+    // Picking a suggestion is a complete choice, not a partial edit — check it right away
+    // rather than waiting out the auto-check debounce for something already decided.
     void checkSize(suggestion.name);
+  };
+
+  const selectPreset = (preset: string) => {
+    setSpec(preset);
+    setSuggestionsOpen(false);
+    // Same reasoning as a suggestion: clicking a named package is the whole request.
+    void checkSize(preset);
   };
 
   // ------------------------------------------------------------------ single: check size
 
-  /** `overrideSpec` lets a caller (like `selectSuggestion`) check a package immediately
-   *  without waiting for the `spec` state update to land — reading `spec` here would
-   *  still see the *previous* value in that same tick. */
-  const checkSize = async (overrideSpec?: string) => {
-    const parsed = parsePackageSpec(overrideSpec ?? spec);
+  /** `overrideSpec` lets a caller (a preset chip, a suggestion, a `?q=` link) check a
+   *  package immediately without waiting for the `spec` state update to land — reading
+   *  `spec` here would still see the *previous* value in that same tick. */
+  const checkSize = async (overrideSpec?: string, overrideImports?: string) => {
+    const effectiveSpec = overrideSpec ?? spec;
+    const effectiveImports = overrideImports ?? namedImports;
+    lastRunKeyRef.current = `${effectiveSpec.trim()}|${effectiveImports.trim()}`;
+
+    const token = (runTokenRef.current += 1);
+    const isStale = () => runTokenRef.current !== token;
+
+    const parsed = parsePackageSpec(effectiveSpec);
     if (!parsed.ok) {
       setError(parsed.error);
       setStatus('error');
@@ -312,6 +566,15 @@ export default function BundleSizeChecker() {
     setError(null);
     setResult(null);
     setDownloads(null);
+    setRepo(null);
+    setRepoStats(null);
+    setCommits(null);
+    setRepoError(null);
+    setTrend([]);
+    setReadmeMarkdown(null);
+    setReadmeHtml(null);
+    setReadmeError(null);
+    setReadmeStatus('idle');
     setBreakdown([]);
     setBreakdownStatus('idle');
     setCompareResult(null);
@@ -323,6 +586,7 @@ export default function BundleSizeChecker() {
     const { name, range } = parsed.value;
 
     const overview = await fetchPackageOverview(name);
+    if (isStale()) return;
     if (!overview.ok) {
       setError(overview.error);
       setStatus('error');
@@ -337,17 +601,19 @@ export default function BundleSizeChecker() {
     }
 
     const versionInfo = await fetchResolvedVersion(name, resolvedVersion);
+    if (isStale()) return;
     if (!versionInfo.ok) {
       setError(versionInfo.error);
       setStatus('error');
       return;
     }
 
-    const exportNames = namedImports
+    const exportNames = effectiveImports
       .split(',')
       .map((n) => n.trim())
       .filter(Boolean);
     const source = await fetchBundledSource(name, resolvedVersion, exportNames);
+    if (isStale()) return;
     if (!source.ok) {
       setError(source.error);
       setStatus('error');
@@ -355,22 +621,109 @@ export default function BundleSizeChecker() {
     }
 
     const size = await measureBundleSize(source.value);
+    if (isStale()) return;
     if (!size.ok) {
       setError(size.error);
       setStatus('error');
       return;
     }
 
-    setResult({ name, resolvedVersion, info: versionInfo.value, size: size.value });
+    setResult({
+      name,
+      resolvedVersion,
+      info: versionInfo.value,
+      size: size.value,
+      versionCount: overview.value.versions.length,
+      lastPublished: overview.value.modified,
+    });
     setStatus('done');
 
     void fetchWeeklyDownloads(name).then((d) => {
-      if (d.ok) setDownloads(d.value);
+      if (!isStale() && d.ok) setDownloads(d.value);
     });
-    // Fires immediately rather than waiting for a click — takes explicit args instead of
-    // reading the `result` state, which wouldn't be updated yet in this same tick.
-    void loadMajorHistory(name, resolvedVersion, size.value, exportNames);
+    void fetchDownloadTrend(name).then((d) => {
+      if (!isStale() && d.ok) setTrend(d.value);
+    });
+    // Everything below is supplementary: it takes explicit arguments instead of reading
+    // the `result` state, which has not landed yet in this same tick, and every one of
+    // them is best-effort — a failure enriches nothing but breaks nothing either.
+    void loadRepositoryInsights(versionInfo.value, token);
+    void loadReadme(name, resolvedVersion, versionInfo.value, token);
+    void loadMajorHistory(name, resolvedVersion, size.value, exportNames, token);
   };
+
+  /** Stars, forks, issues, commits and dates for whatever repository the package points
+   *  at. Only GitHub is queried — it is the only host with a public, CORS-enabled, no-key
+   *  API — so a GitLab or Bitbucket package still gets its repository *link*, just no stats. */
+  const loadRepositoryInsights = async (info: ResolvedVersionInfo, token: number) => {
+    const ref = info.repository ? parseRepositoryUrl(info.repository, info.repositoryDirectory) : null;
+    if (runTokenRef.current !== token) return;
+    setRepo(ref);
+    if (!ref || ref.host !== 'github' || !ref.owner || !ref.repo) return;
+
+    const [stats, activity] = await Promise.all([
+      fetchRepoStats(ref.owner, ref.repo),
+      fetchCommitActivity(ref.owner, ref.repo),
+    ]);
+    if (runTokenRef.current !== token) return;
+
+    if (stats.ok) setRepoStats(stats.value);
+    if (activity.ok) setCommits(activity.value);
+    // One shared message: both calls hit the same API and fail for the same reasons
+    // (rate limit, network, a repository that has since been deleted or made private).
+    if (!stats.ok) setRepoError(stats.error);
+    else if (!activity.ok) setRepoError(activity.error);
+  };
+
+  const loadReadme = async (name: string, version: string, info: ResolvedVersionInfo, token: number) => {
+    setReadmeStatus('loading');
+    const raw = await fetchReadme(name, version);
+    if (runTokenRef.current !== token) return;
+    if (!raw.ok) {
+      setReadmeError(raw.error);
+      setReadmeStatus('error');
+      return;
+    }
+    if (raw.value.length > MAX_README_BYTES) {
+      setReadmeError(
+        `This README is ${formatBytes(raw.value.length)} — too large to render here. Read it on npm or in the repository instead.`
+      );
+      setReadmeStatus('error');
+      return;
+    }
+
+    const ref = info.repository ? parseRepositoryUrl(info.repository, info.repositoryDirectory) : null;
+    const resolved = rewriteReadmeLinks(raw.value, readmeLinkBases(ref, name, version));
+    const html = await markdownToHtml(resolved);
+    if (runTokenRef.current !== token) return;
+    if (!html.ok) {
+      setReadmeError(html.error);
+      setReadmeStatus('error');
+      return;
+    }
+    setReadmeMarkdown(raw.value);
+    setReadmeHtml(html.value);
+    setReadmeStatus('done');
+  };
+
+  /**
+   * The rendered README is sanitized Markdown from a third party, so its links are
+   * retargeted here rather than trusted as written: every anchor opens in a new tab with
+   * `rel="noopener noreferrer"` (it must not be able to reach back into this page), and
+   * every image loads lazily, since a README can carry dozens of badges.
+   */
+  useEffect(() => {
+    const container = readmeRef.current;
+    if (!container || readmeHtml === null) return;
+    for (const anchor of container.querySelectorAll('a')) {
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+    }
+    for (const image of container.querySelectorAll('img')) {
+      image.loading = 'lazy';
+      image.decoding = 'async';
+    }
+  }, [readmeHtml]);
 
   const loadDependencyBreakdown = async () => {
     if (!result) return;
@@ -396,13 +749,20 @@ export default function BundleSizeChecker() {
     setBreakdownStatus('done');
   };
 
-  /** Takes the just-checked package explicitly rather than reading `result` state, which
-   *  is called from `checkSize` right after `setResult` — before that state update has
+  /** Takes the just-checked package explicitly rather than reading `result` state, since
+   *  it is called from `checkSize` right after `setResult` — before that state update has
    *  actually landed, a stale read would still see the *previous* check's package. */
-  const loadMajorHistory = async (name: string, resolvedVersion: string, currentSize: SizeResult, exportNames: string[]) => {
+  const loadMajorHistory = async (
+    name: string,
+    resolvedVersion: string,
+    currentSize: SizeResult,
+    exportNames: string[],
+    token: number
+  ) => {
     setMajorHistoryStatus('loading');
 
     const overview = await fetchPackageOverview(name);
+    if (runTokenRef.current !== token) return;
     if (!overview.ok) {
       setMajorHistoryRows([{ major: 0, version: '', size: null, error: overview.error }]);
       setMajorHistoryStatus('done');
@@ -422,6 +782,7 @@ export default function BundleSizeChecker() {
       if (!size.ok) return { major, version, size: null, error: size.error };
       return { major, version, size: size.value, error: null };
     });
+    if (runTokenRef.current !== token) return;
 
     measured.sort((a, b) => b.major - a.major);
     setMajorHistoryRows(measured);
@@ -467,6 +828,10 @@ export default function BundleSizeChecker() {
   };
 
   const clearSingle = () => {
+    // Bumping the token abandons anything still in flight, so a check started a moment
+    // ago can't repopulate the panel the user just cleared.
+    runTokenRef.current += 1;
+    lastRunKeyRef.current = null;
     setSpec('');
     setNamedImports('');
     setSuggestions([]);
@@ -476,6 +841,15 @@ export default function BundleSizeChecker() {
     setError(null);
     setResult(null);
     setDownloads(null);
+    setRepo(null);
+    setRepoStats(null);
+    setCommits(null);
+    setRepoError(null);
+    setTrend([]);
+    setReadmeMarkdown(null);
+    setReadmeHtml(null);
+    setReadmeError(null);
+    setReadmeStatus('idle');
     setBreakdown([]);
     setBreakdownStatus('idle');
     setCompareSpec('');
@@ -492,14 +866,26 @@ export default function BundleSizeChecker() {
     setRows((current) => current.map((r, i) => (i === index ? { ...r, ...patch } : r)));
   };
 
-  const runBulkCheck = async () => {
-    const parsed = parsePackageJsonDependencies(packageJsonText, includeDev);
+  /** `overrideText`/`overrideIncludeDev` exist for the same reason `checkSize`'s override
+   *  does: a dropped file or a restored share link sets the textarea and needs the check
+   *  to run against that content in the same tick, before the state update lands. */
+  const runBulkCheck = async (overrideText?: string, overrideIncludeDev?: boolean) => {
+    const text = overrideText ?? packageJsonText;
+    const withDev = overrideIncludeDev ?? includeDev;
+
+    const parsed = parsePackageJsonDependencies(text, withDev);
     if (!parsed.ok) {
       setBulkError(parsed.error);
       setBulkStatus('error');
       setRows([]);
+      lastBulkSignatureRef.current = null;
       return;
     }
+    lastBulkSignatureRef.current = dependencySignature(parsed.value);
+
+    // A run already under way is for an older dependency list — stop it rather than
+    // letting two sets of results write into the same table.
+    abortRef.current?.abort();
 
     const initialRows: BulkRow[] = parsed.value.map((d) => {
       const resolvable = isResolvableRange(d.range);
@@ -570,6 +956,8 @@ export default function BundleSizeChecker() {
       controller.signal
     );
 
+    // A newer run has already taken over the table — leave its state alone.
+    if (abortRef.current !== controller) return;
     abortRef.current = null;
     if (controller.signal.aborted) {
       setRows((current) =>
@@ -579,9 +967,17 @@ export default function BundleSizeChecker() {
     setBulkStatus('done');
   };
 
-  const cancelBulk = () => abortRef.current?.abort();
+  const cancelBulk = () => {
+    // Cancelling means "stop and leave it alone", so the signature is cleared too —
+    // otherwise the auto-check effect would consider this list already handled and never
+    // offer to finish it, even after an edit and an undo brought back the same text.
+    lastBulkSignatureRef.current = null;
+    abortRef.current?.abort();
+  };
 
   const clearBulk = () => {
+    abortRef.current?.abort();
+    lastBulkSignatureRef.current = null;
     setPackageJsonText('');
     setIncludeDev(false);
     setRows([]);
@@ -616,6 +1012,30 @@ export default function BundleSizeChecker() {
     ? `${result.name}@${result.resolvedVersion} — ${formatBytes(result.size.minifiedBytes)} minified · ${formatBytes(result.size.gzipBytes)} gzipped`
     : '';
 
+  const commitCount = commits?.totalCommits ?? null;
+  const monthlyDownloads = trend.length > 0 ? sumDownloads(trend) : null;
+  const sparkline = sparklinePoints(trend, 240, 40);
+
+  /**
+   * Opens one dependency as a full single-package result. Bulk mode's own state is left
+   * untouched, so the "package.json" tab still holds the table and totals it had — this
+   * is a detour into one row, not a reset.
+   */
+  const inspectPackage = (name: string, version: string | null) => {
+    const target = version ? `${name}@${version}` : name;
+    setMode('single');
+    setSpec(target);
+    setNamedImports('');
+    setSuggestions([]);
+    setSuggestionsOpen(false);
+    void checkSize(target, '');
+    // The panel below has just been replaced wholesale; without this the reader is left
+    // looking at whatever was at their scroll position in the old one. Optional-called
+    // because scrolling is a nicety, not correctness — an environment without
+    // `scrollIntoView` (jsdom, for one) must not break the drill-in itself.
+    toolRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  };
+
   const shareState = (): ShareState => {
     if (mode === 'bulk') {
       const parsed = parsePackageJsonDependencies(packageJsonText, includeDev);
@@ -625,7 +1045,7 @@ export default function BundleSizeChecker() {
   };
 
   return (
-    <div class="tool">
+    <div class="tool" ref={toolRef}>
       <div class="tool-bar">
         <div class="seg" role="group" aria-label="Check a single package, or a whole package.json">
           <button type="button" class="seg__btn" aria-pressed={mode === 'single'} onClick={() => setMode('single')}>
@@ -641,7 +1061,13 @@ export default function BundleSizeChecker() {
         <>
           <div class="presets" role="group" aria-label="Popular packages">
             {PRESETS.map((preset) => (
-              <button key={preset} type="button" class="preset-chip" onClick={() => setSpec(preset)} title={`Use "${preset}"`}>
+              <button
+                key={preset}
+                type="button"
+                class="preset-chip"
+                onClick={() => selectPreset(preset)}
+                title={`Check "${preset}" now`}
+              >
                 {preset}
               </button>
             ))}
@@ -651,7 +1077,7 @@ export default function BundleSizeChecker() {
             <div class="field bsc-combobox" style="flex:2">
               <label class="field__label" for="bsc-spec">
                 <span>Package</span>
-                <span class="field__hint">name, name@version, or name@range</span>
+                <span class="field__hint">checks itself as you finish typing</span>
               </label>
               <input
                 id="bsc-spec"
@@ -664,6 +1090,7 @@ export default function BundleSizeChecker() {
                 aria-controls="bsc-suggestions"
                 aria-activedescendant={highlightIndex >= 0 ? `bsc-suggestion-${highlightIndex}` : undefined}
                 placeholder="lodash, react@18, or date-fns@^3"
+                title="A package name, optionally pinned: name, name@version, or name@range."
                 value={spec}
                 aria-invalid={status === 'error'}
                 onInput={(e) => {
@@ -693,6 +1120,8 @@ export default function BundleSizeChecker() {
                     selectSuggestion(suggestions[highlightIndex]!);
                     return;
                   }
+                  // Enter is an explicit submit: it skips the auto-check's "is this a real
+                  // package" gate, so a typo gets a real error instead of silence.
                   if (e.key === 'Enter') void checkSize();
                 }}
               />
@@ -720,7 +1149,15 @@ export default function BundleSizeChecker() {
             </div>
             <div class="field" style="flex:1">
               <label class="field__label" for="bsc-exports">
-                <span>Named imports</span>
+                <span>
+                  Named imports{' '}
+                  {/* The explanation is long enough to crowd the field if it were always
+                      visible, but short enough to read in one hover — so it lives on an
+                      icon, focusable so it is reachable without a mouse too. */}
+                  <span class="field__info" tabIndex={0} role="note" title={NAMED_IMPORTS_HELP} aria-label={NAMED_IMPORTS_HELP}>
+                    i
+                  </span>
+                </span>
                 <span class="field__hint">optional</span>
               </label>
               <input
@@ -729,7 +1166,7 @@ export default function BundleSizeChecker() {
                 spellcheck={false}
                 autocomplete="off"
                 placeholder="debounce, throttle"
-                title="Measure the cost of importing only these named exports (tree-shaken via esm.sh) instead of the whole package. Doesn't work for CommonJS-only packages."
+                title={NAMED_IMPORTS_HELP}
                 value={namedImports}
                 onInput={(e) => setNamedImports((e.target as HTMLInputElement).value)}
                 onKeyDown={(e) => e.key === 'Enter' && void checkSize()}
@@ -737,38 +1174,98 @@ export default function BundleSizeChecker() {
             </div>
           </div>
 
+          <details class="bsc-details">
+            <summary>When does "Named imports" actually make a difference?</summary>
+            <p class="field__hint">
+              Most projects don't use everything a package exports. A bundler that can prove which exports you left unused
+              deletes the rest — that's tree-shaking — so the number that matters for your app is the size of the parts you
+              import, not the size of the package. Listing exports here measures exactly that: esm.sh rebuilds the package
+              keeping only the names you gave, and the result is measured through the same minify-and-gzip pipeline as
+              everything else.
+            </p>
+            <p class="field__hint">
+              Three things can happen, and all three are useful answers:
+            </p>
+            <ul class="bsc-notes">
+              <li>
+                <strong>It shrinks a lot.</strong> The package is a well-separated ESM bundle of independent exports —
+                exactly the case where importing one function costs you one function.
+              </li>
+              <li>
+                <strong>It barely changes.</strong> The package routes everything through one shared internal module, so
+                there is genuinely nothing to shake off. That is a property of how the package is published, not a failure
+                of the measurement — and it is worth knowing before you assume an import is cheap.
+              </li>
+              <li>
+                <strong>It fails with an error.</strong> The package is CommonJS-only (see "Module format" in the results),
+                and its exports can't be analysed statically at all. In a real build the same thing happens quietly: you get
+                the whole package.
+              </li>
+            </ul>
+          </details>
+
           <div class="tool-bar">
             <ShareLinkButton getState={shareState} describe="this package" />
             <button type="button" class="btn" onClick={clearSingle} disabled={spec === '' && status === 'idle'} title="Clear and start over">
               Clear
             </button>
-            <span class="tool-bar__spacer" />
-            <button
-              type="button"
-              class="btn btn--primary"
-              onClick={() => void checkSize()}
-              disabled={status === 'loading' || spec.trim() === ''}
-              title="Fetch and bundle this package to measure its size — the one action here that makes a network request"
-            >
-              {status === 'loading' ? 'Checking…' : 'Check size'}
-            </button>
+            {status === 'loading' && (
+              <span class="field__hint">
+                <span class="job__spinner" aria-hidden="true" /> Fetching and bundling {spec.trim()}…
+              </span>
+            )}
           </div>
 
           <ErrorMessage message={error} onRetry={() => void checkSize()} />
 
-          {status === 'loading' && (
-            <p class="field__hint">
-              <span class="job__spinner" aria-hidden="true" /> Fetching and bundling {spec.trim()}…
-            </p>
-          )}
-
           {result && (
             <>
-              <p class="bsc-version">
-                <code>
-                  {result.name}@{result.resolvedVersion}
-                </code>
-              </p>
+              <div class="bsc-heading">
+                <p class="bsc-version">
+                  <code>
+                    {result.name}@{result.resolvedVersion}
+                  </code>
+                </p>
+                {(result.info.description ?? repoStats?.description) && (
+                  <p class="bsc-description">{result.info.description ?? repoStats?.description}</p>
+                )}
+                <p class="bsc-links">
+                  <a href={buildNpmPackageUrl(result.name)} target="_blank" rel="noopener noreferrer">
+                    npm
+                  </a>
+                  {repo && (
+                    <a href={repo.url} target="_blank" rel="noopener noreferrer" title={`Source repository on ${repo.host}`}>
+                      {repo.host === 'other' ? 'Repository' : `${repo.host} repo`}
+                    </a>
+                  )}
+                  {result.info.homepage && result.info.homepage !== repo?.url && (
+                    <a href={result.info.homepage} target="_blank" rel="noopener noreferrer">
+                      Homepage
+                    </a>
+                  )}
+                </p>
+                {result.info.deprecated && (
+                  <p class="msg msg--error" role="status">
+                    <span class="msg__icon" aria-hidden="true">
+                      !
+                    </span>
+                    <span>
+                      <strong>Deprecated:</strong> {result.info.deprecated}
+                    </span>
+                  </p>
+                )}
+                {repoStats?.archived && (
+                  <p class="msg msg--error" role="status">
+                    <span class="msg__icon" aria-hidden="true">
+                      !
+                    </span>
+                    <span>
+                      This repository is <strong>archived</strong> on GitHub — it is read-only and no longer maintained.
+                    </span>
+                  </p>
+                )}
+              </div>
+
               <dl class="bsc-grid">
                 <dt>Minified</dt>
                 <dd class="tnum">{formatBytes(result.size.minifiedBytes)}</dd>
@@ -779,19 +1276,46 @@ export default function BundleSizeChecker() {
                 <dt>Compression</dt>
                 <dd class="tnum">{Math.round(compressionRatio(result.size.minifiedBytes, result.size.gzipBytes) * 100)}% smaller gzipped</dd>
 
-                <dt>Direct dependencies</dt>
-                <dd class="tnum">{Object.keys(result.info.dependencies).length}</dd>
+                <dt>Unpacked size</dt>
+                <dd class="tnum">
+                  {result.info.unpackedSize !== null ? formatBytes(result.info.unpackedSize) : 'Unknown'}
+                  {result.info.fileCount !== null && (
+                    <span class="field__hint"> · {result.info.fileCount.toLocaleString()} files in the tarball</span>
+                  )}
+                </dd>
 
-                <dt>ESM / tree-shaking</dt>
+                <dt>Direct dependencies</dt>
+                <dd class="tnum">
+                  {Object.keys(result.info.dependencies).length}
+                  {Object.keys(result.info.peerDependencies).length > 0 && (
+                    <span class="field__hint">
+                      {' '}
+                      · {Object.keys(result.info.peerDependencies).length} peer
+                    </span>
+                  )}
+                </dd>
+
+                {/* Module format and sideEffects get a labelled row each, rather than two
+                    badges sharing one cell: they are independent facts with independent
+                    colour scales, and side by side it is genuinely hard to tell which
+                    badge a colour belongs to. */}
+                <dt>Module format</dt>
                 <dd>
-                  <span class={`badge badge--${result.info.esm.hasEsmEntry ? 'success' : 'warning'}`}>
-                    {result.info.esm.hasEsmEntry ? 'ESM entry point' : 'CommonJS only'}
-                  </span>{' '}
                   <span
-                    class={`badge badge--${result.info.esm.sideEffects === 'free' ? 'success' : result.info.esm.sideEffects === 'has-side-effects' ? 'warning' : 'neutral'}`}
-                    title="From the package's own sideEffects field — false or an empty array means a bundler can safely drop unused exports."
+                    class={`badge badge--${MODULE_FORMAT_TONE[result.info.esm.format]}`}
+                    title={MODULE_FORMAT_TOOLTIP[result.info.esm.format]}
                   >
-                    {result.info.esm.sideEffects === 'free' ? 'side-effect free' : result.info.esm.sideEffects === 'has-side-effects' ? 'has side effects' : 'sideEffects unspecified'}
+                    {MODULE_FORMAT_LABEL[result.info.esm.format]}
+                  </span>
+                </dd>
+
+                <dt>Tree-shaking</dt>
+                <dd>
+                  <span
+                    class={`badge badge--${SIDE_EFFECTS_TONE[result.info.esm.sideEffects]}`}
+                    title={SIDE_EFFECTS_TOOLTIP[result.info.esm.sideEffects]}
+                  >
+                    {SIDE_EFFECTS_LABEL[result.info.esm.sideEffects]}
                   </span>
                 </dd>
 
@@ -801,13 +1325,195 @@ export default function BundleSizeChecker() {
                 <dt>License</dt>
                 <dd>{result.info.license ?? 'Unknown'}</dd>
 
-                {downloads !== null && (
+                {result.info.engineNode && (
                   <>
-                    <dt>Weekly downloads</dt>
-                    <dd class="tnum">{downloads.toLocaleString()}</dd>
+                    <dt>Requires Node</dt>
+                    <dd class="tnum">{result.info.engineNode}</dd>
                   </>
                 )}
+
+                <dt>Published versions</dt>
+                <dd class="tnum">
+                  {result.versionCount.toLocaleString()}
+                  {result.lastPublished && (
+                    <span class="field__hint"> · last published {formatRelativeTime(result.lastPublished) ?? 'unknown'}</span>
+                  )}
+                </dd>
               </dl>
+
+              <details class="bsc-details">
+                <summary>What do "CommonJS only" and "sideEffects unspecified" mean?</summary>
+                <dl class="bsc-explain">
+                  <dt>ESM only</dt>
+                  <dd>
+                    The package ships an ES module entry point — the modern <code>import</code> / <code>export</code> syntax.
+                    Imports and exports are fixed at parse time, so a bundler can see exactly which exports you use and drop
+                    the rest. This is the format that makes tree-shaking possible.
+                  </dd>
+
+                  <dt>ESM + CommonJS</dt>
+                  <dd>
+                    A "dual" package: it ships both formats, normally through an <code>exports</code> map with separate{' '}
+                    <code>import</code> and <code>require</code> conditions. Bundlers take the ESM build and tree-shake it;
+                    plain Node <code>require()</code> still works. This is the most compatible thing a package can publish.
+                  </dd>
+
+                  <dt>CommonJS only</dt>
+                  <dd>
+                    The package ships only the older Node format — <code>require()</code> and <code>module.exports</code>.
+                    Its exports are ordinary runtime property assignments, not declarations, so a bundler usually cannot
+                    prove which ones you left unused and has to include the whole module. That is why importing one function
+                    from a large CommonJS package often costs you the entire package, and why the "named imports" field
+                    above fails for one. It still <em>works</em> everywhere — it just doesn't shrink.
+                  </dd>
+
+                  <dt>No entry point declared</dt>
+                  <dd>
+                    Neither a <code>main</code> nor a <code>module</code>/<code>exports</code> entry that this tool
+                    recognises. Usually a types-only package, one that is only meant to be imported by a deep subpath, or a
+                    publishing mistake.
+                  </dd>
+
+                  <dt>side-effect free</dt>
+                  <dd>
+                    The package sets <code>"sideEffects": false</code> (or an empty array) in its package.json — an explicit
+                    promise that merely importing a module from it does nothing observable on its own: no globals patched,
+                    no CSS injected, no polyfill installed. That promise is what lets a bundler delete a module you imported
+                    but never actually used.
+                  </dd>
+
+                  <dt>has side effects</dt>
+                  <dd>
+                    <code>sideEffects</code> is <code>true</code>, or lists specific files that do have side effects (a
+                    common pattern for the one file that imports a stylesheet). A bundler keeps those files even when
+                    nothing appears to use them, because dropping them would change how your app behaves.
+                  </dd>
+
+                  <dt>sideEffects unspecified</dt>
+                  <dd>
+                    The package simply doesn't have the field. It is <strong>not</strong> a statement that the package has
+                    side effects — it is the absence of a statement either way, which is still the most common case, since
+                    the field is optional and predates most published packages. Bundlers must then assume the worst and keep
+                    every imported module, so tree-shaking is more conservative than it would be with an explicit{' '}
+                    <code>false</code>. A package can be perfectly clean and just never have added the field.
+                  </dd>
+                </dl>
+              </details>
+
+              {(repoStats || commits || monthlyDownloads !== null || downloads !== null) && (
+                <div class="field">
+                  <div class="field__label">
+                    <span>Project health</span>
+                    {repo && (
+                      <a class="field__hint" href={repo.url} target="_blank" rel="noopener noreferrer">
+                        {repo.owner && repo.repo ? `${repo.owner}/${repo.repo}` : 'repository'} ↗
+                      </a>
+                    )}
+                  </div>
+                  <div class="bsc-stats">
+                    {downloads !== null && (
+                      <Stat
+                        label="Weekly downloads"
+                        value={formatCompactNumber(downloads)}
+                        title={`${downloads.toLocaleString()} downloads in the last week (npm)`}
+                      />
+                    )}
+                    {monthlyDownloads !== null && (
+                      <Stat
+                        label="Monthly downloads"
+                        value={formatCompactNumber(monthlyDownloads)}
+                        title={`${monthlyDownloads.toLocaleString()} downloads over the last 30 days (npm)`}
+                      />
+                    )}
+                    {repoStats && (
+                      <>
+                        <Stat
+                          label="Stars"
+                          value={formatCompactNumber(repoStats.stars)}
+                          title={`${repoStats.stars.toLocaleString()} GitHub stars`}
+                          href={`${repoStats.htmlUrl}/stargazers`}
+                        />
+                        <Stat
+                          label="Forks"
+                          value={formatCompactNumber(repoStats.forks)}
+                          title={`${repoStats.forks.toLocaleString()} forks`}
+                          href={`${repoStats.htmlUrl}/forks`}
+                        />
+                        <Stat
+                          label="Watchers"
+                          value={formatCompactNumber(repoStats.watchers)}
+                          title={`${repoStats.watchers.toLocaleString()} people watching this repository`}
+                          href={`${repoStats.htmlUrl}/watchers`}
+                        />
+                        <Stat
+                          label="Open issues + PRs"
+                          value={formatCompactNumber(repoStats.openIssuesAndPulls)}
+                          title={`${repoStats.openIssuesAndPulls.toLocaleString()} open items. GitHub's API counts open pull requests as issues, so this is the combined figure rather than a pure issue count.`}
+                          href={`${repoStats.htmlUrl}/issues`}
+                        />
+                      </>
+                    )}
+                    {commitCount !== null && (
+                      <Stat
+                        label="Commits"
+                        value={formatCompactNumber(commitCount)}
+                        title={`${commitCount.toLocaleString()} commits on the repository's default branch`}
+                        href={repoStats ? `${repoStats.htmlUrl}/commits` : undefined}
+                      />
+                    )}
+                    {commits?.lastCommitDate && (
+                      <Stat
+                        label="Last commit"
+                        value={formatRelativeTime(commits.lastCommitDate) ?? '—'}
+                        title={
+                          commits.lastCommitMessage
+                            ? `${new Date(commits.lastCommitDate).toLocaleString()} — "${commits.lastCommitMessage}"${commits.lastCommitAuthor ? ` by ${commits.lastCommitAuthor}` : ''}`
+                            : new Date(commits.lastCommitDate).toLocaleString()
+                        }
+                        href={commits.lastCommitUrl ?? undefined}
+                      />
+                    )}
+                    {repoStats?.createdAt && (
+                      <Stat
+                        label="Project age"
+                        value={(() => {
+                          const years = yearsSince(repoStats.createdAt);
+                          return years === null ? '—' : years < 1 ? '<1 yr' : `${years} yr`;
+                        })()}
+                        title={`Repository created ${new Date(repoStats.createdAt).toLocaleDateString()} (${formatRelativeTime(repoStats.createdAt) ?? 'unknown'})`}
+                      />
+                    )}
+                  </div>
+
+                  {sparkline && (
+                    <figure class="bsc-spark">
+                      <svg viewBox="0 0 240 40" preserveAspectRatio="none" role="img" aria-label={`Daily downloads of ${result.name} over the last 30 days`}>
+                        <polyline points={sparkline} fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+                      </svg>
+                      <figcaption class="field__hint">Daily downloads, last 30 days — from npm's public download-counts API.</figcaption>
+                    </figure>
+                  )}
+
+                  {repoStats && repoStats.topics.length > 0 && (
+                    <p class="bsc-topics">
+                      {repoStats.topics.slice(0, 8).map((topic) => (
+                        <span class="badge badge--neutral" key={topic}>
+                          {topic}
+                        </span>
+                      ))}
+                    </p>
+                  )}
+
+                  {repoError && <p class="field__hint">{repoError}</p>}
+                </div>
+              )}
+
+              {!repoStats && !repoError && repo && repo.host !== 'github' && (
+                <p class="field__hint">
+                  Stars, issues and commit counts are only available for packages hosted on GitHub — {result.name} publishes
+                  its source on {repo.host}, so only the repository link is shown.
+                </p>
+              )}
 
               <div class="field">
                 <div class="field__label">
@@ -950,6 +1656,7 @@ export default function BundleSizeChecker() {
                     <input
                       class="input"
                       placeholder="e.g. 3.0.0, or ^2"
+                      aria-label="Version or range to compare against"
                       value={compareSpec}
                       onInput={(e) => setCompareSpec((e.target as HTMLInputElement).value)}
                       onKeyDown={(e) => e.key === 'Enter' && void runCompare()}
@@ -994,9 +1701,14 @@ export default function BundleSizeChecker() {
                           const pct = b.gzipBytes !== null ? Math.max(2, Math.round((b.gzipBytes / max) * 100)) : 0;
                           return (
                             <li key={b.name}>
-                              <span class="bsc-bars__name" title={b.name}>
+                              <button
+                                type="button"
+                                class="bsc-bars__name bsc-inspect"
+                                onClick={() => inspectPackage(b.name, null)}
+                                title={`Open ${b.name} on its own — README, project health and version history`}
+                              >
                                 {b.name}
-                              </span>
+                              </button>
                               {b.error ? (
                                 <span class="bsc-bars__error" title={b.error}>
                                   error
@@ -1020,6 +1732,37 @@ export default function BundleSizeChecker() {
                   </>
                 )}
               </details>
+
+              <div class="field">
+                <div class="field__label">
+                  <span>README</span>
+                  {readmeMarkdown && <CopyButton value={readmeMarkdown} label="Copy Markdown" describe="the README source" />}
+                </div>
+                {readmeStatus === 'loading' && (
+                  <p class="field__hint">
+                    <span class="job__spinner" aria-hidden="true" /> Fetching the README published with {result.name}@
+                    {result.resolvedVersion}…
+                  </p>
+                )}
+                {readmeStatus === 'error' && <p class="field__hint">{readmeError}</p>}
+                {readmeStatus === 'done' && readmeHtml !== null && (
+                  <>
+                    <p class="field__hint">
+                      The README published with this exact version, taken from the package's own tarball. Its links open in a
+                      new tab.
+                    </p>
+                    {/* Rendered from Markdown that DOMPurify has already sanitized (see
+                        `markdownToHtml`), with relative paths rewritten to the package's
+                        repository so its images and links still resolve here. It sits last
+                        on the page and is shown in full: a README is the longest thing
+                        here by far, and anything clipped above it would push the rest of
+                        the results out of reach. */}
+                    <div class="bsc-readme">
+                      <div class="bsc-readme__body" ref={readmeRef} dangerouslySetInnerHTML={{ __html: readmeHtml }} />
+                    </div>
+                  </>
+                )}
+              </div>
             </>
           )}
         </>
@@ -1027,13 +1770,31 @@ export default function BundleSizeChecker() {
         <>
           <div class="tool-bar">
             <ShareLinkButton getState={shareState} describe="this dependency list" />
-            <button type="button" class="btn" onClick={() => setPackageJsonText(BULK_EXAMPLE)} title="Fill in a sample package.json">
+            <button
+              type="button"
+              class="btn"
+              onClick={() => {
+                setPackageJsonText(BULK_EXAMPLE);
+                void runBulkCheck(BULK_EXAMPLE);
+              }}
+              title="Fill in a sample package.json and check it"
+            >
               Load example
             </button>
             <button type="button" class="btn" onClick={clearBulk} disabled={packageJsonText === '' && rows.length === 0} title="Clear and start over">
               Clear
             </button>
             <span class="tool-bar__spacer" />
+            {bulkStatus === 'running' && (
+              <>
+                <span class="field__hint">
+                  <span class="job__spinner" aria-hidden="true" /> Checked {progress.done} / {progress.total}…
+                </span>
+                <button type="button" class="btn" onClick={cancelBulk} title="Stop checking the remaining dependencies">
+                  Cancel
+                </button>
+              </>
+            )}
             <label class="checkbox" title="Also check devDependencies, not just dependencies">
               <input type="checkbox" checked={includeDev} onChange={(e) => setIncludeDev((e.target as HTMLInputElement).checked)} />
               <span>Include devDependencies</span>
@@ -1044,7 +1805,12 @@ export default function BundleSizeChecker() {
             file={null}
             onFileSelected={(file) => {
               if (!file) return;
-              void file.text().then(setPackageJsonText);
+              // Choosing a file is a complete request in itself — read it and check it,
+              // rather than dropping the contents into the textarea and waiting.
+              void file.text().then((text) => {
+                setPackageJsonText(text);
+                void runBulkCheck(text);
+              });
             }}
             chooseLabel="Choose a package.json file"
             accept="application/json,.json"
@@ -1053,6 +1819,7 @@ export default function BundleSizeChecker() {
           <div class="field">
             <label class="field__label" for="bsc-pkgjson">
               <span>package.json</span>
+              <span class="field__hint">checks itself once a paste settles</span>
             </label>
             <textarea
               id="bsc-pkgjson"
@@ -1065,28 +1832,22 @@ export default function BundleSizeChecker() {
             />
           </div>
 
-          <div class="tool-bar">
-            {bulkStatus === 'running' ? (
-              <button type="button" class="btn" onClick={cancelBulk}>
-                Cancel
-              </button>
-            ) : (
-              <button type="button" class="btn btn--primary" onClick={() => void runBulkCheck()} disabled={packageJsonText.trim() === ''}>
-                Check all dependencies
-              </button>
-            )}
-            {bulkStatus === 'running' && (
-              <span class="field__hint">
-                <span class="job__spinner" aria-hidden="true" /> Checked {progress.done} / {progress.total}…
-              </span>
-            )}
-          </div>
-
           <ErrorMessage message={bulkError} />
 
           {rows.length > 0 && (
             <>
-              <DependencyTable title="Dependencies" rows={dependencyRows} sortKey={sortKey} sortDirection={sortDirection} onToggleSort={toggleSort} />
+              <p class="field__hint">
+                Select any package name to open it on its own — its README, project health and version history. Your
+                package.json and this table are kept, so the "package.json" tab brings them straight back.
+              </p>
+              <DependencyTable
+                title="Dependencies"
+                rows={dependencyRows}
+                sortKey={sortKey}
+                sortDirection={sortDirection}
+                onToggleSort={toggleSort}
+                onInspect={inspectPackage}
+              />
               {devDependencyRows.length > 0 && (
                 <DependencyTable
                   title="Dev Dependencies"
@@ -1094,6 +1855,7 @@ export default function BundleSizeChecker() {
                   sortKey={sortKey}
                   sortDirection={sortDirection}
                   onToggleSort={toggleSort}
+                  onInspect={inspectPackage}
                 />
               )}
               <div class="tool-bar">
@@ -1125,8 +1887,11 @@ export default function BundleSizeChecker() {
         .bsc-suggestions__item--active, .bsc-suggestions__item:hover { background: var(--surface-2); }
         .bsc-suggestions__name { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text); font-weight: 600; }
         .bsc-suggestions__desc { font-size: var(--text-xs); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bsc-heading { display: flex; flex-direction: column; gap: var(--space-2); }
         .bsc-version { margin: 0; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
         .bsc-version code { color: var(--text); font-weight: 600; }
+        .bsc-description { margin: 0; font-size: var(--text-sm); color: var(--text-muted); max-width: 68ch; }
+        .bsc-links { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-3); font-size: var(--text-sm); }
         .bsc-delta--up { color: var(--danger); }
         .bsc-delta--down { color: var(--success); }
         .bsc-grid {
@@ -1149,10 +1914,62 @@ export default function BundleSizeChecker() {
         .badge--success { color: var(--success); background: var(--success-subtle); border-color: var(--success-border); }
         .badge--warning { color: var(--warning); background: var(--warning-subtle); border-color: var(--warning-border); }
         .badge--neutral { color: var(--text-muted); background: var(--surface-2); border-color: var(--border-strong); }
+        .bsc-explain { margin: 0; display: grid; gap: var(--space-2); font-size: var(--text-sm); }
+        .bsc-explain dt { font-family: var(--font-mono); font-weight: 700; color: var(--text); font-size: var(--text-xs); letter-spacing: .04em; }
+        .bsc-explain dd { margin: 0 0 var(--space-2); color: var(--text-muted); max-width: 72ch; }
+        .bsc-explain code { font-family: var(--font-mono); font-size: 0.9em; }
+        .bsc-notes { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--text-sm); color: var(--text-muted); max-width: 72ch; }
+        .bsc-notes strong { color: var(--text); }
+        .field__info {
+          display: inline-flex; align-items: center; justify-content: center;
+          width: 1.05rem; height: 1.05rem; border-radius: 99px; cursor: help;
+          border: 1px solid var(--border-strong); background: var(--surface-2);
+          color: var(--text-muted); font-size: 0.68rem; font-weight: 700;
+          font-family: var(--font-mono); line-height: 1; vertical-align: middle;
+        }
+        .field__info:hover, .field__info:focus-visible { color: var(--text); border-color: var(--text-subtle); }
+        /* auto-fit keeps every tile the same width and lets the row reflow down to one
+           column on a phone, with no breakpoint to keep in sync with the tile count. */
+        .bsc-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: var(--space-2); }
+        .bsc-stat {
+          display: flex; flex-direction: column; gap: 0.15rem; padding: var(--space-3);
+          border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+          text-align: center; align-items: center;
+        }
+        .bsc-stat--link { text-decoration: none; color: inherit; }
+        .bsc-stat--link:hover { border-color: var(--text-subtle); background: var(--surface-2); }
+        .bsc-stat__value { font-size: var(--text-lg, 1.15rem); font-weight: 700; color: var(--text); }
+        .bsc-stat__label { font-size: var(--text-xs); color: var(--text-muted); }
+        .bsc-spark { margin: var(--space-3) 0 0; color: var(--accent); }
+        .bsc-spark svg { width: 100%; height: 3rem; display: block; }
+        .bsc-topics { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0 0; }
         .bsc-speeds { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
         .bsc-speeds li { display: flex; justify-content: space-between; padding: 0.2rem 0; border-bottom: 1px solid var(--border); font-size: var(--text-sm); }
         .bsc-speeds li:last-child { border-bottom: none; }
         .bsc-speeds__label { color: var(--text-muted); }
+        /* Shown in full, unclipped: it is the last thing on the page, so its length
+           costs the reader nothing — there is no result below it to push out of reach. */
+        .bsc-readme {
+          border: 1px solid var(--border); border-radius: var(--radius);
+          background: var(--surface); padding: var(--space-4);
+        }
+        .bsc-readme__body { font-size: var(--text-sm); line-height: 1.65; overflow-wrap: anywhere; }
+        .bsc-readme__body > :first-child { margin-top: 0; }
+        .bsc-readme__body h1, .bsc-readme__body h2, .bsc-readme__body h3 { margin: var(--space-4) 0 var(--space-2); line-height: 1.3; }
+        .bsc-readme__body h1 { font-size: 1.4rem; }
+        .bsc-readme__body h2 { font-size: 1.2rem; }
+        .bsc-readme__body h3 { font-size: 1.05rem; }
+        .bsc-readme__body p, .bsc-readme__body ul, .bsc-readme__body ol { margin: 0 0 var(--space-3); }
+        .bsc-readme__body img { max-width: 100%; height: auto; }
+        .bsc-readme__body pre {
+          overflow-x: auto; padding: var(--space-3); border-radius: var(--radius);
+          background: var(--surface-2); font-family: var(--font-mono); font-size: var(--text-xs);
+        }
+        .bsc-readme__body code { font-family: var(--font-mono); font-size: 0.9em; }
+        .bsc-readme__body :not(pre) > code { background: var(--surface-2); padding: .1em .35em; border-radius: 4px; }
+        .bsc-readme__body table { border-collapse: collapse; display: block; overflow-x: auto; max-width: 100%; }
+        .bsc-readme__body th, .bsc-readme__body td { border: 1px solid var(--border); padding: 0.35rem 0.6rem; text-align: left; }
+        .bsc-readme__body blockquote { margin: 0 0 var(--space-3); padding-left: var(--space-3); border-left: 3px solid var(--border-strong); color: var(--text-muted); }
         .bsc-chart { margin: 0; }
         /* A grid, not nested flex columns: every bar's row is a fixed 8rem track, so a
            taller two-line label (the "current" tag) below one bar can never push that
@@ -1186,7 +2003,14 @@ export default function BundleSizeChecker() {
         .bsc-details > *:not(summary) { margin-top: var(--space-3); }
         .bsc-bars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
         .bsc-bars li { display: grid; grid-template-columns: minmax(6rem, 10rem) 1fr auto; gap: var(--space-2); align-items: center; font-size: var(--text-sm); }
+        .bsc-bars__name.bsc-inspect { min-width: 0; }
         .bsc-bars__name { font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bsc-inspect {
+          background: none; border: none; padding: 0; font: inherit; cursor: pointer;
+          color: var(--accent); text-align: left; text-decoration: underline;
+          text-decoration-style: dotted; text-underline-offset: 2px;
+        }
+        .bsc-inspect:hover { text-decoration-style: solid; }
         .bsc-bars__track { height: 0.6rem; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
         .bsc-bars__fill { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
         .bsc-bars__value { font-size: var(--text-xs); color: var(--text-muted); }

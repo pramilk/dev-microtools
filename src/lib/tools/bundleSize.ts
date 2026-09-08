@@ -363,9 +363,26 @@ export async function measureBundleSize(code: string): Promise<ToolResult<SizeRe
 
 // --------------------------------------------------------------------------------- ESM/size
 
+/**
+ * How a package can be `import`ed, as declared by its own package.json:
+ *
+ * - `esm`  — ships an ES module entry only. `import`/`export`, statically analysable, so
+ *            a bundler can tree-shake unused exports out of it.
+ * - `cjs`  — ships a CommonJS entry only (`require`/`module.exports`). Bundlers have to
+ *            include the whole module, because its exports are only known at runtime.
+ * - `dual` — ships both, usually via an `exports` map with `import` and `require`
+ *            conditions, so it works in either world.
+ * - `unknown` — declares neither a recognisable ESM nor CJS entry point (rare: a
+ *            types-only package, a package with only subpath exports, or a broken one).
+ */
+export type ModuleFormat = 'esm' | 'cjs' | 'dual' | 'unknown';
+
 export interface EsmSupport {
   /** A `module`/`exports.import` field, or `"type": "module"`. */
   hasEsmEntry: boolean;
+  /** A `main` field, or an `exports.require` condition, without `"type": "module"`. */
+  hasCjsEntry: boolean;
+  format: ModuleFormat;
   sideEffects: 'free' | 'has-side-effects' | 'unspecified';
   hasTypes: boolean;
 }
@@ -380,6 +397,7 @@ function exportsHasCondition(exportsField: unknown, condition: string): boolean 
 }
 
 export interface RegistryVersionRaw {
+  main?: unknown;
   module?: unknown;
   type?: unknown;
   exports?: unknown;
@@ -392,6 +410,15 @@ export interface RegistryVersionRaw {
 export function detectEsmSupport(pkg: RegistryVersionRaw): EsmSupport {
   const hasEsmEntry =
     typeof pkg.module === 'string' || pkg.type === 'module' || exportsHasCondition(pkg.exports, 'import');
+
+  // `"type": "module"` makes even a plain `main` an ES module, so it is never a CJS
+  // entry in that case — otherwise a `main` field, or an explicit `require` condition in
+  // an `exports` map, is what `require()` resolves to.
+  const hasCjsEntry =
+    pkg.type !== 'module' && (typeof pkg.main === 'string' || exportsHasCondition(pkg.exports, 'require'));
+
+  const format: ModuleFormat =
+    hasEsmEntry && hasCjsEntry ? 'dual' : hasEsmEntry ? 'esm' : hasCjsEntry ? 'cjs' : 'unknown';
 
   const sideEffects: EsmSupport['sideEffects'] =
     pkg.sideEffects === false
@@ -406,7 +433,7 @@ export function detectEsmSupport(pkg: RegistryVersionRaw): EsmSupport {
 
   const hasTypes = typeof pkg.types === 'string' || typeof pkg.typings === 'string' || exportsHasCondition(pkg.exports, 'types');
 
-  return { hasEsmEntry, sideEffects, hasTypes };
+  return { hasEsmEntry, hasCjsEntry, format, sideEffects, hasTypes };
 }
 
 /** Normalises the registry's `license` field, which varies across npm's history: a plain

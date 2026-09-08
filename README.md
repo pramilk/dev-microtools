@@ -88,7 +88,7 @@ tools, the three CSS generators).
 
 | Tool | Description |
 |---|---|
-| [Bundle Size Checker](https://devmicrotools.com/bundle-size-checker/) | Check an npm package's real minified + gzipped size, or check every dependency in a package.json at once. |
+| [Bundle Size Checker](https://devmicrotools.com/bundle-size-checker/) | Check an npm package's real gzipped size, README and project health, or size a whole package.json at once. |
 | [ASCII, Unicode & Keycode Inspector](https://devmicrotools.com/ascii-unicode-keycode-inspector/) | Look up any ASCII or Unicode character by code, hex, or name, and inspect a live keyboard event's key, code, keyCode and modifiers as you press it. |
 | [Cron Expression Explainer](https://devmicrotools.com/cron-expression-explainer/) | Explain a cron expression in plain English and see its next run times. |
 | [Cron Expression Generator](https://devmicrotools.com/cron-expression-generator/) | Build a cron expression from simple field controls instead of writing the syntax by hand, with a live plain-English description and next run times. |

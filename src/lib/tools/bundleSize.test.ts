@@ -323,6 +323,33 @@ describe('detectEsmSupport', () => {
     expect(detectEsmSupport({}).hasEsmEntry).toBe(false);
   });
 
+  it('classifies a package that ships only an ESM entry as "esm"', () => {
+    expect(detectEsmSupport({ module: 'index.mjs' }).format).toBe('esm');
+    expect(detectEsmSupport({ type: 'module' }).format).toBe('esm');
+  });
+
+  it('classifies a package that ships only a CommonJS entry as "cjs"', () => {
+    expect(detectEsmSupport({ main: 'index.js' }).format).toBe('cjs');
+    expect(detectEsmSupport({ exports: { '.': { require: './index.cjs' } } }).format).toBe('cjs');
+  });
+
+  it('classifies a package that ships both entries as "dual"', () => {
+    expect(detectEsmSupport({ main: 'index.js', module: 'index.mjs' }).format).toBe('dual');
+    expect(detectEsmSupport({ exports: { '.': { import: './i.mjs', require: './i.cjs' } } }).format).toBe('dual');
+  });
+
+  it('does not count `main` as a CommonJS entry under "type": "module"', () => {
+    // With "type": "module" a plain `main` resolves as an ES module, not a CJS one.
+    const support = detectEsmSupport({ type: 'module', main: 'index.js' });
+    expect(support.hasCjsEntry).toBe(false);
+    expect(support.format).toBe('esm');
+  });
+
+  it('classifies a package declaring neither entry as "unknown", not as CommonJS', () => {
+    expect(detectEsmSupport({}).format).toBe('unknown');
+    expect(detectEsmSupport({ types: 'index.d.ts' }).format).toBe('unknown');
+  });
+
   it('reads sideEffects: false as free', () => {
     expect(detectEsmSupport({ sideEffects: false }).sideEffects).toBe('free');
   });

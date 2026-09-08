@@ -6,12 +6,16 @@ import {
   fetchBundledSource,
   searchPackages,
   runWithConcurrency,
+  fetchRepoStats,
+  fetchCommitActivity,
+  fetchReadme,
+  fetchDownloadTrend,
 } from './npmRegistry';
 
 function fakeResponse({
   ok = true,
   status = 200,
-  headers = { 'content-type': 'application/javascript; charset=utf-8' },
+  headers = {},
   json,
   text,
 }: {
@@ -24,7 +28,9 @@ function fakeResponse({
   return {
     ok,
     status,
-    headers: { get: (key: string) => headers[key.toLowerCase()] ?? null },
+    headers: {
+      get: (key: string) => ({ 'content-type': 'application/javascript; charset=utf-8', ...headers })[key.toLowerCase()] ?? null,
+    },
     json: async () => json,
     text: async () => text ?? (json !== undefined ? JSON.stringify(json) : ''),
   };
@@ -322,5 +328,288 @@ describe('runWithConcurrency', () => {
   it('handles an empty item list', async () => {
     const results = await runWithConcurrency([], 3, async (n: number) => n);
     expect(results).toEqual([]);
+  });
+});
+
+describe('fetchResolvedVersion — repository, deprecation and engines', () => {
+  it('reads the repository URL and monorepo directory from the object form', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        fakeResponse({
+          json: {
+            version: '7.0.0',
+            repository: { type: 'git', url: 'git+https://github.com/babel/babel.git', directory: 'packages/babel-core' },
+            homepage: 'https://babeljs.io',
+            keywords: ['babel', 'compiler'],
+            engines: { node: '>=6.9.0' },
+            peerDependencies: { '@babel/types': '^7.0.0' },
+            maintainers: [{ name: 'a' }, { name: 'b' }],
+          },
+        })
+      )
+    );
+
+    const result = await fetchResolvedVersion('@babel/core', '7.0.0');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.repository).toBe('git+https://github.com/babel/babel.git');
+      expect(result.value.repositoryDirectory).toBe('packages/babel-core');
+      expect(result.value.homepage).toBe('https://babeljs.io');
+      expect(result.value.keywords).toEqual(['babel', 'compiler']);
+      expect(result.value.engineNode).toBe('>=6.9.0');
+      expect(result.value.peerDependencies).toEqual({ '@babel/types': '^7.0.0' });
+      expect(result.value.maintainerCount).toBe(2);
+    }
+  });
+
+  it('reads the repository from the plain-string shorthand form too', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fakeResponse({ json: { version: '1.0.0', repository: 'foo/bar' } })));
+
+    const result = await fetchResolvedVersion('bar', '1.0.0');
+    if (result.ok) {
+      expect(result.value.repository).toBe('foo/bar');
+      expect(result.value.repositoryDirectory).toBeNull();
+    }
+  });
+
+  it('surfaces a deprecation message, including the bare `true` form', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(fakeResponse({ json: { version: '1.0.0', deprecated: 'Use foo instead.' } }))
+    );
+    const withMessage = await fetchResolvedVersion('old', '1.0.0');
+    if (withMessage.ok) expect(withMessage.value.deprecated).toBe('Use foo instead.');
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fakeResponse({ json: { version: '1.0.0', deprecated: true } })));
+    const bare = await fetchResolvedVersion('old', '1.0.0');
+    if (bare.ok) expect(bare.value.deprecated).toMatch(/deprecated/i);
+  });
+
+  it('leaves every optional field null or empty when the version document omits them', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fakeResponse({ json: { version: '1.0.0' } })));
+
+    const result = await fetchResolvedVersion('minimal', '1.0.0');
+    if (result.ok) {
+      expect(result.value.repository).toBeNull();
+      expect(result.value.deprecated).toBeNull();
+      expect(result.value.engineNode).toBeNull();
+      expect(result.value.keywords).toEqual([]);
+      expect(result.value.peerDependencies).toEqual({});
+    }
+  });
+});
+
+describe('fetchRepoStats', () => {
+  const repoJson = {
+    stargazers_count: 61_278,
+    forks_count: 7_190,
+    subscribers_count: 817,
+    open_issues_count: 104,
+    created_at: '2012-04-07T04:11:46Z',
+    pushed_at: '2026-07-03T19:48:01Z',
+    archived: false,
+    topics: ['javascript', 'utilities'],
+    description: 'A modern JavaScript utility library.',
+    default_branch: 'main',
+    html_url: 'https://github.com/lodash/lodash',
+  };
+
+  it('reads stars, forks, watchers, open issues and the project dates', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fakeResponse({ json: repoJson })));
+
+    const result = await fetchRepoStats('lodash', 'lodash');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.stars).toBe(61_278);
+      expect(result.value.forks).toBe(7_190);
+      expect(result.value.watchers).toBe(817);
+      expect(result.value.openIssuesAndPulls).toBe(104);
+      expect(result.value.createdAt).toBe('2012-04-07T04:11:46Z');
+      expect(result.value.topics).toEqual(['javascript', 'utilities']);
+      expect(result.value.archived).toBe(false);
+    }
+  });
+
+  it('flags an archived repository', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fakeResponse({ json: { ...repoJson, archived: true } })));
+
+    const result = await fetchRepoStats('old', 'project');
+    if (result.ok) expect(result.value.archived).toBe(true);
+  });
+
+  it('explains the anonymous rate limit rather than showing a bare 403', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        fakeResponse({ ok: false, status: 403, headers: { 'x-ratelimit-remaining': '0' }, json: {} })
+      )
+    );
+
+    const result = await fetchRepoStats('lodash', 'lodash');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/rate limit/i);
+  });
+
+  it('treats a 403 that is not a rate limit as an ordinary error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fakeResponse({ ok: false, status: 403, json: {} })));
+
+    const result = await fetchRepoStats('a', 'b');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/403/);
+  });
+
+  it('reports a deleted or private repository clearly', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fakeResponse({ ok: false, status: 404, json: {} })));
+
+    const result = await fetchRepoStats('gone', 'gone');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/no longer exists/i);
+  });
+
+  it('returns an error result instead of throwing when the network fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+
+    expect((await fetchRepoStats('a', 'b')).ok).toBe(false);
+  });
+});
+
+describe('fetchCommitActivity', () => {
+  const oneCommit = [
+    {
+      html_url: 'https://github.com/a/b/commit/abc',
+      commit: { message: 'Fix the thing\n\nWith a longer body', author: { name: 'A Dev', date: '2026-07-03T19:48:01Z' } },
+    },
+  ];
+
+  it('derives the total commit count from the pagination Link header', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        fakeResponse({
+          json: oneCommit,
+          headers: {
+            link: '<https://api.github.com/repositories/1/commits?per_page=1&page=2>; rel="next", <https://api.github.com/repositories/1/commits?per_page=1&page=7708>; rel="last"',
+          },
+        })
+      )
+    );
+
+    const result = await fetchCommitActivity('lodash', 'lodash');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.totalCommits).toBe(7708);
+      expect(result.value.lastCommitDate).toBe('2026-07-03T19:48:01Z');
+      // Only the subject line — a full commit body would not fit a stat tile's tooltip.
+      expect(result.value.lastCommitMessage).toBe('Fix the thing');
+      expect(result.value.lastCommitAuthor).toBe('A Dev');
+    }
+  });
+
+  it('counts a single-page repository as one commit, since there is no last link', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fakeResponse({ json: oneCommit })));
+
+    const result = await fetchCommitActivity('a', 'b');
+    if (result.ok) expect(result.value.totalCommits).toBe(1);
+  });
+
+  it('reports an empty repository as zero commits rather than an error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fakeResponse({ ok: false, status: 409, json: {} })));
+
+    const result = await fetchCommitActivity('a', 'empty');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.totalCommits).toBe(0);
+      expect(result.value.lastCommitDate).toBeNull();
+    }
+  });
+
+  it('explains the anonymous rate limit here too', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(fakeResponse({ ok: false, status: 429, headers: { 'x-ratelimit-remaining': '0' }, json: {} }))
+    );
+
+    const result = await fetchCommitActivity('a', 'b');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/rate limit/i);
+  });
+});
+
+describe('fetchReadme', () => {
+  it('finds the README in the version file listing and downloads it', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(fakeResponse({ json: { files: [{ name: '/index.js' }, { name: '/README.md' }] } }))
+      .mockResolvedValueOnce(fakeResponse({ text: '# lodash\n\nUtilities.' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await fetchReadme('lodash', '4.17.21');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toContain('# lodash');
+    expect(String(fetchMock.mock.calls[1]![0])).toBe('https://cdn.jsdelivr.net/npm/lodash@4.17.21/README.md');
+  });
+
+  it('says so plainly when the package ships no README', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fakeResponse({ json: { files: [{ name: '/index.js' }] } })));
+
+    const result = await fetchReadme('bare', '1.0.0');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/doesn't ship a README/i);
+  });
+
+  it('reports an error when the file listing itself is unavailable', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fakeResponse({ ok: false, status: 404, json: {} })));
+
+    expect((await fetchReadme('nope', '1.0.0')).ok).toBe(false);
+  });
+
+  it('returns an error result instead of throwing when the network fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+
+    expect((await fetchReadme('lodash', '4.17.21')).ok).toBe(false);
+  });
+});
+
+describe('fetchDownloadTrend', () => {
+  it('reads the per-day download counts', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        fakeResponse({
+          json: {
+            downloads: [
+              { day: '2026-08-08', downloads: 13_879_801 },
+              { day: '2026-08-09', downloads: 13_775_509 },
+            ],
+          },
+        })
+      )
+    );
+
+    const result = await fetchDownloadTrend('lodash');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toHaveLength(2);
+      expect(result.value[0]).toEqual({ day: '2026-08-08', downloads: 13_879_801 });
+    }
+  });
+
+  it('drops malformed entries rather than rendering NaN', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        fakeResponse({ json: { downloads: [{ day: '2026-08-08', downloads: 5 }, { day: 7, downloads: 'x' }] } })
+      )
+    );
+
+    const result = await fetchDownloadTrend('lodash');
+    if (result.ok) expect(result.value).toHaveLength(1);
+  });
+
+  it('reports an error for a package with no download history at all', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fakeResponse({ json: { downloads: [] } })));
+
+    expect((await fetchDownloadTrend('brand-new')).ok).toBe(false);
   });
 });
