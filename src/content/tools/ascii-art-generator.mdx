@@ -1,0 +1,76 @@
+---
+title: ASCII Art Generator
+headline: Image to ASCII Art Converter — Photo to Text
+description: Turn any photo, logo, or screenshot into ASCII text art in your browser. Choose the character set, width, brightness and contrast. No upload, no account. Free.
+summary: Convert an image into ASCII text art — pick the character set, width and contrast, then copy or download it.
+category: Images
+order: 57
+updated: 2026-09-07
+whatIsIt: >-
+  This tool converts an image into ASCII art: a picture drawn entirely out of text
+  characters. It works the way the technique has worked since line printers did it in the
+  1960s — the image is shrunk down until one pixel corresponds to one output character, each
+  pixel's brightness is measured, and a character is picked from a ramp ordered from lightest
+  to darkest, so dark parts of the photo become dense characters like `@` and `%` while light
+  parts become `.` or a space. Four character sets are built in — Unicode shading blocks
+  (the default, because solid blocks read as a picture at a glance rather than as speckled
+  punctuation), the classic ten-step plain-ASCII ramp, a seventy-step ramp for maximum tonal
+  detail, and a two-level silhouette — and you can type your own instead. Width, brightness and contrast are all
+  adjustable, with the result updating as you drag. Because a text character is roughly twice
+  as tall as it is wide, the row count is corrected for that automatically — otherwise every
+  result would come out squashed to half its proper height. There are two output modes: plain
+  text you can paste into a README, a code comment, a commit message or a terminal, and a
+  coloured mode that tints each character with the colour of the pixel behind it and
+  downloads as a standalone HTML file. Everything runs on your own device — the image is
+  never uploaded anywhere.
+useCases:
+  - Turning a project logo into a text banner for a README, a CLI splash screen, or a terminal MOTD.
+  - Making a plain-text version of an image for an email signature, a forum post, or a chat client that strips images.
+  - Adding a text illustration to source code as a comment, where a binary image file could never live.
+  - Producing a retro or demoscene-styled graphic for a personal site, a zine, or a slide deck.
+  - Checking how a logo or icon reads once it is reduced to pure light-and-dark values, with no colour to lean on.
+howTo:
+  - Drop an image in, or choose one from your device — JPEG, PNG, WebP and BMP all work.
+  - Pick a character set — Blocks (the default) gives solid poster-like output, Standard is plain ASCII, Detailed gives the most tonal steps.
+  - Drag the Width slider to set how many characters wide the art should be; more characters means more detail.
+  - Adjust brightness and contrast until the shapes read clearly — most photos need a contrast boost.
+  - Switch to "Light on dark" if the art is destined for a terminal, then copy it or download it as a .txt (or .html in colour mode).
+example:
+  label: This site's own 512×512 app icon, converted at 100 characters wide with the default Blocks set.
+  input: 'A 512×512 PNG logo — the "Load example" sample.'
+  output: |-
+    100 columns × 50 rows of characters drawn from the shading blocks " ░▒▓█", with the
+    logo's mark standing out against a field of a different density.
+  note: Press "Load example" to convert the actual sample and see the real result. Switch to "Standard" for the same shape in plain ASCII.
+faq:
+  - q: Why does my photo come out looking like noise?
+    a: Almost always because the source has too little contrast, too much fine detail, or both. ASCII art has roughly ten brightness levels to work with, so a busy photograph loses everything that depends on subtle tonal differences. Push the Contrast slider up, try a wider output, and prefer images with a clear subject against a plain background — logos, icons, portraits and high-contrast photos convert far better than a detailed landscape.
+  - q: What width should I use?
+    a: It depends where the art is going. 60-80 characters fits inside a standard code comment or a git commit message without wrapping. 100-120 suits a README or a terminal window. Above about 150 the detail is genuinely better but the result stops fitting anywhere text normally goes, so it is mostly useful for something you will view as an image or an HTML file.
+  - q: What is the difference between the character sets?
+    a: Blocks is the default — it uses the Unicode shading characters ░▒▓█, which are solid rather than sparse, so the result reads as a picture immediately. Because they are Unicode rather than ASCII, they need a font and a destination that support them — anywhere you would actually paste this (a terminal, an editor, a README) handles them fine, but a legacy system might not. Standard is the classic ten-step ramp and is pure ASCII, so it pastes anywhere. Detailed uses seventy characters for much finer tonal gradation, which pays off on photos at wide settings but can look busy on small output. Silhouette uses just two levels, turning the image into a stencil.
+  - q: Why is my result upside-down in tone — light where it should be dark?
+    a: You probably need the other background mode. "Dark on light" assumes the art will sit on a white page, so dark characters stand in for dark pixels. "Light on dark" assumes a terminal or dark editor, where the characters themselves are the light part, so the mapping flips. Switching modes fixes an image that looks like a photographic negative.
+  - q: Can I keep the colours?
+    a: Yes, but not as plain text — plain text has no way to carry colour. Switch to Colour mode and each character is tinted with the colour of the pixel behind it; the "Download .html" button then saves a standalone HTML file with the colours baked in. The Copy button still gives you the plain characters, since that is what is useful to paste into code.
+  - q: What does "Auto levels" do, and why is it on by default?
+    a: It measures the range of brightness your image actually uses and stretches that range across the whole character set before mapping. It matters far more here than in a photo editor, because a ramp only has ten to seventy steps — a photo whose tones all sit between, say, 60 and 190 would otherwise spend its whole life in the middle third of the ramp and come out as undifferentiated mush. A tiny fraction of the very darkest and very lightest pixels is ignored, so one blown-out highlight can't define the range. Turn it off if you want the original brightness values mapped literally.
+  - q: Does the image get uploaded anywhere?
+    a: No. The image is decoded, shrunk and converted entirely in your browser, and nothing is sent to a server. That is true of every tool on this site.
+  - q: Why is the output not the same shape as my image?
+    a: It should be — but only because the tool corrects for it. A monospace character is about twice as tall as it is wide, so mapping one character per pixel would render your image at half its true height. The row count is divided accordingly, and the preview and the downloaded HTML both pin a line-height that matches. If you paste the text into an editor with an unusually tight or loose line spacing, the proportions will shift a little.
+related:
+  - image-cropper
+  - image-compressor
+  - ascii-unicode-keycode-inspector
+  - image-base64-converter
+---
+
+## Credits
+
+The "Load example" sample is this site's own app icon, so there is no third-party image
+involved at all. A bold logo on a flat background was chosen over a photograph deliberately:
+it is what ASCII art is genuinely good at, and it matches this tool's own headline use case.
+
+The built-in "Detailed" character set is Paul Bourke's widely published seventy-level ASCII
+ramp, reversed to run lightest-first to match the other sets in this tool.

@@ -52,6 +52,7 @@ import SecurityTxtGenerator from '../islands/SecurityTxtGenerator';
 import BackgroundRemover from '../islands/BackgroundRemover';
 import FacePlateBlur from '../islands/FacePlateBlur';
 import ImageUpscaler from '../islands/ImageUpscaler';
+import AsciiArtGenerator from '../islands/AsciiArtGenerator';
 import ChmodCalculator from '../islands/ChmodCalculator';
 import ColorPaletteGenerator from '../islands/ColorPaletteGenerator';
 import CronGenerator from '../islands/CronGenerator';
@@ -135,3 +136,4 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'chmod-calculator' && <ChmodCalculator client:load />}
 {slug === 'color-palette-generator' && <ColorPaletteGenerator client:load />}
 {slug === 'cron-expression-generator' && <CronGenerator client:load />}
+{slug === 'ascii-art-generator' && <AsciiArtGenerator client:load />}

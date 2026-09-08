@@ -110,6 +110,7 @@ tools, the three CSS generators).
 | [Image ↔ Base64 Converter](https://devmicrotools.com/image-base64-converter/) | Convert an image to base64 for inlining in CSS/HTML, or decode base64 back into an image. |
 | [SVG Optimizer](https://devmicrotools.com/svg-optimizer/) | Strip comments, metadata, and editor cruft from SVG markup — tune precision, compare before/after, download. |
 | [Face & Plate Blur](https://devmicrotools.com/face-plate-blur/) | Blur, pixelate, or black out faces (auto-detected on-device), license plates, or anything else sensitive in a photo — right in your browser. |
+| [ASCII Art Generator](https://devmicrotools.com/ascii-art-generator/) | Convert an image into ASCII text art — pick the character set, width and contrast, then copy or download it. |
 
 ### CSS
 

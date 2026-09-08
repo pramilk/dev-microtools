@@ -56,6 +56,7 @@ import ImageUpscaler from '../islands/ImageUpscaler';
 import ChmodCalculator from '../islands/ChmodCalculator';
 import ColorPaletteGenerator from '../islands/ColorPaletteGenerator';
 import CronGenerator from '../islands/CronGenerator';
+import AsciiArtGenerator from '../islands/AsciiArtGenerator';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -121,6 +122,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'chmod-calculator': ChmodCalculator,
   'color-palette-generator': ColorPaletteGenerator,
   'cron-expression-generator': CronGenerator,
+  'ascii-art-generator': AsciiArtGenerator,
 };
 
 /**
