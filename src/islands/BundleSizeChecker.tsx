@@ -1427,11 +1427,15 @@ export default function BundleSizeChecker() {
                     )}
                     {repoStats && (
                       <>
+                        {/* Stars and Watchers carry no link on purpose: GitHub has retired
+                            the /stargazers and /watchers list pages and both now 404, and
+                            its own repo page links neither. A tile that 404s is worse than
+                            one that doesn't move, so these stay plain figures — don't
+                            "restore" those hrefs without checking they resolve first. */}
                         <Stat
                           label="Stars"
                           value={formatCompactNumber(repoStats.stars)}
                           title={`${repoStats.stars.toLocaleString()} GitHub stars`}
-                          href={`${repoStats.htmlUrl}/stargazers`}
                         />
                         <Stat
                           label="Forks"
@@ -1443,7 +1447,6 @@ export default function BundleSizeChecker() {
                           label="Watchers"
                           value={formatCompactNumber(repoStats.watchers)}
                           title={`${repoStats.watchers.toLocaleString()} people watching this repository`}
-                          href={`${repoStats.htmlUrl}/watchers`}
                         />
                         <Stat
                           label="Open issues + PRs"

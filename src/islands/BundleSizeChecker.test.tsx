@@ -215,12 +215,33 @@ describe('<BundleSizeChecker /> — single package mode', () => {
 
     expect(await screen.findByText('Stars')).toBeInTheDocument();
     expect(screen.getByText('Forks')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /forks/i })).toHaveAttribute(
+      'href',
+      'https://github.com/demo/demo-package/forks'
+    );
     expect(screen.getByText('Open issues + PRs')).toBeInTheDocument();
     // 87 pages of one commit each is 87 commits — read from the Link header, not the body.
     expect(screen.getByText('Commits')).toBeInTheDocument();
     expect(screen.getByTitle(/87 commits/)).toBeInTheDocument();
     expect(screen.getByText('Last commit')).toBeInTheDocument();
     expect(screen.getByText('Project age')).toBeInTheDocument();
+  });
+
+  it('does not link the stat tiles GitHub has no page for', async () => {
+    vi.stubGlobal('fetch', mockRegistryAndCdn());
+    render(<BundleSizeChecker />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'lodash' }));
+    await screen.findByText('Minified + gzipped');
+    await screen.findByText('Stars');
+
+    // GitHub retired /stargazers and /watchers — both 404 now, and its own repo page
+    // links neither — so those tiles are plain figures rather than dead links.
+    for (const link of screen.getAllByRole('link')) {
+      expect(link.getAttribute('href')).not.toMatch(/\/(stargazers|watchers)$/);
+    }
+    expect(screen.queryByRole('link', { name: /stars/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /watchers/i })).not.toBeInTheDocument();
   });
 
   it('links to the package on npm and to its git repository', async () => {
