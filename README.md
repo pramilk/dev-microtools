@@ -54,6 +54,7 @@ tools, the three CSS generators).
 | [Slug Generator](https://devmicrotools.com/slug-generator/) | Turn a title into a clean, URL-friendly slug — separator, casing and length options. |
 | [Meta Tag & Open Graph Generator](https://devmicrotools.com/meta-tag-generator/) | Build SEO, Open Graph and Twitter Card meta tags for a page, with a live search-result and social-card preview. |
 | [JSON-LD Schema Generator](https://devmicrotools.com/json-ld-generator/) | Build Article, Product, FAQ, How-to, Organization or Breadcrumb structured data from a form. |
+| [Mermaid Diagram Generator](https://devmicrotools.com/mermaid-diagram-generator/) | Write Mermaid syntax and see the diagram render live — flowcharts, sequence diagrams, ER diagrams, Gantt charts and more. |
 
 ### Security
 

@@ -102,6 +102,7 @@ export default defineConfig({
         'svgo/browser',
         'fflate',
         'image-q',
+        'mermaid',
       ],
       /*
        * `@jsquash/oxipng` ships a wasm-bindgen-generated WASM module. Vite's esbuild-based

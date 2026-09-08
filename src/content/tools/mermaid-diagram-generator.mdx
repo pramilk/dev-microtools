@@ -1,0 +1,98 @@
+---
+title: Mermaid Diagram Generator
+headline: Mermaid Diagram Generator & Live Viewer
+description: Turn Mermaid text syntax into a live flowchart, sequence, class, or ER diagram, with a zoomable fullscreen viewer and SVG/PNG export. Runs in your browser.
+summary: Write Mermaid syntax and see the diagram render live — flowcharts, sequence diagrams, ER diagrams and more.
+category: Generate
+order: 58
+updated: 2026-09-07
+whatIsIt: >-
+  Mermaid is a text-based diagramming syntax — you describe boxes, arrows and relationships
+  as plain lines of text, and it renders a real diagram from them, the same way Markdown
+  renders formatted text. It's built into GitHub, GitLab, Notion and many other tools that
+  render `mermaid` code fences automatically, which makes it a practical way to keep a
+  diagram version-controlled and diffable alongside the code or docs it describes, instead of
+  living as a binary file in a separate design tool. This tool renders that syntax live as you
+  type, with a visual gallery of thirty starter examples — a live-rendered thumbnail per
+  diagram type, not just a name in a dropdown — covering everything from the everyday
+  (flowchart, sequence, class, state, entity-relationship, Gantt, pie, git graph, mindmap) to
+  the specialised (Sankey, XY chart, block, architecture, radar, treemap, C4, kanban,
+  Ishikawa/fishbone, swimlane, Venn, Wardley map) and even syntax railroad diagrams for ABNF,
+  EBNF and PEG grammars. Each example is paired with its own row of one-click "Insert" snippet
+  buttons that appear as soon as a diagram type is recognized from the first line, a
+  lightweight stand-in for full autocomplete. Also included: a choice of built-in colour
+  themes, a zoomable and pannable fullscreen viewer for presenting a finished diagram, and
+  four export paths — SVG for further editing, PNG for pasting into a slide or chat, PDF via
+  your browser's own print dialog, or the raw `.mmd` source to commit alongside code. Nothing
+  you type is uploaded — every diagram, including every gallery thumbnail, is parsed and
+  rendered entirely in your browser, and a link to Mermaid's full official syntax reference
+  sits right next to the example gallery for anything these examples don't cover.
+useCases:
+  - Drafting a flowchart or sequence diagram for a pull request description or design doc, then pasting the Mermaid source directly into GitHub or GitLab, where it renders automatically.
+  - Sketching an entity-relationship diagram while designing a database schema, before writing the actual migration.
+  - Building a Gantt chart for a project plan or roadmap without opening a separate project-management tool.
+  - Turning a verbal explanation of a state machine or process into a diagram you can screenshot or export straight into a slide.
+  - Previewing how a `mermaid` code block already embedded in a README or wiki page will actually render, before committing it.
+howTo:
+  - Open the Examples gallery for a live thumbnail of all thirty starter diagrams, or write your own Mermaid syntax from scratch in the left pane.
+  - Watch the diagram render live in the right pane as you type; a syntax problem shows a specific error naming the line instead of a blank preview.
+  - Once a diagram type is recognized from the first line, click any of its "Insert" snippet buttons below the editor to add common syntax without memorizing it.
+  - Choose a colour theme, then scroll to zoom or drag to pan the preview — double-click to reset, or open the fullscreen viewer for presenting.
+  - Export as SVG, PNG, PDF (through your browser's print dialog), or the raw .mmd source, or copy the SVG markup or rendered image directly.
+  - Copy a share link to send someone the exact diagram source and theme, so they open this tool with it already loaded.
+example:
+  label: A decision flowchart with a subgraph and custom node styling, one of the built-in starter examples.
+  input: |-
+    flowchart TD
+        A[Start] --> B{Is it working?}
+        B -->|Yes| C[Ship it]
+        B -->|No| D[Debug]
+        D --> B
+        C --> E([Celebrate])
+        subgraph Review
+            F[(Database)] --> G{{Check logs}}
+        end
+        E --> F
+        style C fill:#bbf7d0,stroke:#16a34a
+  output: A flowchart with a start box, a "Is it working?" decision diamond branching to a green-highlighted "Ship it" box or a debug loop, a rounded "Celebrate" node, and a "Review" subgraph containing a database cylinder and a hexagon — rendered as an SVG you can zoom, export, or view fullscreen.
+  note: This is the "Flowchart" entry in the Examples gallery — loading it reproduces this exact diagram, subgraph and custom fill colour included.
+faq:
+  - q: What is Mermaid syntax, and do I need to learn a new language?
+    a: 'It''s a small, purpose-built text syntax for describing diagrams — a flowchart is just a list of nodes and arrows like `A --> B`, a sequence diagram is a list of messages like `Alice->>Bob: Hello`. It''s much smaller than a general-purpose language, and the fastest way to learn it is to load one of this tool''s examples for the diagram type you need and adapt it, rather than starting from a blank page.'
+  - q: What do all the diagram types in the gallery cover?
+    a: 'Thirty in total: the everyday ones (flowchart, sequence, class, state, entity-relationship, Gantt, pie, git graph, mindmap, user journey, timeline, quadrant, requirement, kanban) plus more specialised ones (packet, Sankey, XY chart, block, architecture, radar, treemap, C4, Cynefin framework, Ishikawa/fishbone, swimlane, Venn, Wardley map) and syntax railroad diagrams for ABNF, EBNF and PEG grammar rules. Some of the newer ones carry a "-beta" suffix in their actual Mermaid keyword (for example `sankey-beta`) — that''s Mermaid''s own versioning for a syntax that may still change in a future release, not a sign it''s unreliable here.'
+  - q: Why does GitHub/GitLab/Notion render my diagram differently than this tool does?
+    a: Most likely a Mermaid version difference — this tool bundles a recent version of the official Mermaid library, and different platforms update on their own schedule. The syntax itself is the same either way; if a specific diagram type renders here but not on another platform, that platform is probably running an older Mermaid version that doesn't yet support it.
+  - q: My diagram shows an error instead of rendering — what's wrong?
+    a: Mermaid's own parser reports the problem, and this tool shows that message directly rather than replacing it with something generic — it typically names the line number and what it expected to find there. The most common causes are a missing diagram-type keyword on the first line (`flowchart`, `sequenceDiagram`, `classDiagram`, etc.), mismatched brackets, or a reserved word used as a plain label without quotes.
+  - q: Which export format should I use — SVG, PNG, PDF, or .mmd?
+    a: SVG is a vector format that stays sharp at any size and can be edited further, the right choice for documentation or print. PNG is a fixed-resolution raster image (exported at 2x the preview size for a crisp result), what most slide decks and chat apps expect. PDF opens your browser's own print dialog, sized to the diagram, for a one-page handout — choose "Save as PDF" as the destination rather than an actual printer. The raw .mmd file is just the Mermaid source text itself, the right choice for committing a diagram to a repository alongside the code or docs it describes.
+  - q: What do the "Insert" snippet buttons do?
+    a: They insert a common syntax fragment for whatever diagram type is currently detected from the first line — a node, an arrow, a participant, a section — directly at the cursor, so you don't need to memorize exact punctuation like arrow styles or relationship symbols. They're a lightweight stand-in for full autocomplete, not a code-editor with real-time syntax checking; for anything they don't cover, the "Syntax reference" link opens Mermaid's own full documentation in a new tab.
+  - q: Is there a size limit on how large a diagram I can render?
+    a: Yes, 50,000 characters. Diagrams render synchronously in your browser tab with no server to offload the layout work to and no way to show progress, so an unbounded input would freeze the page. That comfortably covers any diagram a person would hand-write and read; a diagram generated from a script at that scale is usually better split into smaller, focused diagrams anyway.
+  - q: Does rendering a diagram here send my data anywhere?
+    a: 'No. Parsing and rendering both happen entirely in your browser using the open-source Mermaid library — nothing you type is uploaded, logged, or sent to a server. A share link doesn''t call a server either: it encodes your diagram''s text directly into the URL itself.'
+related:
+  - markdown-previewer
+  - svg-optimizer
+  - ascii-art-generator
+  - json-formatter
+---
+
+## Why a share link is safe to open
+
+Mermaid diagrams can, in principle, embed clickable interactions in their source syntax. This
+tool always renders with Mermaid's `strict` security level (its own default), which sanitizes
+labels and disables script or click-callback injection — the same reasoning behind Markdown
+Previewer's sandboxed preview frame. That matters specifically because a diagram's source can
+arrive from someone else's share link, not just from typing it yourself, so the rendering path
+has to be safe for text you didn't write.
+
+## What renders the diagram
+
+Diagrams are parsed and laid out by [Mermaid](https://mermaid.js.org) itself — the same
+open-source library GitHub, GitLab and Notion embed to render `mermaid` code fences — loaded
+only when you open this tool, so no other page on this site pays for it. The result is a
+plain SVG, which is what makes the zoom, pan, fullscreen viewer, and both export formats
+possible without any extra rendering step.

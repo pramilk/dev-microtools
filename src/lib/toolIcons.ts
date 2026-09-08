@@ -68,6 +68,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'chmod-calculator': '777',
   'color-palette-generator': 'PAL',
   'cron-expression-generator': 'CRN',
+  'mermaid-diagram-generator': 'MMD',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';
