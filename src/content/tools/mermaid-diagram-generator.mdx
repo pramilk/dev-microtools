@@ -5,7 +5,7 @@ description: Turn Mermaid text syntax into a live flowchart, sequence, class, or
 summary: Write Mermaid syntax and see the diagram render live — flowcharts, sequence diagrams, ER diagrams and more.
 category: Generate
 order: 58
-updated: 2026-09-07
+updated: 2026-09-09
 whatIsIt: >-
   Mermaid is a text-based diagramming syntax — you describe boxes, arrows and relationships
   as plain lines of text, and it renders a real diagram from them, the same way Markdown
@@ -13,12 +13,12 @@ whatIsIt: >-
   render `mermaid` code fences automatically, which makes it a practical way to keep a
   diagram version-controlled and diffable alongside the code or docs it describes, instead of
   living as a binary file in a separate design tool. This tool renders that syntax live as you
-  type, with a visual gallery of thirty starter examples — a live-rendered thumbnail per
+  type, with a visual gallery of thirty-two starter examples — a live-rendered thumbnail per
   diagram type, not just a name in a dropdown — covering everything from the everyday
   (flowchart, sequence, class, state, entity-relationship, Gantt, pie, git graph, mindmap) to
   the specialised (Sankey, XY chart, block, architecture, radar, treemap, C4, kanban,
-  Ishikawa/fishbone, swimlane, Venn, Wardley map) and even syntax railroad diagrams for ABNF,
-  EBNF and PEG grammars. Each example is paired with its own row of one-click "Insert" snippet
+  Ishikawa/fishbone, swimlane, Venn, Wardley map, event modeling, tree view) and even syntax
+  railroad diagrams for ABNF, EBNF and PEG grammars. Each example is paired with its own row of one-click "Insert" snippet
   buttons that appear as soon as a diagram type is recognized from the first line, a
   lightweight stand-in for full autocomplete. Also included: a choice of built-in colour
   themes, a zoomable and pannable fullscreen viewer for presenting a finished diagram, and
@@ -60,7 +60,7 @@ faq:
   - q: What is Mermaid syntax, and do I need to learn a new language?
     a: 'It''s a small, purpose-built text syntax for describing diagrams — a flowchart is just a list of nodes and arrows like `A --> B`, a sequence diagram is a list of messages like `Alice->>Bob: Hello`. It''s much smaller than a general-purpose language, and the fastest way to learn it is to load one of this tool''s examples for the diagram type you need and adapt it, rather than starting from a blank page.'
   - q: What do all the diagram types in the gallery cover?
-    a: 'Thirty in total: the everyday ones (flowchart, sequence, class, state, entity-relationship, Gantt, pie, git graph, mindmap, user journey, timeline, quadrant, requirement, kanban) plus more specialised ones (packet, Sankey, XY chart, block, architecture, radar, treemap, C4, Cynefin framework, Ishikawa/fishbone, swimlane, Venn, Wardley map) and syntax railroad diagrams for ABNF, EBNF and PEG grammar rules. Some of the newer ones carry a "-beta" suffix in their actual Mermaid keyword (for example `sankey-beta`) — that''s Mermaid''s own versioning for a syntax that may still change in a future release, not a sign it''s unreliable here.'
+    a: 'Thirty-two in total: the everyday ones (flowchart, sequence, class, state, entity-relationship, Gantt, pie, git graph, mindmap, user journey, timeline, quadrant, requirement, kanban) plus more specialised ones (packet, Sankey, XY chart, block, architecture, radar, event modeling, treemap, C4, Cynefin framework, Ishikawa/fishbone, swimlane, Venn, Wardley map, tree view) and syntax railroad diagrams for ABNF, EBNF and PEG grammar rules. Some of the newer ones carry a "-beta" suffix in their actual Mermaid keyword (for example `sankey-beta`) — that''s Mermaid''s own versioning for a syntax that may still change in a future release, not a sign it''s unreliable here. One Mermaid diagram type is deliberately not included: ZenUML (an alternate, code-like syntax for sequence diagrams — which this tool already supports natively) requires a separate `@mermaid-js/mermaid-zenuml` package that pulls in React, a full ANTLR grammar parser, and several other dependencies, several megabytes even lazy-loaded — a poor trade for a syntax variant of something already covered.'
   - q: Why does GitHub/GitLab/Notion render my diagram differently than this tool does?
     a: Most likely a Mermaid version difference — this tool bundles a recent version of the official Mermaid library, and different platforms update on their own schedule. The syntax itself is the same either way; if a specific diagram type renders here but not on another platform, that platform is probably running an older Mermaid version that doesn't yet support it.
   - q: My diagram shows an error instead of rendering — what's wrong?

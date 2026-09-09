@@ -512,6 +512,26 @@ Paying customers,Upgraded,45`,
     ],
   },
   {
+    id: 'eventmodeling',
+    label: 'Event Modeling',
+    description: 'Commands, events and read models laid out as a timeline across swimlanes.',
+    keyword: 'eventmodeling',
+    detect: /^eventmodeling\b/,
+    code: `eventmodeling
+tf 01 ui CartUI
+tf 02 cmd AddItem
+tf 03 evt ItemAdded
+tf 04 rmo CartSummary
+tf 05 ui CartPage`,
+    snippets: [
+      { label: 'UI', description: 'A UI/trigger time frame', insert: 'tf 06 ui ScreenName\n' },
+      { label: 'Command', description: 'A command time frame — a request to change state', insert: 'tf 07 cmd CommandName\n' },
+      { label: 'Event', description: 'An event time frame — a record of what happened', insert: 'tf 08 evt EventName\n' },
+      { label: 'Read model', description: 'A read model built from events', insert: 'tf 09 rmo ReadModelName\n' },
+      { label: 'Processor', description: 'A processor time frame — reacts to an event with a new command', insert: 'tf 10 pcr ProcessorName\n' },
+    ],
+  },
+  {
     id: 'treemap',
     label: 'Treemap',
     description: 'Nested categories sized by value, as proportioned tiles.',
@@ -659,6 +679,26 @@ greeting = rule, "!";`,
 rule <- "a" "b";
 greeting <- rule "!";`,
     snippets: [{ label: 'Rule', description: 'A grammar rule', insert: 'rule2 <- "c" "d";\n' }],
+  },
+  {
+    id: 'treeview',
+    label: 'TreeView',
+    description: 'A file/folder hierarchy, drawn as an indented directory tree.',
+    keyword: 'treeView-beta',
+    detect: /^treeView(-beta)?\b/,
+    code: `treeView-beta
+    my-project/
+        src/
+            index.js
+            utils.js
+        package.json
+        README.md`,
+    snippets: [
+      { label: 'Directory', description: "A folder — a trailing '/' renders it in bold", insert: '        folder/\n' },
+      { label: 'File', description: 'A leaf file', insert: '        file.js\n' },
+      { label: 'Description', description: 'An inline italic description after a node', insert: '        file.js ## description\n' },
+      { label: 'Highlight', description: "Applies the built-in 'highlight' CSS class to a node", insert: '        file.js :::highlight\n' },
+    ],
   },
 ];
 

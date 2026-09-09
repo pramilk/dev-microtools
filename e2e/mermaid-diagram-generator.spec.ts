@@ -93,7 +93,7 @@ test.describe('Mermaid Diagram Generator', () => {
     }).toPass({ timeout: 30_000 });
   });
 
-  // A representative sample of the newer/beta diagram types — not all 30 (that's the
+  // A representative sample of the newer/beta diagram types — not all 32 (that's the
   // thumbnail-gallery test's job), just proof each syntax family actually parses correctly
   // against the real, installed Mermaid version rather than a syntax guess that looked right.
   for (const label of [
@@ -103,6 +103,7 @@ test.describe('Mermaid Diagram Generator', () => {
     'Block Diagram',
     'Architecture Diagram',
     'Radar Chart',
+    'Event Modeling',
     'Treemap',
     'C4 Diagram',
     'Ishikawa (Fishbone) Diagram',
@@ -112,6 +113,7 @@ test.describe('Mermaid Diagram Generator', () => {
     'Railroad Diagram (ABNF)',
     'Railroad Diagram (EBNF)',
     'Railroad Diagram (PEG)',
+    'TreeView',
   ]) {
     test(`renders the "${label}" example without error`, async ({ page }) => {
       await gotoTool(page, 'mermaid-diagram-generator');
