@@ -106,6 +106,7 @@ test.describe('Mermaid Diagram Generator', () => {
     'Event Modeling',
     'Treemap',
     'C4 Diagram',
+    'Cynefin Framework',
     'Ishikawa (Fishbone) Diagram',
     'Swimlane Diagram',
     'Venn Diagram',
