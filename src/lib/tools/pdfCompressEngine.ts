@@ -215,7 +215,7 @@ function hasDefaultDecode(dict: PDFDict, model: PixelColorModel, bitsPerComponen
 }
 
 type ImageOutcome =
-  | { status: 'replaced'; stream: PDFRawStream; preview: () => Promise<PdfComparePreview>; area: number }
+  | { status: 'replaced'; stream: PDFRawStream; preview: () => Promise<PdfComparePreview>; area: number; grayscaled: boolean }
   | { status: 'unchanged' }
   | { status: 'unsupported'; reason: UnsupportedImageReason };
 
@@ -289,11 +289,15 @@ async function recompressImage(job: ImageJobContext, stream: PDFRawStream, isMas
   const height = numberAt(dict, 'Height');
   if (!width || !height || width < 1 || height < 1) return { status: 'unsupported', reason: 'corrupt' };
 
-  if (stream.contents.length < MIN_IMAGE_STREAM_BYTES) return { status: 'unchanged' };
-
   const color = resolveColorSpace(context, dict.get(name('ColorSpace')), isMask);
   if (!color.ok) return { status: 'unsupported', reason: color.reason };
   const { model } = color;
+  // Grayscale is an explicit request to change how the image looks, not just a size
+  // optimization, so it's honoured even for tiny images and even when the result isn't
+  // smaller — otherwise a colour image would silently survive into a "grayscale" PDF.
+  const grayscaled = options.grayscale && !isMask && model.kind !== 'gray';
+
+  if (!grayscaled && stream.contents.length < MIN_IMAGE_STREAM_BYTES) return { status: 'unchanged' };
   if (isJpeg && model.kind === 'indexed') return { status: 'unsupported', reason: 'special-color' };
 
   const bitsPerComponent = isJpeg ? 8 : (numberAt(dict, 'BitsPerComponent') ?? 8);
@@ -321,7 +325,6 @@ async function recompressImage(job: ImageJobContext, stream: PDFRawStream, isMas
     beforePreview = () => toPreviewImage(full, codec);
   }
 
-  const grayscaled = options.grayscale && !isMask && model.kind !== 'gray';
   if (grayscaled) pixels = rgbaToGrayscale(pixels);
 
   const outputJpeg = !isMask && (options.imageFormat === 'jpeg' || (options.imageFormat === 'match' && isJpeg));
@@ -361,12 +364,13 @@ async function recompressImage(job: ImageJobContext, stream: PDFRawStream, isMas
     afterPreview = () => toPreviewImage(finalPixels, codec);
   }
 
-  if (bytes.length >= stream.contents.length) return { status: 'unchanged' };
+  if (!grayscaled && bytes.length >= stream.contents.length) return { status: 'unchanged' };
 
   return {
     status: 'replaced',
     stream: PDFRawStream.of(newDict, bytes),
     area: width * height,
+    grayscaled,
     preview: async () => ({
       before: await beforePreview(),
       after: await afterPreview(),
@@ -566,7 +570,8 @@ const UNREADABLE_MESSAGE = 'This file couldn’t be read as a PDF — it may be 
 /**
  * Compresses a PDF. Never makes it bigger: if the rewritten file isn't smaller, the original
  * bytes come back with `report.keptOriginal` set, so the UI can say so honestly instead of
- * offering a "compressed" file that's actually larger.
+ * offering a "compressed" file that's actually larger. The one exception is grayscale: once
+ * an image has been converted, the converted file is returned whatever its size.
  */
 export async function compressPdf(input: Uint8Array, options: PdfCompressOptions, codec: RasterCodec): Promise<ToolResult<PdfCompressOutput>> {
   if (!looksLikePdf(input)) {
@@ -627,6 +632,7 @@ export async function compressPdf(input: Uint8Array, options: PdfCompressOptions
 
   let best: { area: number; preview: () => Promise<PdfComparePreview> } | null = null;
   const reasons = new Set<UnsupportedImageReason>();
+  let grayscaledImages = 0;
   for (const [ref, object] of context.enumerateIndirectObjects()) {
     if (!(object instanceof PDFRawStream) || !isImageStream(object)) continue;
     report.images.total += 1;
@@ -635,6 +641,7 @@ export async function compressPdf(input: Uint8Array, options: PdfCompressOptions
     if (outcome.status === 'replaced') {
       context.assign(ref, outcome.stream);
       report.images.recompressed += 1;
+      if (outcome.grayscaled) grayscaledImages += 1;
       if (!isMask && (!best || outcome.area > best.area)) best = { area: outcome.area, preview: outcome.preview };
     } else if (outcome.status === 'unchanged') {
       report.images.unchanged += 1;
@@ -665,7 +672,9 @@ export async function compressPdf(input: Uint8Array, options: PdfCompressOptions
     }
   }
 
-  if (output.length >= input.length) {
+  // A grayscale conversion changed what the document looks like, so handing back the colour
+  // original would ignore the request; the UI shows the size increase honestly instead.
+  if (output.length >= input.length && grayscaledImages === 0) {
     return ok({ bytes: input, report: { ...report, outputBytes: input.length, keptOriginal: true }, preview: null });
   }
   return ok({ bytes: output, report: { ...report, outputBytes: output.length }, preview });

@@ -147,6 +147,32 @@ describe('compressPdf — JPEG images', () => {
     expect(output.report.images.unchanged).toBe(1);
   });
 
+  it('still applies grayscale when the converted image is not smaller, rather than keeping the colour original', async () => {
+    const { doc, page } = await newDoc();
+    addImage(doc, page, noise(3000), { Width: 50, Height: 50, ColorSpace: 'DeviceRGB', BitsPerComponent: 8, Filter: 'DCTDecode' });
+    const input = await doc.save();
+    const { codec } = fakeCodec(1);
+    codec.encodeJpeg = vi.fn(async () => fakeJpeg(1, 10_000));
+
+    const output = await compressOk(input, options({ grayscale: true }), codec);
+    expect(output.report.keptOriginal).toBe(false);
+    expect(output.report.images.recompressed).toBe(1);
+    expect(output.bytes.length).toBeGreaterThan(input.length);
+    const [image] = await imageStreams(output.bytes);
+    expect(image.dict.lookup(PDFName.of('ColorSpace'))).toBe(PDFName.of('DeviceGray'));
+  });
+
+  it('converts even tiny colour images to grayscale', async () => {
+    const { doc, page } = await newDoc();
+    addImage(doc, page, noise(500), { Width: 16, Height: 16, ColorSpace: 'DeviceRGB', BitsPerComponent: 8, Filter: 'DCTDecode' });
+    const { codec } = fakeCodec(1);
+
+    const output = await compressOk(await doc.save(), options({ grayscale: true }), codec);
+    expect(output.report.images.recompressed).toBe(1);
+    const [image] = await imageStreams(output.bytes);
+    expect(image.dict.lookup(PDFName.of('ColorSpace'))).toBe(PDFName.of('DeviceGray'));
+  });
+
   it('builds a before/after preview from the largest re-encoded image', async () => {
     const { doc, page } = await newDoc();
     addImage(doc, page, noise(10_000), { Width: 400, Height: 300, ColorSpace: 'DeviceRGB', BitsPerComponent: 8, Filter: 'DCTDecode' });
