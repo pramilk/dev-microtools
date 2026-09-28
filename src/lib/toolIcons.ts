@@ -71,6 +71,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'mermaid-diagram-generator': 'MMD',
   'ascii-text-banner-generator': 'BNR',
   'pdf-compressor': 'PDF',
+  'aes-encrypt-decrypt': 'AES',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

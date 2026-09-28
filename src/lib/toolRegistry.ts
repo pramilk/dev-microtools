@@ -60,6 +60,7 @@ import AsciiArtGenerator from '../islands/AsciiArtGenerator';
 import MermaidDiagramGenerator from '../islands/MermaidDiagramGenerator';
 import TextBannerGenerator from '../islands/TextBannerGenerator';
 import PdfCompressor from '../islands/PdfCompressor';
+import AesEncryptDecrypt from '../islands/AesEncryptDecrypt';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -129,6 +130,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'mermaid-diagram-generator': MermaidDiagramGenerator,
   'ascii-text-banner-generator': TextBannerGenerator,
   'pdf-compressor': PdfCompressor,
+  'aes-encrypt-decrypt': AesEncryptDecrypt,
 };
 
 /**

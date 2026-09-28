@@ -105,6 +105,10 @@ export default defineConfig({
         'mermaid',
         // Imported by the PDF Compressor's worker, which is only created on first use.
         'pdf-lib',
+        // AES Encrypt / Decrypt's pure-JS engine (src/lib/tools/aesJsEngine.ts).
+        '@noble/ciphers/aes.js',
+        '@noble/hashes/pbkdf2.js',
+        '@noble/hashes/sha2.js',
       ],
       /*
        * `@jsquash/oxipng` ships a wasm-bindgen-generated WASM module. Vite's esbuild-based

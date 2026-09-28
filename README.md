@@ -66,6 +66,7 @@ tools, the three CSS generators).
 | [Bcrypt Generator](https://devmicrotools.com/bcrypt-generator/) | Generate a bcrypt hash from a password, or verify a password against one. |
 | [CSP Header Builder & Analyzer](https://devmicrotools.com/csp-header-builder/) | Build a Content-Security-Policy header from a form, or paste one to get it linted and explained. |
 | [security.txt Generator](https://devmicrotools.com/security-txt-generator/) | Build a standards-compliant security.txt file (RFC 9116) with validated Contact and Expires fields. |
+| [AES Encrypt / Decrypt](https://devmicrotools.com/aes-encrypt-decrypt/) | Encrypt and decrypt text or files with AES (GCM, CBC or CTR) using a passphrase or a raw hex key. |
 
 ### Text
 

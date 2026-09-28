@@ -1,0 +1,96 @@
+---
+title: AES Encrypt / Decrypt
+headline: AES Encryption & Decryption — Symmetric Text Encryption
+description: Encrypt and decrypt text or files with AES-256 or AES-128 (GCM, CBC, CTR) using a passphrase or raw key. Runs entirely in your browser. Free.
+summary: Encrypt and decrypt text or files with AES (GCM, CBC or CTR) using a passphrase or a raw hex key.
+category: Security
+order: 60
+updated: 2026-09-27
+whatIsIt: >-
+  AES (the Advanced Encryption Standard) is the symmetric cipher behind most of the
+  encryption you use every day, from HTTPS to disk encryption. "Symmetric" means the same
+  secret both locks and unlocks the data — whoever encrypts and whoever decrypts must share
+  one key. This tool encrypts text or any file (up to 100 MB) and decrypts it back, using
+  either a passphrase (stretched into a real key with PBKDF2-HMAC-SHA-256 and a random salt)
+  or an exact 128- or 256-bit key you supply as hex. It supports AES-GCM, the authenticated
+  mode you should normally use, plus AES-CBC and AES-CTR for matching older systems. You can
+  run the cipher on your browser's native Web Crypto API or on a pure-JavaScript
+  implementation; both produce identical, interchangeable output, and neither sends
+  anything over the network.
+useCases:
+  - Sending a short secret — a Wi-Fi password, an API token, a recovery code — through a channel you don't fully trust, with the passphrase shared some other way.
+  - Checking that a backend's AES-GCM or AES-CBC implementation produces ciphertext another system can actually decrypt, using a known key and IV.
+  - Decrypting a value from a config file, database column or log line while debugging, when you have the key but not a convenient script.
+  - Generating a fresh random 128- or 256-bit AES key for a development environment, straight from the browser's secure random generator.
+  - Encrypting a file — a backup, an export, a document — before putting it on shared storage or a USB stick, without installing anything.
+  - Learning how IVs, salts, authentication tags and cipher modes fit together by seeing each part of the output separately.
+howTo:
+  - Choose Encrypt, then pick Text and type or paste what you want to protect — or pick File and drop in any file.
+  - Pick a mode (AES-GCM unless you need to match an existing system), a key size (256-bit is the usual choice), and whether the key comes from a passphrase or a raw hex key.
+  - Enter a passphrase, or paste a hex key / click "Generate 256-bit" to create one.
+  - Click Encrypt (or press Ctrl+Enter). Copy the ciphertext, or download the encrypted file as name.enc. The "To decrypt this, you need" panel lists the key or passphrase and the exact settings to reuse.
+  - To decrypt, switch to Decrypt, paste the ciphertext or choose the .enc file, use the same passphrase or key and settings, and click Decrypt.
+example:
+  label: 'AES-GCM, 256-bit key from the passphrase "correct horse battery staple", 600,000 PBKDF2 iterations, Base64 output.'
+  input: 'Meet me at the usual place at 10pm.'
+  output: '5mwsa04WUihXIiQZn06oCUMopkNn/Peg/+TtejnrIfHohyI+XlTlJUJnMnZZK2+SXGXrk0cSFkXI8jF5ROdLQFtawUYkjqlAps2c0gnz0Q=='
+  note: The salt and IV are random, so encrypting the same text again gives a completely different ciphertext — but this exact string still decrypts to the original with that passphrase. Try it with "Load example" in Decrypt mode.
+faq:
+  - q: Which mode should I choose — GCM, CBC or CTR?
+    a: Use AES-GCM unless you must interoperate with a system that uses something else. GCM is authenticated encryption — it appends a 16-byte tag, so decryption fails loudly if the key is wrong or a single bit of the ciphertext was changed. CBC and CTR only provide confidentiality — an attacker can alter CBC or CTR ciphertext without it being detected — and a wrong key with CTR silently produces garbage instead of an error.
+  - q: What is the difference between a passphrase and a raw key?
+    a: AES needs a key of exactly 128 or 256 random bits. A passphrase is something a human can remember, so the tool runs it through PBKDF2-HMAC-SHA-256 with a random 16-byte salt and 600,000 iterations by default, which turns it into a proper key and makes each guess expensive for an attacker. A raw key is used as-is and should come from a secure random generator — the "Generate" buttons do exactly that.
+  - q: What exactly is in the ciphertext string?
+    a: 'Everything needed to decrypt it except the secret. With a passphrase the bytes are salt (16) + IV (12 for GCM, 16 for CBC/CTR) + ciphertext, with GCM''s 16-byte tag at the end; with a raw key the salt is omitted. That concatenation is then Base64- or hex-encoded. The mode, key size and iteration count are not stored, so the decrypting side must use the same settings.'
+  - q: What is the difference between the Web Crypto and Pure JS engines?
+    a: Web Crypto uses the encryption built into your browser — fast, and with no extra code to download. Pure JS runs the whole cipher and key derivation in JavaScript using the audited @noble/ciphers and @noble/hashes libraries, which it loads only when you choose it. That is useful if you want code you can inspect doing the work, or if the page is not served over HTTPS (browsers hide Web Crypto on insecure pages). The two produce byte-identical results, so ciphertext from one decrypts with the other.
+  - q: Which key size — 128-bit or 256-bit?
+    a: Both are secure against every known practical attack. AES-256 has a larger safety margin, including against future quantum attacks that effectively halve key strength, and is what most security guidance and compliance frameworks ask for, so it is the default here. AES-128 is slightly faster, which rarely matters for text or a single file. Whichever you pick, the decrypting side must use the same size.
+  - q: How do I encrypt or decrypt a file?
+    a: Switch the input from Text to File and drop in a file up to 100 MB. Encrypting downloads name.enc, containing the same salt + IV + ciphertext layout as the text output, as raw bytes instead of Base64. To decrypt, choose that .enc file in Decrypt mode with the same passphrase or key and settings; the original file downloads with its original name. The file is read and processed entirely in your browser — it is never uploaded.
+  - q: What does "Ciphertext as" (Base64 or Hex) mean, and does it matter for binary files like a .zip?
+    a: Encrypted output is raw bytes, most of which are not printable characters. In Text mode the encoding decides how those bytes are written as pasteable text — Base64 is compact, hex is longer but easy to read byte by byte — and decrypting needs the same choice. File mode skips encoding entirely — any file, text or binary (a .zip, an image, a PDF), is encrypted as raw bytes to name.enc and decrypts back to a byte-for-byte identical file.
+  - q: Why is there no 192-bit key option?
+    a: AES-192 is a valid standard, but Chrome and Edge do not support 192-bit keys in their Web Crypto implementation. Offering it would create ciphertext that many visitors could not decrypt with the default engine, so the tool sticks to 128 and 256 bits. AES-256 is the usual choice anyway.
+  - q: Is my text or key sent anywhere?
+    a: No. Encryption and decryption happen entirely in your browser tab. A share link never contains your key, passphrase or plaintext — only the settings, plus the ciphertext when you share from Decrypt mode, so you can send someone an encrypted message and tell them the passphrase some other way.
+related:
+  - hash-generator
+  - password-generator
+  - bcrypt-generator
+  - base-encode-decode
+---
+
+## Decrypting this tool's output in your own code
+
+The layout is deliberately simple, so it can be read in a few lines of any language. For a
+passphrase-encrypted AES-GCM value, decode the Base64 and split it:
+
+```js
+const bytes = Uint8Array.from(atob(ciphertextB64), (c) => c.charCodeAt(0));
+const salt = bytes.slice(0, 16);
+const iv = bytes.slice(16, 28);
+const data = bytes.slice(28); // ciphertext + 16-byte GCM tag
+
+const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+const key = await crypto.subtle.deriveKey(
+  { name: 'PBKDF2', salt, iterations: 600000, hash: 'SHA-256' },
+  base,
+  { name: 'AES-GCM', length: 256 },
+  false,
+  ['decrypt']
+);
+const plain = new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data));
+```
+
+In Node.js, `crypto.pbkdf2Sync` plus `crypto.createDecipheriv('aes-256-gcm', key, iv)`
+works the same way; remember that Node expects the last 16 bytes (the tag) to be passed
+separately with `setAuthTag`.
+
+## A word on IVs
+
+An IV (or nonce) doesn't need to be secret, but with a given key it must never repeat —
+reusing a GCM nonce under the same key leaks the authentication key and the XOR of the two
+plaintexts. This tool always generates a fresh random IV, and a fresh salt for passphrases,
+on every encryption. If you supply your own IV to decrypt, make sure whatever produced it
+followed the same rule.
