@@ -67,6 +67,7 @@ tools, the three CSS generators).
 | [CSP Header Builder & Analyzer](https://devmicrotools.com/csp-header-builder/) | Build a Content-Security-Policy header from a form, or paste one to get it linted and explained. |
 | [security.txt Generator](https://devmicrotools.com/security-txt-generator/) | Build a standards-compliant security.txt file (RFC 9116) with validated Contact and Expires fields. |
 | [AES Encrypt / Decrypt](https://devmicrotools.com/aes-encrypt-decrypt/) | Encrypt and decrypt text or files with AES (GCM, CBC or CTR) using a passphrase or a raw hex key. |
+| [RSA Encrypt / Decrypt](https://devmicrotools.com/rsa-encrypt-decrypt/) | Encrypt text with an RSA public key and decrypt it with the private key (RSA-OAEP), or generate a new key pair. |
 
 ### Text
 

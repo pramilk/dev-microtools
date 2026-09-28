@@ -72,6 +72,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'ascii-text-banner-generator': 'BNR',
   'pdf-compressor': 'PDF',
   'aes-encrypt-decrypt': 'AES',
+  'rsa-encrypt-decrypt': 'RSA',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

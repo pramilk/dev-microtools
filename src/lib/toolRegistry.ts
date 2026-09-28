@@ -61,6 +61,7 @@ import MermaidDiagramGenerator from '../islands/MermaidDiagramGenerator';
 import TextBannerGenerator from '../islands/TextBannerGenerator';
 import PdfCompressor from '../islands/PdfCompressor';
 import AesEncryptDecrypt from '../islands/AesEncryptDecrypt';
+import RsaEncryptDecrypt from '../islands/RsaEncryptDecrypt';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -131,6 +132,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'ascii-text-banner-generator': TextBannerGenerator,
   'pdf-compressor': PdfCompressor,
   'aes-encrypt-decrypt': AesEncryptDecrypt,
+  'rsa-encrypt-decrypt': RsaEncryptDecrypt,
 };
 
 /**

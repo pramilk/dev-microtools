@@ -57,6 +57,7 @@ import MermaidDiagramGenerator from '../islands/MermaidDiagramGenerator';
 import TextBannerGenerator from '../islands/TextBannerGenerator';
 import PdfCompressor from '../islands/PdfCompressor';
 import AesEncryptDecrypt from '../islands/AesEncryptDecrypt';
+import RsaEncryptDecrypt from '../islands/RsaEncryptDecrypt';
 import ChmodCalculator from '../islands/ChmodCalculator';
 import ColorPaletteGenerator from '../islands/ColorPaletteGenerator';
 import CronGenerator from '../islands/CronGenerator';
@@ -145,3 +146,4 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'ascii-text-banner-generator' && <TextBannerGenerator client:load />}
 {slug === 'pdf-compressor' && <PdfCompressor client:load />}
 {slug === 'aes-encrypt-decrypt' && <AesEncryptDecrypt client:load />}
+{slug === 'rsa-encrypt-decrypt' && <RsaEncryptDecrypt client:load />}

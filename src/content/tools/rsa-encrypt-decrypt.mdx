@@ -1,0 +1,93 @@
+---
+title: RSA Encrypt / Decrypt
+headline: RSA Encryption & Decryption — Asymmetric Public-Key Encryption
+description: Encrypt text with an RSA public key and decrypt it with the private key (RSA-OAEP), or generate a key pair. Runs entirely in your browser. Free.
+summary: Encrypt text with an RSA public key and decrypt it with the private key (RSA-OAEP), or generate a new key pair.
+category: Security
+order: 61
+updated: 2026-09-28
+whatIsIt: >-
+  RSA is the best-known asymmetric, or public-key, encryption algorithm. Unlike AES, where
+  one shared secret both locks and unlocks the data, RSA uses a key pair: the public key
+  encrypts, and only the matching private key can decrypt. That means you can publish your
+  public key anywhere — in a README, a chat message, a config file — and anyone can send
+  you something only you can read, without ever agreeing on a secret first. This tool
+  encrypts text with RSA-OAEP, the modern padding scheme defined in RFC 8017, and decrypts
+  it again with the private key. It accepts keys as PEM (SPKI and PKCS#8, plus OpenSSL's
+  older "RSA PUBLIC KEY" / "RSA PRIVATE KEY" PKCS#1 form) or as a JWK, and it can generate
+  a fresh 2048-, 3072- or 4096-bit key pair. Because RSA alone can only encrypt a few
+  hundred bytes, there is also a hybrid scheme that wraps a random AES-256 key with RSA
+  and encrypts the text itself with AES-GCM. Everything runs on your browser's native Web
+  Crypto API; no key or text is ever sent anywhere.
+useCases:
+  - Receiving a secret — an API token, a database password, a recovery code — from a colleague by giving them your public key, so nothing reusable ever passes through chat or email.
+  - Checking that a backend's RSA-OAEP encryption produces ciphertext your private key can actually decrypt, or that the OAEP hash both sides use really matches.
+  - Decrypting a value produced by openssl pkeyutl, Node's crypto.publicEncrypt, Java's Cipher or Python's cryptography library while debugging.
+  - Generating a throwaway RSA key pair in PEM format for a development environment, a test fixture or a tutorial, without reaching for a terminal.
+  - Encrypting a longer note to someone's public key with the hybrid RSA + AES-GCM scheme.
+  - Learning how public-key encryption behaves — why the output is always one modulus long, why the same text encrypts differently every time, and where the size limit comes from.
+howTo:
+  - Choose Encrypt, then paste the recipient's public key — or click "Generate key pair" to create a new one, which fills in both the public and the private key.
+  - Type or paste the text to encrypt. With the default RSA-OAEP scheme the byte counter shows how close you are to the key's limit; for anything longer, switch Scheme to Hybrid.
+  - Leave the OAEP hash on SHA-256 unless you need to match a system that uses something else (OpenSSL and Node default to SHA-1).
+  - Click Encrypt (or press Ctrl+Enter) and copy the ciphertext.
+  - To decrypt, switch to Decrypt, paste the ciphertext and the private key, make sure the scheme, OAEP hash and encoding match the ones used to encrypt, and click Decrypt.
+example:
+  label: 'RSA-OAEP with SHA-256, encrypted to the 2048-bit demo public key that "Load example" fills in, Base64 output.'
+  input: 'The deploy key rotates on Friday at 09:00 UTC.'
+  output: 'IUUje2HvRzrOUXnkYpr1WGoUyuYt99OMbQ/Ligr3CYxRgYTFeGqv9BGo0MhhmPhxiz5+faH2nhSOUIvtP3HJ34AloGcFNOfSw8t881mDy/nb+0kg/TtbM7lReMHuR1kNTKplcWGotwzrilF6aoFyozWBZEdtfvt85mXnAkpJtKLs9YpTzXF1+NkUH/NRr7zq+lNoTkbPHLzbOAdLbdPI+czO0zdXlXktI5G+jZ9S5s16nbdhewnAAUlWBaiYLIc0NUM5/g2au9Ti9fbA4Z8JesLkdcvDACU3m+J+5ted7TQZweE+7B4auj21BUDwfuVFjk00e1JWRn+XOCJulF1fEw=='
+  note: RSA-OAEP adds random padding, so encrypting the same text again gives a completely different ciphertext — but this exact string still decrypts to the original with the demo private key. Try it with "Load example" in Decrypt mode.
+faq:
+  - q: What is the difference between symmetric and asymmetric encryption?
+    a: Symmetric encryption, such as AES, uses one secret key to both encrypt and decrypt, so the sender and the recipient must somehow share that secret beforehand. Asymmetric encryption, such as RSA, uses a key pair — anyone with the public key can encrypt, but only the private key decrypts. That solves the key-sharing problem, at the cost of being far slower and limited to small messages, which is why real systems usually combine the two.
+  - q: How much text can RSA encrypt?
+    a: 'RSA-OAEP can encrypt at most k − 2·hLen − 2 bytes, where k is the key size in bytes and hLen the hash output size. With a 2048-bit key and SHA-256 that is 190 bytes; with a 4096-bit key it is 446. The limit is in bytes of UTF-8, so accented letters and emoji count for two to four each. For anything longer, use the Hybrid scheme, which has no practical limit.'
+  - q: What does the Hybrid scheme do?
+    a: 'It generates a random 256-bit AES key, encrypts your text with AES-256-GCM, and encrypts only that AES key with RSA-OAEP. The output is the RSA-wrapped key (one modulus long, e.g. 256 bytes), then a 12-byte IV, then the AES-GCM ciphertext with its 16-byte authentication tag. This is the same idea behind PGP, TLS and JWE: RSA protects a small key, and a fast symmetric cipher does the bulk work.'
+  - q: Which OAEP hash should I use?
+    a: SHA-256 is the modern default and what JOSE calls RSA-OAEP-256. Both sides must use the same hash, or decryption fails. Be aware that OpenSSL's pkeyutl and Node's crypto.publicEncrypt default to SHA-1 unless you pass rsa_oaep_md or oaepHash, which is the most common reason ciphertext from those tools won't decrypt. SHA-1 is still considered safe inside OAEP, so choosing it for interop is fine.
+  - q: Why does the same text give a different ciphertext every time?
+    a: OAEP padding mixes in fresh random bytes on every encryption. That is deliberate — without it, an attacker who can guess the message could encrypt their guess with your public key and compare. Every one of those different ciphertexts decrypts to the same text.
+  - q: Which key formats are supported?
+    a: 'PEM public keys as "BEGIN PUBLIC KEY" (SPKI) or "BEGIN RSA PUBLIC KEY" (PKCS#1), private keys as "BEGIN PRIVATE KEY" (PKCS#8) or "BEGIN RSA PRIVATE KEY" (PKCS#1), and JSON Web Keys. OpenSSH keys, certificates and passphrase-protected keys are recognised and the tool tells you the exact command to convert them. You can also paste a private key in Encrypt mode; its public half is used.'
+  - q: Why is there no PKCS#1 v1.5 padding option?
+    a: The older PKCS#1 v1.5 encryption padding is vulnerable to Bleichenbacher-style padding-oracle attacks, and browsers' Web Crypto API deliberately does not implement it for encryption. RSA-OAEP replaced it more than twenty years ago and is what every current guideline recommends.
+  - q: Can I encrypt with an EC or Ed25519 key?
+    a: Not directly. Elliptic-curve keys are designed for signatures and key agreement, not for encrypting data; encryption with them always goes through a key-agreement scheme such as ECIES or HPKE. If you need public-key encryption from a key you can generate here, use RSA.
+  - q: Is my text or private key sent anywhere?
+    a: No. Key generation, encryption and decryption all run in your browser tab. A share link never contains a private key or your plaintext — only the settings, plus the public key in Encrypt mode or the ciphertext in Decrypt mode, both of which are safe to send in the open.
+related:
+  - aes-encrypt-decrypt
+  - jwt-decoder
+  - hash-generator
+  - password-generator
+---
+
+## Encrypting to a public key with OpenSSL or Node
+
+Ciphertext from this tool's RSA-OAEP scheme is standard, so any library can read it. To
+produce something this tool can decrypt from the command line, set the OAEP hash explicitly
+— otherwise OpenSSL uses SHA-1:
+
+```sh
+printf 'hello' | openssl pkeyutl -encrypt -pubin -inkey public.pem \
+  -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 | base64
+```
+
+In Node.js, the equivalent is:
+
+```js
+const { publicEncrypt, constants } = require('node:crypto');
+const ciphertext = publicEncrypt(
+  { key: publicPem, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: 'sha256' },
+  Buffer.from('hello')
+).toString('base64');
+```
+
+## Keep the private key private
+
+The whole security of RSA rests on the private key never leaving your control. Generate it
+on a machine you trust, store it somewhere encrypted, and only ever share the public key.
+The demo key pair behind "Load example" is published on this page, so treat anything
+encrypted to it as public. For real secrets, generate your own pair — and remember that a
+lost private key means everything encrypted to its public key is lost with it.
