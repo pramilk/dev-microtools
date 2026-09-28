@@ -114,6 +114,12 @@ tools, the three CSS generators).
 | [Face & Plate Blur](https://devmicrotools.com/face-plate-blur/) | Blur, pixelate, or black out faces (auto-detected on-device), license plates, or anything else sensitive in a photo — right in your browser. |
 | [ASCII Art Generator](https://devmicrotools.com/ascii-art-generator/) | Convert an image into ASCII text art — pick the character set, width and contrast, then copy or download it. |
 
+### PDF
+
+| Tool | Description |
+|---|---|
+| [PDF Compressor](https://devmicrotools.com/pdf-compressor/) | Shrink PDFs in your browser — pick image format, quality and DPI; text stays sharp and nothing is uploaded. |
+
 ### CSS
 
 | Tool | Description |

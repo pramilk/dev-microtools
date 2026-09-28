@@ -17,6 +17,7 @@ export const CATEGORIES = [
   'AI',
   'Web & Network',
   'Images',
+  'PDF',
   'CSS',
 ] as const;
 
@@ -37,6 +38,7 @@ export const CATEGORY_SLUGS: Record<Category, string> = {
   AI: 'ai',
   'Web & Network': 'web-network',
   Images: 'images',
+  PDF: 'pdf',
   CSS: 'css',
 };
 
@@ -52,7 +54,7 @@ export function categoryFromSlug(slug: string): Category | undefined {
  * Short, genuine per-category description used as the landing page's meta description
  * and on-page intro. Written by hand, one per category, naming the actual tools inside it
  * — a templated "Tools for X" sentence would read as thin/duplicate content across all
- * nine pages, which CLAUDE.md's SEO section explicitly rules out.
+ * ten pages, which CLAUDE.md's SEO section explicitly rules out.
  */
 export const CATEGORY_INTROS: Record<Category, string> = {
   Convert:
@@ -69,10 +71,11 @@ export const CATEGORY_INTROS: Record<Category, string> = {
     'Inspect the networking and browser details behind a request: parse a URL into its components, decode a User-Agent string, calculate an IPv4 subnet’s usable range, explain what a cron expression schedules or build one from scratch with checkboxes, check an npm package’s real install size, look up ASCII/Unicode keycodes, and see what your browser exposes via fingerprinting.',
   Images:
     'Edit and convert images entirely on-device: remove a photo’s background, blur faces and license plates, crop and resize, compress without a quality hit, convert between PNG/JPEG/WebP, upscale a small image up to 8x, optimize an SVG’s file size, embed an image as Base64, and generate a full favicon package from one source file.',
+  PDF: 'Work with PDF files without uploading them anywhere: shrink a PDF by re-encoding and downsampling its images to a chosen format, quality and resolution, while text stays sharp and selectable. Merging duplicate images, removing unused objects and optional metadata stripping all run on-device, so confidential documents never leave your browser.',
   CSS: 'Build CSS visual effects with a live preview and copyable output: layered box-shadows with adjustable blur, spread and colour, linear/radial gradients with multiple colour stops, and a full 50-950 tint/shade scale plus colour harmonies generated from one base colour — tweak with controls and copy the finished CSS straight into your stylesheet.',
 };
 
-/** Short, distinct <title>/H1 per category page — not a templated "X Tools" for all nine. */
+/** Short, distinct <title>/H1 per category page — not a templated "X Tools" for all ten. */
 export const CATEGORY_HEADLINES: Record<Category, string> = {
   Convert: 'Data & Format Converters',
   Format: 'Code Formatters & Beautifiers',
@@ -82,5 +85,6 @@ export const CATEGORY_HEADLINES: Record<Category, string> = {
   AI: 'AI & LLM Developer Tools',
   'Web & Network': 'Web & Network Developer Tools',
   Images: 'Image Editing & Conversion Tools',
+  PDF: 'PDF Tools — Compress PDFs in Your Browser',
   CSS: 'CSS Generators — Gradients & Shadows',
 };

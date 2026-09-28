@@ -70,6 +70,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'cron-expression-generator': 'CRN',
   'mermaid-diagram-generator': 'MMD',
   'ascii-text-banner-generator': 'BNR',
+  'pdf-compressor': 'PDF',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

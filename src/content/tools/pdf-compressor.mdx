@@ -1,0 +1,80 @@
+---
+title: PDF Compressor
+headline: PDF Compressor — Shrink PDFs Without Uploading
+description: Compress PDF files in your browser. Choose image format, JPEG quality and resolution; text stays selectable. Nothing is uploaded. Free, no sign-up.
+summary: Shrink PDFs in your browser — pick image format, quality and DPI; text stays sharp and nothing is uploaded.
+category: PDF
+order: 10
+updated: 2026-09-27
+whatIsIt: >-
+  This tool makes a PDF smaller entirely inside your browser. Almost all of a typical
+  PDF's size is its images — scanned pages, photos, screenshots — so the compressor
+  re-encodes every embedded image at the format, quality and resolution you choose, while
+  leaving text, fonts and vector drawings exactly as they were: the result is still
+  searchable and selectable, never a stack of flattened page pictures. Three presets cover
+  most needs, and Advanced options expose the individual levers: image format (JPEG,
+  lossless, or match each image's original), JPEG quality, a maximum image resolution in
+  DPI, grayscale conversion, and removal of metadata and embedded thumbnails. On top of
+  that it always applies the free wins — recompressing text and font streams at maximum
+  level, merging duplicate images and fonts, deleting unused objects left behind by
+  earlier edits, and writing compact object streams. The file is processed in a background
+  worker on your device and is never uploaded, which matters for contracts, invoices, IDs
+  and anything else you'd rather not hand to a random website.
+useCases:
+  - Getting a scanned contract or form under an email attachment limit or an upload portal's size cap.
+  - Shrinking a photo-heavy report or slide-deck export before sharing it with a team.
+  - Compressing confidential documents (IDs, bank statements, medical records) without sending them to a third-party server.
+  - Converting a colour scan of a black-and-white document to grayscale for a much smaller archive copy.
+  - Stripping author names, editing-app details and other metadata from a PDF before publishing it.
+howTo:
+  - Drop a PDF onto the tool, or choose one from your device — compression starts immediately.
+  - Pick a preset — Light for print quality, Balanced for everyday sharing, Strong for the smallest file.
+  - Open Advanced options to choose the image format, drag the JPEG quality slider, or set a maximum resolution.
+  - Scroll through the whole compressed document in the built-in preview, switching to Original to compare any page.
+  - Check the before/after comparison of the document's largest image to judge whether the quality holds up.
+  - Press Download PDF to save the compressed copy — your original file is never modified.
+example:
+  label: A one-page report with a large photo, compressed with the Balanced preset.
+  input: 'A one-page PDF with a headline, body text and a 2400×1600 photo saved as 95% JPEG.'
+  output: 'The same PDF with the photo re-encoded as 70% JPEG at 150 DPI (about 1650×1100 pixels) — typically 75-90% smaller, with the text still selectable.'
+  note: Press "Load example" to generate this sample PDF and see the real size reduction and before/after comparison yourself.
+faq:
+  - q: Is my PDF uploaded to a server?
+    a: No. The PDF is read, compressed and rebuilt entirely in your browser, in a background worker so the page stays responsive. Nothing you choose is transmitted anywhere — you can disconnect from the internet after the page loads and the tool still works.
+  - q: Why can't I choose WebP, AVIF or PNG as the image format?
+    a: A PDF can only store images in a few specific encodings — JPEG, JPEG 2000, and raw pixels compressed with Flate (the same deflate algorithm used inside PNG files). WebP and AVIF images simply aren't allowed inside a PDF, and a PDF reader couldn't display them. The Lossless option here is the PDF equivalent of PNG, using the same row filters and compression a PNG file uses internally. JPEG 2000 isn't offered because browsers can't encode it.
+  - q: Which settings give the smallest file?
+    a: Resolution is usually the biggest lever — a 300 DPI scan capped at 150 DPI has a quarter of the pixels. After that, a lower JPEG quality and grayscale conversion help most. The Strong preset combines 96 DPI with 50% JPEG quality. For documents with mostly text and few images, expect modest savings — text and vector graphics are already compact, and this tool deliberately never rasterizes them.
+  - q: Will the text still be searchable and selectable?
+    a: Yes. Only embedded images are re-encoded; text, fonts and vector drawings are kept exactly as they were (their streams are only losslessly recompressed). Some online compressors "print" every page into an image, which makes a smaller file but destroys text selection, search and accessibility — this tool never does that.
+  - q: Why did my PDF barely shrink, or not shrink at all?
+    a: Either the PDF is mostly text and vectors, which are already compact, or its images are in formats this tool leaves untouched — JPEG 2000, JBIG2 and CCITT fax scans (the last two are already extremely efficient for black-and-white pages), or CMYK print images, whose colours could shift if re-encoded in a browser. The results panel lists exactly which images were skipped and why. If the rewritten file wouldn't be smaller, the tool tells you instead of handing back a larger "compressed" file.
+  - q: Can it compress a password-protected PDF?
+    a: No — an encrypted PDF can't be rewritten without its password, and browser PDF libraries can't re-encrypt the result. Open the file in a PDF viewer, use "Print to PDF" to save an unprotected copy, and compress that instead.
+related:
+  - image-compressor
+  - image-format-converter
+  - image-cropper
+---
+
+## Choosing format, quality and resolution
+
+**JPEG** gives the smallest files and is the right choice for photos and scanned pages.
+**Lossless** never changes a pixel, so it only saves space through downsampling and
+grayscale conversion — use it when an image contains fine text or line art that must stay
+crisp. **Match original** is the careful middle ground: images that were already JPEG are
+re-encoded at your chosen quality, and lossless images (screenshots, diagrams) stay
+lossless. Images that carry transparency are always kept lossless whatever you choose,
+since JPEG artefacts in a transparency mask show up as halos around edges.
+
+The resolution cap is measured against the document's largest page: at 150 DPI an image
+drawn across a full Letter or A4 page keeps about 1650 pixels on its long side. That's
+sharp on screen and fine for office printing; choose 300 DPI if the PDF is headed to a
+professional printer.
+
+## What powers this tool
+
+PDF parsing and writing use [`pdf-lib`](https://github.com/Hopding/pdf-lib) (MIT
+licensed). Stream compression uses [`fflate`](https://github.com/101arrowz/fflate) (MIT
+licensed). JPEG decoding and encoding use your browser's own built-in image codecs. All of
+it runs locally on your device.

@@ -116,3 +116,24 @@
 # files were never meaningfully protected by their own CSP header in the first place.
 /_astro/*
   ! Content-Security-Policy
+
+# PDF Compressor previews the whole compressed (and original) document in the browser's own
+# built-in PDF viewer, via an <iframe> pointing at a blob: URL the page itself created. The
+# default policy blocks that twice over: frame-src falls back to default-src 'self' (no
+# blob:), and a blob: document inherits this page's CSP, so object-src 'none' also blocks the
+# <embed> Chromium's PDF viewer uses inside it. Both are widened to blob: only — never to any
+# remote origin — so nothing can be framed or embedded except files the visitor chose. Same
+# "! HeaderName" detach rule as the blocks above.
+/pdf-compressor/
+  ! X-Content-Type-Options
+  ! X-Frame-Options
+  ! Referrer-Policy
+  ! Permissions-Policy
+  ! Strict-Transport-Security
+  ! Content-Security-Policy
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=(), usb=(), interest-cohort=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'self' blob:; base-uri 'self'; frame-ancestors 'none'; form-action 'self'

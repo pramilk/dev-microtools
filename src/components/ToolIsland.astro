@@ -55,6 +55,7 @@ import ImageUpscaler from '../islands/ImageUpscaler';
 import AsciiArtGenerator from '../islands/AsciiArtGenerator';
 import MermaidDiagramGenerator from '../islands/MermaidDiagramGenerator';
 import TextBannerGenerator from '../islands/TextBannerGenerator';
+import PdfCompressor from '../islands/PdfCompressor';
 import ChmodCalculator from '../islands/ChmodCalculator';
 import ColorPaletteGenerator from '../islands/ColorPaletteGenerator';
 import CronGenerator from '../islands/CronGenerator';
@@ -141,3 +142,4 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'ascii-art-generator' && <AsciiArtGenerator client:load />}
 {slug === 'mermaid-diagram-generator' && <MermaidDiagramGenerator client:load />}
 {slug === 'ascii-text-banner-generator' && <TextBannerGenerator client:load />}
+{slug === 'pdf-compressor' && <PdfCompressor client:load />}

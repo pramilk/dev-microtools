@@ -103,6 +103,8 @@ export default defineConfig({
         'fflate',
         'image-q',
         'mermaid',
+        // Imported by the PDF Compressor's worker, which is only created on first use.
+        'pdf-lib',
       ],
       /*
        * `@jsquash/oxipng` ships a wasm-bindgen-generated WASM module. Vite's esbuild-based
