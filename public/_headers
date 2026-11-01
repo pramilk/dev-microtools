@@ -117,7 +117,7 @@
 /_astro/*
   ! Content-Security-Policy
 
-# PDF Compressor, Merge PDF and Image to PDF preview the whole resulting document in the browser's own
+# PDF Compressor, Merge PDF, Image to PDF and Split PDF preview the whole resulting document in the browser's own
 # built-in PDF viewer, via an <iframe> pointing at a blob: URL the page itself created. The
 # default policy blocks that twice over: frame-src falls back to default-src 'self' (no
 # blob:), and a blob: document inherits this page's CSP, so object-src 'none' also blocks the
@@ -166,3 +166,21 @@
   Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=(), usb=(), interest-cohort=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'self' blob:; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
+
+# Split PDF additionally draws page thumbnails with pdf.js ("Pick pages"), whose JPEG 2000,
+# JBIG2 and colour-profile decoders are WebAssembly, fetched same-origin from /vendor/pdfjs-*/
+# only when a PDF contains such an image — hence 'wasm-unsafe-eval' here, the same narrow
+# WebAssembly-only keyword the AI-model pages above use. pdf.js itself needs no eval.
+/split-pdf/
+  ! X-Content-Type-Options
+  ! X-Frame-Options
+  ! Referrer-Policy
+  ! Permissions-Policy
+  ! Strict-Transport-Security
+  ! Content-Security-Policy
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=(), usb=(), interest-cohort=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'self' blob:; base-uri 'self'; frame-ancestors 'none'; form-action 'self'

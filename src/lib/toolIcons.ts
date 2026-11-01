@@ -74,6 +74,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'merge-pdf': 'MRG',
   'pdf-image-extractor': 'XIM',
   'image-to-pdf': 'I2P',
+  'split-pdf': 'SPL',
   'aes-encrypt-decrypt': 'AES',
   'rsa-encrypt-decrypt': 'RSA',
 };

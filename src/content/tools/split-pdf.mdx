@@ -1,0 +1,95 @@
+---
+title: Split PDF
+headline: Split PDF — Separate PDF Pages Without Uploading
+description: Split a PDF in your browser by page ranges, every N pages, bookmarks or file size, or pick pages from thumbnails. Nothing is uploaded.
+summary: Split a PDF by ranges, every N pages, bookmarks or size — or pick pages from thumbnails. Nothing is uploaded.
+category: PDF
+order: 25
+updated: 2026-11-01
+whatIsIt: >-
+  This tool splits one PDF into several smaller ones, entirely inside your browser. Choose how
+  to cut it: type the page ranges you want (each range becomes its own file), cut it into
+  fixed chunks of N pages, split it at its own bookmarks so each chapter or section becomes a
+  file, or set a maximum file size and let the tool pack pages into as few files as fit under
+  it, which is handy when an email or upload form has an attachment limit. Or choose Pick
+  pages to see a thumbnail of every page and simply click the ones you want, which are saved
+  as a new PDF (or one file per page). Every part is a real
+  PDF with selectable text, not page images. Each part keeps the bookmarks that point at its
+  own pages, links between its pages keep working, and form fields stay fillable. Every part
+  appears in a list with its pages and size, can be previewed right on the page, and can be
+  downloaded on its own or all together as a ZIP. The file is processed in a background
+  worker on your device and never uploaded, so it is safe to use with contracts, statements
+  and records.
+useCases:
+  - Sending a large scanned document by email in parts that each fit under a 10 or 20 MB attachment limit.
+  - Breaking a book, manual or thesis into one PDF per chapter using the bookmarks it already has.
+  - Pulling the two signed pages out of a long contract into a single PDF to return to the sender.
+  - Separating a batch scan of many single-page invoices or receipts into one file per page.
+  - Splitting a duplex scan into its odd and even pages, so each side can be fixed and merged back in order.
+  - Sharing only the relevant section of a confidential report without uploading the whole file to an online service.
+howTo:
+  - Drop a PDF onto the tool, or choose one from your device. The tool shows its page count and bookmarks.
+  - Pick how to split it — Page ranges, Pick pages, Every N pages, By bookmarks or By file size.
+  - For page ranges, type one range per file, separated by commas (for example 1-3, 4-8, 9-). Tick "Save all ranges as one PDF" to extract those pages into a single file instead.
+  - For Pick pages, click the thumbnails of the pages you want. Shift-click picks a whole run, and Select all or Select none help with long documents.
+  - Optionally change how the files are named, and whether each file keeps its bookmarks.
+  - Check the list of files and preview any of them. The list updates automatically after every change.
+  - Download a single file, or press Download all to save every part in one ZIP. Your original PDF is never modified.
+example:
+  label: Splitting a 6-page handbook into three files by page range.
+  input: 'employee-handbook.pdf (6 pages: a contents page linking to each chapter, chapters 1 to 3 with nested bookmarks, a "continued" link inside chapter 1 and a fillable name field on the last page), split with the ranges 1, 2-3, 4-6.'
+  output: 'Three files, employee-handbook-page-1.pdf, employee-handbook-pages-2-3.pdf and employee-handbook-pages-4-6.pdf. Chapter 1 keeps its bookmarks and its working "continued" link, the last file keeps chapters 2 and 3 with the fillable field, and the contents page''s links into other files are removed rather than left pointing nowhere.'
+  note: Press "Load example" to open this sample handbook and see the parts yourself. Then switch to By bookmarks to get one file per chapter instead.
+faq:
+  - q: Is my PDF uploaded to a server?
+    a: No. The file is read, split and written entirely in your browser, in a background worker so the page stays responsive. Nothing is transmitted anywhere. You can disconnect from the internet after the page loads and the tool still works.
+  - q: How do I write page ranges?
+    a: Each range you type becomes one file, and commas separate files. A single number like 5 is one page. 2-4 is pages 2 to 4. 8- runs from page 8 to the end, and -3 covers the first three pages. 5-1 reverses those pages. odd and even pick alternating pages. Use + to put several pieces into the same file, so 1-2+5 is one file containing pages 1, 2 and 5. An invalid range is explained right under the box, and nothing is written until it is fixed.
+  - q: Can I see the pages and choose them by clicking?
+    a: Yes. Choose Pick pages and every page is shown as a thumbnail, drawn on your device as you scroll. Click a page (or its checkbox) to pick it, click again to unpick it, and Shift-click another page to pick everything in between. The picked pages are saved, in their original order, as one new PDF, or tick "Save each picked page as its own file" to get one file per page.
+  - q: How does splitting by file size work?
+    a: You can give the limit in KB or MB, and switching between the two keeps the same limit. The tool measures what each page actually needs, such as its text, images and fonts, and counts anything shared between pages (a font used on every page, for example) once per file. It then packs pages in order into as few files as fit under your limit, writes each file, and checks its real size. If a file still comes out too large, it moves pages to the next file and tries again. A single page that is bigger than the limit on its own cannot be split further, so it gets a file of its own and is flagged in the list.
+  - q: Will bookmarks, links and form fields still work in the parts?
+    a: Yes, within each part. A part keeps the bookmarks that point at its own pages, re-pointed at the right place. Links from one of its pages to another keep working. Form fields on its pages stay fillable with their current values. A link that jumps to a page now in a different file cannot work, so it is removed rather than left pointing nowhere, and the list shows how many were removed.
+  - q: Can I split password-protected or digitally signed PDFs?
+    a: Encrypted PDFs, meaning those with an open password or with permission restrictions, cannot be rewritten in a browser. Open such a file in a PDF viewer, use "Print to PDF" to save an unprotected copy, and split that instead. Signed PDFs can be split, but a digital signature only covers the exact original file, so it will not show as valid in any part. The tool warns you when that happens.
+  - q: Is there a limit on file size or the number of parts?
+    a: The PDF can be up to 150 MB, and a split can produce up to 1,000 files. Every part is held in your device's memory until you download it, so splitting a very large file into hundreds of parts may be slow on low-memory phones. If that happens, use bigger chunks or shrink the file first with the PDF Compressor.
+related:
+  - merge-pdf
+  - pdf-compressor
+  - pdf-image-extractor
+  - image-to-pdf
+---
+
+## Five ways to split
+
+**Page ranges** gives you exact control: each range you type becomes a file, so `1-3, 4-8, 9-`
+makes three files. **Pick pages** shows a thumbnail of every page so you can click the ones
+you want instead of typing numbers. **Every N pages** cuts the document into equal chunks, and with N set to 1
+every page becomes its own file. **By bookmarks** uses the table of contents the PDF already
+has. Choose top-level bookmarks for one file per chapter, or go one or two levels deeper for
+sections. Any pages before the first bookmark, such as a cover or contents page, become a
+file of their own. **By file size** keeps pages in order but starts a new file whenever the
+next page would push the current one over your limit.
+
+## What each part keeps
+
+Many quick online splitters copy each page in isolation, which breaks links and discards
+bookmarks. This tool copies each part's pages as a group with the same engine as Merge PDF,
+so links between them land on the right copied page. Bookmarks are remapped, named
+destinations are rewritten so they keep working, and form fields come along with the pages
+they sit on. Each part also keeps the original document's title and author. A part is never
+rasterised, so text stays sharp and selectable, and the parts together are usually not much
+larger than the original.
+
+## What powers this tool
+
+PDF parsing and writing use [`pdf-lib`](https://github.com/Hopding/pdf-lib) (MIT licensed),
+in a background Web Worker that is only loaded once you choose a file. The PDF is parsed
+once, however many parts you split it into. "Download all" zips the parts with
+[`fflate`](https://github.com/101arrowz/fflate), which is only downloaded when you press it.
+Page thumbnails in Pick pages are drawn by [`pdf.js`](https://github.com/mozilla/pdf.js)
+(Apache 2.0 licensed), which is only downloaded when you open Pick pages, and is given the file
+directly, so it never leaves your device either. The preview of each part is your browser's
+own PDF viewer.

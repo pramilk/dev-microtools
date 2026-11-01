@@ -63,6 +63,7 @@ import PdfCompressor from '../islands/PdfCompressor';
 import MergePdf from '../islands/MergePdf';
 import PdfImageExtractor from '../islands/PdfImageExtractor';
 import ImageToPdf from '../islands/ImageToPdf';
+import SplitPdf from '../islands/SplitPdf';
 import AesEncryptDecrypt from '../islands/AesEncryptDecrypt';
 import RsaEncryptDecrypt from '../islands/RsaEncryptDecrypt';
 
@@ -137,6 +138,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'merge-pdf': MergePdf,
   'pdf-image-extractor': PdfImageExtractor,
   'image-to-pdf': ImageToPdf,
+  'split-pdf': SplitPdf,
   'aes-encrypt-decrypt': AesEncryptDecrypt,
   'rsa-encrypt-decrypt': RsaEncryptDecrypt,
 };

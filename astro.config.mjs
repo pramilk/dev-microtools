@@ -1,5 +1,6 @@
 // @ts-check
-import { readdirSync, readFileSync } from 'node:fs';
+import { cpSync, createReadStream, readdirSync, readFileSync, statSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
@@ -38,6 +39,58 @@ function readToolLastmods() {
 
 const toolLastmods = readToolLastmods();
 
+/**
+ * pdf.js (Split PDF's page thumbnails) loads a few data files at runtime, only when a PDF
+ * needs them: WebAssembly image decoders (JPEG 2000, JBIG2), the 14 standard fonts for PDFs
+ * that don't embed theirs, and CMaps for CJK text. They're served same-origin from
+ * `/vendor/pdfjs-<version>/` — the island builds the same path from pdf.js's own `version`
+ * export, so the two can't drift — copied out of the installed package at build time rather
+ * than vendored into the repo, and streamed straight from node_modules in dev. Versioned
+ * paths mean an upgrade never serves a stale decoder from cache.
+ */
+const pdfjsRoot = path.dirname(createRequire(import.meta.url).resolve('pdfjs-dist/package.json'));
+const pdfjsVersion = JSON.parse(readFileSync(path.join(pdfjsRoot, 'package.json'), 'utf-8')).version;
+const PDFJS_ASSET_BASE = `/vendor/pdfjs-${pdfjsVersion}/`;
+const PDFJS_ASSET_DIRS = ['wasm', 'standard_fonts', 'cmaps'];
+
+/** @type {import('astro').AstroIntegration} */
+const pdfjsAssets = {
+  name: 'pdfjs-assets',
+  hooks: {
+    'astro:config:setup': ({ updateConfig }) => {
+      updateConfig({
+        vite: {
+          plugins: [
+            {
+              name: 'pdfjs-assets-dev',
+              configureServer(server) {
+                server.middlewares.use(PDFJS_ASSET_BASE, (req, res, next) => {
+                  const relative = decodeURIComponent((req.url ?? '').split('?')[0] ?? '').replace(/^\/+/, '');
+                  const file = path.resolve(pdfjsRoot, relative);
+                  const inAllowedDir = PDFJS_ASSET_DIRS.some((dir) => file.startsWith(path.join(pdfjsRoot, dir) + path.sep));
+                  if (!inAllowedDir || path.basename(file).startsWith('quickjs') || !statSync(file, { throwIfNoEntry: false })?.isFile()) return next();
+                  res.setHeader('Content-Type', file.endsWith('.wasm') ? 'application/wasm' : 'application/octet-stream');
+                  createReadStream(file).pipe(res);
+                });
+              },
+            },
+          ],
+        },
+      });
+    },
+    'astro:build:done': ({ dir }) => {
+      for (const assetDir of PDFJS_ASSET_DIRS) {
+        cpSync(path.join(pdfjsRoot, assetDir), fileURLToPath(new URL(`.${PDFJS_ASSET_BASE}${assetDir}/`, dir)), {
+          recursive: true,
+          // QuickJS only runs JavaScript embedded in a PDF (pdf.js "scripting"), which the
+          // thumbnails never enable — no reason to deploy a JS engine nobody can reach.
+          filter: (source) => !path.basename(source).startsWith('quickjs'),
+        });
+      }
+    },
+  },
+};
+
 // https://astro.build/config
 export default defineConfig({
   site: SITE,
@@ -53,6 +106,7 @@ export default defineConfig({
     : {},
   integrations: [
     preact(),
+    pdfjsAssets,
     mdx(),
     // Routes the unlisted, direct-link-only pages that are switched on in
     // src/lib/unlistedPages.ts — the one place to enable or disable them.
@@ -120,6 +174,8 @@ export default defineConfig({
         'mermaid',
         // Imported by the PDF Compressor's worker, which is only created on first use.
         'pdf-lib',
+        // Split PDF's page thumbnails (src/islands/shared/pdfThumbnails.ts).
+        'pdfjs-dist',
         // AES Encrypt / Decrypt's pure-JS engine (src/lib/tools/aesJsEngine.ts).
         '@noble/ciphers/aes.js',
         '@noble/hashes/pbkdf2.js',
