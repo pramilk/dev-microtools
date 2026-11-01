@@ -29,6 +29,8 @@ export interface PdfThumbnails {
   request: (pageIndex: number) => void;
   /** Draws a page large, for viewing it in full (see `PdfPageViewer`). */
   renderLarge: (pageIndex: number) => Promise<Blob>;
+  /** The open pdf.js document — waits for it to open, rejects if it can't. */
+  document: () => Promise<ThumbnailDocument>;
 }
 
 /** `PdfThumbnails` for several files at once, each page addressed by its file. */
@@ -42,6 +44,8 @@ export interface PdfThumbnailSet {
   /** Draws a page small and returns its pixels — for measuring it (e.g. "is it blank?"),
    *  not for showing. Waits for the file's document to open; rejects if it can't. */
   pixels: (file: File, pageIndex: number) => Promise<PagePixels>;
+  /** The file's open pdf.js document — waits for it to open, rejects if it can't. */
+  document: (file: File) => Promise<ThumbnailDocument>;
 }
 
 /** pdf.js, loaded once on first use and shared by every file — never on page load. A failed
@@ -212,6 +216,7 @@ export function usePdfThumbnailSet(files: readonly File[]): PdfThumbnailSet {
     request,
     renderLarge,
     pixels,
+    document: documentFor,
   };
 }
 
@@ -230,5 +235,6 @@ export function usePdfThumbnails(file: File | null): PdfThumbnails {
       if (file) set.request(file, page);
     },
     renderLarge: (page) => (file ? set.renderLarge(file, page) : Promise.reject(new Error('no PDF is open'))),
+    document: () => (file ? set.document(file) : Promise.reject(new Error('no PDF is open'))),
   };
 }

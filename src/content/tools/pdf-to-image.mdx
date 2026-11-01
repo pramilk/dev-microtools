@@ -1,0 +1,85 @@
+---
+title: PDF to Image
+headline: PDF to Image — Convert PDF Pages to JPEG or PNG Without Uploading
+description: Convert PDF pages to JPEG or PNG in your browser. Choose pages, resolution and JPEG quality; download one or all as a ZIP. Nothing is uploaded.
+summary: Turn PDF pages into JPEG or PNG images — pick pages, resolution and quality. Nothing is uploaded.
+category: PDF
+order: 37
+updated: 2026-11-01
+whatIsIt: >-
+  This tool draws the pages of a PDF as ordinary pictures — one JPEG or PNG per page — entirely
+  inside your browser. You choose the format, the resolution and, for JPEG, the quality, then
+  convert every page or only the ones you pick, either by typing a list such as 1-3, 5 or by
+  clicking page thumbnails. JPEG is the default because it gives small files that are easy to
+  share, email and post; PNG is there for sharp, lossless text and diagrams, and can keep a
+  see-through background. Each result is shown with its pixel size and file size so you can
+  judge the trade-off, and you can save pages one at a time or all together as a ZIP. Pages
+  are drawn exactly as a PDF viewer shows them, including text, vector graphics, images and
+  annotations, which is the difference from pulling out the pictures embedded in a file. The
+  PDF is read and drawn on your device and never uploaded, which matters for contracts,
+  statements and anything else you would rather not hand to a website.
+useCases:
+  - Turning a slide deck or report exported as PDF into pictures to drop into a presentation, a chat or a document.
+  - Making a thumbnail or cover image of a PDF's first page for a website, a listing or a social post.
+  - Sending a single page of a long PDF as an image to someone who cannot open the whole file.
+  - Preparing scanned pages as images for OCR, an image editor or a service that only accepts JPEG or PNG.
+  - Capturing a diagram or table from a PDF as a sharp PNG, at 300 DPI when it will be printed.
+  - Shrinking pages for the web by choosing a lower resolution and JPEG quality until the files are small enough.
+howTo:
+  - Drop a PDF onto the tool, or choose one from your device. The tool shows how many pages it has.
+  - Pick the image format. JPEG is the default; choose PNG for lossless output or a transparent background.
+  - Choose a resolution — 150 DPI suits reading on screen, 300 DPI suits print — and, for JPEG, set the quality or press a preset such as Balanced.
+  - Leave "All pages" selected, or choose "Choose pages" and type a list like 1-3, 5 or click thumbnails. Shift-click picks a run.
+  - Press Convert, then Download beside any page, or Download all as ZIP.
+example:
+  label: Converting two pages of a four-page product brief to JPEG.
+  input: 'product-brief.pdf (4 A4 pages), JPEG at quality 80%, 150 DPI, pages 1-2.'
+  output: 'Two images, product-brief-page-1.jpg and product-brief-page-2.jpg, each 1240 × 1754 px and well under 200 KB, shown in a grid with Download buttons and a ZIP option.'
+  note: Press "Load example" to generate this sample PDF, then change the format, resolution or pages and convert it yourself.
+faq:
+  - q: Is my PDF uploaded anywhere?
+    a: No. The PDF is opened and drawn by your browser, and the images are made on your device. Nothing is transmitted, so you can disconnect from the internet after the page loads and the tool still works.
+  - q: Should I choose JPEG or PNG?
+    a: JPEG for most things. It gives much smaller files, which is what you want for email, chat and the web, and it suits photographs and scans. PNG is lossless, so text and line art stay perfectly crisp and it can have a transparent background, but a page can be several times larger. If a JPEG of a text page looks fuzzy around the letters, raise the quality or the resolution, or switch to PNG.
+  - q: What resolution and JPEG quality should I use?
+    a: For reading on a screen, 150 DPI with Balanced quality is a good default. Use 96 or 72 DPI when you need small files for the web, and 300 DPI when the image will be printed or zoomed into. Quality between 70 and 85 percent is usually indistinguishable from the original on screen. Below 50 percent you will see blockiness around text. Doubling the DPI roughly quadruples the pixels and the file size.
+  - q: How do I convert only some pages?
+    a: Choose "Choose pages", then type the pages you want, such as 1-3, 5, 8- for page 8 to the end, or odd and even for alternate pages. You can also click thumbnails, and Shift-click selects everything between two pages. The list and the thumbnails stay in step.
+  - q: Why is a very large page smaller than the DPI I picked?
+    a: Browsers limit how big an image they can draw. A poster or a large drawing at 300 DPI can run to hundreds of millions of pixels, so the tool scales such pages down to fit, and tells you when it did. Choose a lower DPI for those pages to control the result yourself.
+  - q: Can I make a PNG with a transparent background?
+    a: Yes. Choose PNG and tick Transparent background. The paper-white behind the page is left see-through, which suits logos and diagrams. Pages that paint their own background colour, and scans, stay opaque, because the page itself is the picture.
+  - q: Does it work with a password-protected PDF?
+    a: Not directly, because the file cannot be read without its password. Open it with Unlock PDF first, which removes the password on your device, then convert the unlocked copy here.
+  - q: How is this different from the PDF Image Extractor?
+    a: This tool draws each whole page as a picture, text and graphics included. The PDF Image Extractor pulls out the photos and graphics stored inside the file, at the resolution they were embedded at, and ignores the text and layout. Use this one to get a picture of a page, and the extractor to recover the original images.
+  - q: Is there a limit on file size or pages?
+    a: The PDF can be up to 150 MB. Pages are drawn one at a time, but the finished images are held in memory until you download them, so converting hundreds of pages at 300 DPI on a phone may be slow. Convert in batches of pages if that happens.
+related:
+  - pdf-image-extractor
+  - split-pdf
+  - image-to-pdf
+  - image-compressor
+---
+
+## How pages become pictures
+
+A PDF describes each page as drawing instructions: place this text in this font here, draw
+this line, paint this image there. To make a picture, the browser's PDF engine carries out
+those instructions onto a blank canvas the size of the page at your chosen resolution, then
+the canvas is saved as a JPEG or PNG. Nothing about the PDF is guessed or approximated, so the
+picture matches what a PDF viewer shows, including annotations such as highlights.
+
+## Resolution decides the size
+
+A PDF page is laid out at 72 points per inch, and DPI is how many pixels the picture uses for
+each inch. An A4 page is about 595 × 842 points, so it becomes roughly 1240 × 1754 pixels at
+150 DPI and 2480 × 3508 pixels at 300 DPI. More pixels mean a sharper picture and a bigger
+file, so pick the lowest resolution that looks right where the image will be used.
+
+## What powers this tool
+
+Pages are drawn by [`pdf.js`](https://github.com/mozilla/pdf.js), the PDF engine built into
+Firefox, which is loaded only once you choose a file. JPEG and PNG encoding use your
+browser's own image encoder, and the ZIP is built with [`fflate`](https://github.com/101arrowz/fflate)
+only when you press Download all.

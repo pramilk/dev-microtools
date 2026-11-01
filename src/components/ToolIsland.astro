@@ -58,6 +58,7 @@ import TextBannerGenerator from '../islands/TextBannerGenerator';
 import PdfCompressor from '../islands/PdfCompressor';
 import MergePdf from '../islands/MergePdf';
 import PdfImageExtractor from '../islands/PdfImageExtractor';
+import PdfToImage from '../islands/PdfToImage';
 import ImageToPdf from '../islands/ImageToPdf';
 import SplitPdf from '../islands/SplitPdf';
 import OrganizePdf from '../islands/OrganizePdf';
@@ -154,6 +155,7 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'pdf-compressor' && <PdfCompressor client:load />}
 {slug === 'merge-pdf' && <MergePdf client:load />}
 {slug === 'pdf-image-extractor' && <PdfImageExtractor client:load />}
+{slug === 'pdf-to-image' && <PdfToImage client:load />}
 {slug === 'image-to-pdf' && <ImageToPdf client:load />}
 {slug === 'split-pdf' && <SplitPdf client:load />}
 {slug === 'organize-pdf' && <OrganizePdf client:load />}

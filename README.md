@@ -124,6 +124,7 @@ tools, the three CSS generators).
 | [Merge PDF](https://devmicrotools.com/merge-pdf/) | Combine PDFs in any order — pick pages, rotate, keep bookmarks and form fields, and preview. Nothing is uploaded. |
 | [PDF Image Extractor](https://devmicrotools.com/pdf-image-extractor/) | Pull every image out of a PDF at full quality — preview, then download one or all as a ZIP. Nothing is uploaded. |
 | [Image to PDF](https://devmicrotools.com/image-to-pdf/) | Turn JPG, PNG, WebP and other images into one PDF — reorder, rotate, pick page size and margins. Nothing is uploaded. |
+| [PDF to Image](https://devmicrotools.com/pdf-to-image/) | Turn PDF pages into JPEG or PNG images — pick pages, resolution and quality. Nothing is uploaded. |
 | [Split PDF](https://devmicrotools.com/split-pdf/) | Split a PDF by ranges, every N pages, bookmarks or size — or pick pages from thumbnails. Nothing is uploaded. |
 | [Organize PDF](https://devmicrotools.com/organize-pdf/) | Reorder, rotate, delete and insert PDF pages; add page numbers, a watermark or a background. Nothing is uploaded. |
 | [Protect PDF](https://devmicrotools.com/protect-pdf/) | Add an open password and restrict printing, copying and editing, with AES-256. Nothing is uploaded. |

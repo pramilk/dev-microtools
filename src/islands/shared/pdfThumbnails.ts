@@ -1,5 +1,6 @@
 import { AnnotationMode, GlobalWorkerOptions, getDocument, version } from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { FORMAT_INFO, planRender, type PageImageFormat } from '../../lib/tools/pdfToImage';
 
 /**
  * Draws PDF pages as small images with pdf.js. Only ever loaded through a dynamic `import()`
@@ -23,8 +24,28 @@ export interface PagePixels {
   height: number;
 }
 
+/** A page drawn at full size as a downloadable image. */
+export interface PageImage {
+  blob: Blob;
+  width: number;
+  height: number;
+  /** Drawn smaller than the requested DPI, to stay within what a canvas can hold. */
+  capped: boolean;
+}
+
+export interface PageImageOptions {
+  format: PageImageFormat;
+  /** JPEG quality, 0–1. */
+  quality: number;
+  dpi: number;
+  /** PNG only: no white page background. */
+  transparent: boolean;
+}
+
 export interface ThumbnailDocument {
   readonly pageCount: number;
+  /** Draws a page at `dpi` and encodes it as a JPEG or PNG — the PDF to Image output. */
+  renderImage(pageIndex: number, options: PageImageOptions): Promise<PageImage>;
   /** Renders a page to fit inside `width` × `height` CSS pixels (sharp on high-DPI screens). */
   render(pageIndex: number, width: number, height: number): Promise<Blob>;
   /** Renders a page to fit inside `width` × `height` device pixels and returns its pixels. */
@@ -67,6 +88,41 @@ export async function openThumbnailDocument(bytes: Uint8Array): Promise<Thumbnai
       return await new Promise<Blob>((resolve, reject) =>
         canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('the page couldn’t be turned into an image'))), 'image/jpeg', 0.85)
       );
+    },
+    async renderImage(pageIndex, options) {
+      const page = await doc.getPage(pageIndex + 1);
+      let canvas: HTMLCanvasElement | null = null;
+      try {
+        const natural = page.getViewport({ scale: 1 });
+        const plan = planRender(natural.width, natural.height, options.dpi);
+        const viewport = page.getViewport({ scale: plan.scale });
+        canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(viewport.width));
+        canvas.height = Math.max(1, Math.round(viewport.height));
+        await page.render({
+          canvas,
+          viewport,
+          annotationMode: AnnotationMode.ENABLE,
+          ...(options.format === 'png' && options.transparent ? { background: 'rgba(0, 0, 0, 0)' } : {}),
+        }).promise;
+        const drawn = canvas;
+        const blob = await new Promise<Blob>((resolve, reject) =>
+          drawn.toBlob(
+            (made) => (made ? resolve(made) : reject(new Error('this browser couldn’t encode the page — try a lower resolution'))),
+            FORMAT_INFO[options.format].mime,
+            options.format === 'jpeg' ? options.quality : undefined
+          )
+        );
+        return { blob, width: canvas.width, height: canvas.height, capped: plan.capped };
+      } finally {
+        // Frees the bitmap now rather than whenever the garbage collector gets to it — a
+        // 300 DPI page is tens of megabytes, and Safari caps total canvas memory.
+        if (canvas) {
+          canvas.width = 0;
+          canvas.height = 0;
+        }
+        page.cleanup();
+      }
     },
     async renderPixels(pageIndex, width, height) {
       const canvas = await draw(pageIndex, width, height, 1);

@@ -62,6 +62,7 @@ import TextBannerGenerator from '../islands/TextBannerGenerator';
 import PdfCompressor from '../islands/PdfCompressor';
 import MergePdf from '../islands/MergePdf';
 import PdfImageExtractor from '../islands/PdfImageExtractor';
+import PdfToImage from '../islands/PdfToImage';
 import ImageToPdf from '../islands/ImageToPdf';
 import SplitPdf from '../islands/SplitPdf';
 import OrganizePdf from '../islands/OrganizePdf';
@@ -140,6 +141,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'pdf-compressor': PdfCompressor,
   'merge-pdf': MergePdf,
   'pdf-image-extractor': PdfImageExtractor,
+  'pdf-to-image': PdfToImage,
   'image-to-pdf': ImageToPdf,
   'split-pdf': SplitPdf,
   'organize-pdf': OrganizePdf,

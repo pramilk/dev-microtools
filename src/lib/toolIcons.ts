@@ -73,6 +73,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'pdf-compressor': 'PDF',
   'merge-pdf': 'MRG',
   'pdf-image-extractor': 'XIM',
+  'pdf-to-image': 'P2I',
   'image-to-pdf': 'I2P',
   'split-pdf': 'SPL',
   'organize-pdf': 'ORG',
