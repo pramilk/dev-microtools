@@ -79,7 +79,11 @@ file, so pick the lowest resolution that looks right where the image will be use
 
 ## What powers this tool
 
-Pages are drawn by [`pdf.js`](https://github.com/mozilla/pdf.js), the PDF engine built into
-Firefox, which is loaded only once you choose a file. JPEG and PNG encoding use your
-browser's own image encoder, and the ZIP is built with [`fflate`](https://github.com/101arrowz/fflate)
-only when you press Download all.
+Pages are drawn by [`pdf.js`](https://github.com/mozilla/pdf.js) (Apache 2.0 licensed), the
+PDF engine built into Firefox, which is downloaded only once you choose a file. It brings its
+own standard fonts (Foxit and Liberation), colour profiles and JBIG2 and JPEG 2000 decoders,
+all served from this site rather than a third party. JPEG and PNG encoding use your browser's
+own image encoder, and the ZIP is built with [`fflate`](https://github.com/101arrowz/fflate)
+(MIT licensed) only when you press Download all. The built-in sample PDF is written with
+[`pdf-lib`](https://github.com/Hopding/pdf-lib) (MIT licensed). All of it runs locally on your
+device.
