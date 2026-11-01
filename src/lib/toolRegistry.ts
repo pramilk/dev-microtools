@@ -61,6 +61,7 @@ import MermaidDiagramGenerator from '../islands/MermaidDiagramGenerator';
 import TextBannerGenerator from '../islands/TextBannerGenerator';
 import PdfCompressor from '../islands/PdfCompressor';
 import MergePdf from '../islands/MergePdf';
+import PdfImageExtractor from '../islands/PdfImageExtractor';
 import AesEncryptDecrypt from '../islands/AesEncryptDecrypt';
 import RsaEncryptDecrypt from '../islands/RsaEncryptDecrypt';
 
@@ -133,6 +134,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'ascii-text-banner-generator': TextBannerGenerator,
   'pdf-compressor': PdfCompressor,
   'merge-pdf': MergePdf,
+  'pdf-image-extractor': PdfImageExtractor,
   'aes-encrypt-decrypt': AesEncryptDecrypt,
   'rsa-encrypt-decrypt': RsaEncryptDecrypt,
 };

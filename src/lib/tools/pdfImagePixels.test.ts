@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { unzlibSync } from 'fflate';
 import {
+  alphaFromColorKey,
+  alphaFromMaskSamples,
+  applyAlpha,
+  applyDecodeArray,
   componentsOf,
   downscaleRgba,
   encodeLossless,
@@ -151,6 +155,86 @@ describe('samplesToRgba', () => {
   it('supports gray-based palettes and reads a short palette as black', () => {
     const image = samplesToRgba(new Uint8Array([0, 1]), 2, 1, { kind: 'indexed', base: 'gray', hival: 1, lookup: new Uint8Array([128]) }, 255);
     expect(Array.from(image.data)).toEqual([128, 128, 128, 255, 0, 0, 0, 255]);
+  });
+
+  it('converts CMYK naively: no ink is white, full K is black, each ink removes its complement', () => {
+    expect(componentsOf({ kind: 'cmyk' })).toBe(4);
+    const samples = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 255, 255, 0, 0, 0, 0, 0, 255, 128]);
+    const image = samplesToRgba(samples, 4, 1, { kind: 'cmyk' }, 255);
+    expect(Array.from(image.data)).toEqual([255, 255, 255, 255, 0, 0, 0, 255, 0, 255, 255, 255, 127, 127, 0, 255]);
+  });
+
+  it('scales low-bit CMYK and supports CMYK-based palettes', () => {
+    const lowBit = samplesToRgba(new Uint8Array([1, 0, 0, 0]), 1, 1, { kind: 'cmyk' }, 1);
+    expect(Array.from(lowBit.data)).toEqual([0, 255, 255, 255]);
+    const lookup = new Uint8Array([0, 255, 0, 0]);
+    const indexed = samplesToRgba(new Uint8Array([0]), 1, 1, { kind: 'indexed', base: 'cmyk', hival: 0, lookup }, 255);
+    expect(Array.from(indexed.data)).toEqual([255, 0, 255, 255]);
+  });
+});
+
+describe('applyDecodeArray', () => {
+  it('inverts with [1 0] and leaves the input untouched', () => {
+    const input = new Uint8Array([0, 128, 255]);
+    expect(Array.from(applyDecodeArray(input, 1, 255, [1, 0]))).toEqual([255, 127, 0]);
+    expect(Array.from(input)).toEqual([0, 128, 255]);
+  });
+
+  it('maps each component by its own range, clamping out-of-range results', () => {
+    expect(Array.from(applyDecodeArray(new Uint8Array([255, 255]), 2, 255, [0, 0.5, 0, 2]))).toEqual([128, 255]);
+  });
+
+  it('works in the sample range of low-bit images', () => {
+    expect(Array.from(applyDecodeArray(new Uint8Array([0, 1]), 1, 1, [1, 0]))).toEqual([1, 0]);
+  });
+
+  it('handles empty input', () => {
+    expect(applyDecodeArray(new Uint8Array(), 3, 255, [0, 1, 0, 1, 0, 1])).toHaveLength(0);
+  });
+});
+
+describe('alphaFromColorKey', () => {
+  it('keys out a pixel only when every component is inside its range', () => {
+    const samples = new Uint8Array([0, 255, 0, 0, 255, 100, 10, 250, 5]);
+    expect(Array.from(alphaFromColorKey(samples, 3, [0, 10, 240, 255, 0, 10], 8))).toEqual([0, 255, 0]);
+  });
+
+  it('compares 16-bit ranges against the high byte', () => {
+    expect(Array.from(alphaFromColorKey(new Uint8Array([0x12, 0x13]), 1, [0x1200, 0x12ff], 16))).toEqual([0, 255]);
+  });
+});
+
+describe('alphaFromMaskSamples', () => {
+  it('scales soft-mask coverage to 0-255, including low-bit masks', () => {
+    expect(Array.from(alphaFromMaskSamples(new Uint8Array([0, 128, 255]), 255, 'soft'))).toEqual([0, 128, 255]);
+    expect(Array.from(alphaFromMaskSamples(new Uint8Array([0, 1, 3]), 3, 'soft'))).toEqual([0, 85, 255]);
+  });
+
+  it('paints stencil samples of 0, or of 1 when inverted', () => {
+    expect(Array.from(alphaFromMaskSamples(new Uint8Array([0, 1]), 1, 'stencil'))).toEqual([255, 0]);
+    expect(Array.from(alphaFromMaskSamples(new Uint8Array([0, 1]), 1, 'stencil', true))).toEqual([0, 255]);
+  });
+});
+
+describe('applyAlpha', () => {
+  it('multiplies a same-size mask into existing alpha without mutating the input', () => {
+    const image = rgba(2, 1, (x) => [9, 9, 9, x === 0 ? 255 : 128]);
+    const out = applyAlpha(image, new Uint8Array([128, 255]), 2, 1);
+    expect(Array.from(out.data)).toEqual([9, 9, 9, 128, 9, 9, 9, 128]);
+    expect(image.data[3]).toBe(255);
+  });
+
+  it('samples a lower-resolution mask nearest-neighbour', () => {
+    const image = rgba(4, 4, () => [1, 2, 3, 255]);
+    const out = applyAlpha(image, new Uint8Array([0, 255, 255, 0]), 2, 2);
+    const alphaAt = (x: number, y: number) => out.data[(y * 4 + x) * 4 + 3];
+    expect([alphaAt(0, 0), alphaAt(1, 1), alphaAt(2, 0), alphaAt(3, 1), alphaAt(0, 3), alphaAt(3, 3)]).toEqual([0, 0, 255, 255, 255, 0]);
+  });
+
+  it('samples a higher-resolution mask too, and treats a short mask as opaque', () => {
+    const image = rgba(1, 1, () => [0, 0, 0, 255]);
+    expect(applyAlpha(image, new Uint8Array([0, 0, 0, 0]), 2, 2).data[3]).toBe(0);
+    expect(applyAlpha(image, new Uint8Array(), 1, 1).data[3]).toBe(255);
   });
 });
 

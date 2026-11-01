@@ -72,6 +72,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'ascii-text-banner-generator': 'BNR',
   'pdf-compressor': 'PDF',
   'merge-pdf': 'MRG',
+  'pdf-image-extractor': 'XIM',
   'aes-encrypt-decrypt': 'AES',
   'rsa-encrypt-decrypt': 'RSA',
 };

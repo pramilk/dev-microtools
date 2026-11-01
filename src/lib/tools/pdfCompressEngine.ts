@@ -3,15 +3,12 @@ import {
   PDFBool,
   PDFDict,
   PDFDocument,
-  PDFHexString,
   PDFName,
   PDFNumber,
   PDFRawStream,
   PDFRef,
   PDFStream,
-  PDFString,
   StandardFonts,
-  decodePDFRawStream,
   rgb,
   type PDFContext,
   type PDFObject,
@@ -20,19 +17,8 @@ import { unzlibSync, zlibSync } from 'fflate';
 import { type ToolResult, ok, err } from './result';
 import { removeUnreachableObjects } from './pdfObjectGraph';
 import { computeTargetDimensions, type RgbaImageData } from './imageCompress';
-import {
-  componentsOf,
-  downscaleRgba,
-  encodeLossless,
-  jpegComponentCount,
-  packedRowBytes,
-  rgbaToGrayscale,
-  samplesToRgba,
-  undoTiffPredictor,
-  unfilterPngRows,
-  unpackSamples,
-  type PixelColorModel,
-} from './pdfImagePixels';
+import { componentsOf, downscaleRgba, encodeLossless, jpegComponentCount, rgbaToGrayscale, samplesToRgba, unpackSamples } from './pdfImagePixels';
+import { bytesEqual, decodeRawSamples, filterChain, fnv1a, hasDefaultDecode, isImageStream, numberAt, resolveColorSpace } from './pdfImageStream';
 import {
   looksLikePdf,
   maxImagePixels,
@@ -97,123 +83,12 @@ const PREVIEW_MAX_SIDE = 1600;
 
 const name = (value: string): PDFName => PDFName.of(value);
 
-const IMAGE = name('Image');
 const DCT = name('DCTDecode');
 const FLATE = name('FlateDecode');
 
 /** Keys a re-encoded image stream sets itself; everything else (SMask, Intent, OC,
  *  Interpolate, StructParent…) is carried over from the original unchanged. */
 const REWRITTEN_IMAGE_KEYS = new Set(['Filter', 'DecodeParms', 'Width', 'Height', 'ColorSpace', 'BitsPerComponent', 'Decode', 'Length', 'DL']);
-
-function numberAt(dict: PDFDict, key: string): number | undefined {
-  const value = dict.lookup(name(key));
-  return value instanceof PDFNumber ? value.asNumber() : undefined;
-}
-
-/** The stream's filter chain as names, or null if `/Filter` is something unexpected. */
-function filterChain(dict: PDFDict): PDFName[] | null {
-  const filter = dict.lookup(name('Filter'));
-  if (filter === undefined) return [];
-  if (filter instanceof PDFName) return [filter];
-  if (filter instanceof PDFArray) {
-    const names: PDFName[] = [];
-    for (let i = 0; i < filter.size(); i++) {
-      const entry = filter.lookup(i);
-      if (!(entry instanceof PDFName)) return null;
-      names.push(entry);
-    }
-    return names;
-  }
-  return null;
-}
-
-/** The `/DecodeParms` dictionary for the last filter in the chain — the one whose predictor
- *  applies to the fully-decoded bytes. */
-function lastDecodeParms(dict: PDFDict, filterCount: number): PDFDict | undefined {
-  const parms = dict.lookup(name('DecodeParms'));
-  if (parms instanceof PDFDict) return parms;
-  if (parms instanceof PDFArray && filterCount > 0) {
-    const last = parms.lookup(filterCount - 1);
-    return last instanceof PDFDict ? last : undefined;
-  }
-  return undefined;
-}
-
-type ColorResolution =
-  | { ok: true; model: PixelColorModel; original: PDFObject | undefined }
-  | { ok: false; reason: UnsupportedImageReason };
-
-function unsupported(reason: UnsupportedImageReason): { ok: false; reason: UnsupportedImageReason } {
-  return { ok: false, reason };
-}
-
-function resolveColorSpace(context: PDFContext, raw: PDFObject | undefined, isMask: boolean): ColorResolution {
-  // A soft mask's colour space is DeviceGray by definition, even when (as is common) the
-  // entry is omitted.
-  if (raw === undefined) return isMask ? { ok: true, model: { kind: 'gray' }, original: undefined } : unsupported('encoding');
-  const space = raw instanceof PDFRef ? context.lookup(raw) : raw;
-
-  if (space instanceof PDFName) {
-    const value = space.asString();
-    if (value === '/DeviceGray' || value === '/CalGray') return { ok: true, model: { kind: 'gray' }, original: raw };
-    if (value === '/DeviceRGB' || value === '/CalRGB') return { ok: true, model: { kind: 'rgb' }, original: raw };
-    if (value === '/DeviceCMYK') return unsupported('cmyk');
-    return unsupported('special-color');
-  }
-
-  if (space instanceof PDFArray && space.size() > 0) {
-    const family = space.lookup(0);
-    const familyName = family instanceof PDFName ? family.asString() : '';
-
-    if (familyName === '/ICCBased') {
-      const profile = space.lookup(1);
-      const components = profile instanceof PDFStream ? numberAt(profile.dict, 'N') : undefined;
-      if (components === 1) return { ok: true, model: { kind: 'gray' }, original: raw };
-      if (components === 3) return { ok: true, model: { kind: 'rgb' }, original: raw };
-      if (components === 4) return unsupported('cmyk');
-      return unsupported('special-color');
-    }
-    if (familyName === '/CalGray') return { ok: true, model: { kind: 'gray' }, original: raw };
-    if (familyName === '/CalRGB') return { ok: true, model: { kind: 'rgb' }, original: raw };
-
-    if (familyName === '/Indexed' || familyName === '/I') {
-      const base = resolveColorSpace(context, space.get(1), false);
-      if (!base.ok) return base;
-      if (base.model.kind === 'indexed') return unsupported('special-color');
-      const hival = space.lookup(2);
-      if (!(hival instanceof PDFNumber)) return unsupported('corrupt');
-      const table = space.lookup(3);
-      let lookup: Uint8Array;
-      if (table instanceof PDFString || table instanceof PDFHexString) lookup = table.asBytes();
-      else if (table instanceof PDFRawStream) {
-        try {
-          lookup = decodePDFRawStream(table).decode();
-        } catch {
-          return unsupported('corrupt');
-        }
-      } else return unsupported('corrupt');
-      return { ok: true, model: { kind: 'indexed', base: base.model.kind, hival: Math.max(0, Math.min(255, hival.asNumber())), lookup }, original: raw };
-    }
-    return unsupported('special-color');
-  }
-  return unsupported('special-color');
-}
-
-/** True when a `/Decode` array is absent or just restates the default mapping — anything
- *  else (an inverted scan is the usual case) would need re-mapping we don't attempt. */
-function hasDefaultDecode(dict: PDFDict, model: PixelColorModel, bitsPerComponent: number): boolean {
-  const decode = dict.lookup(name('Decode'));
-  if (decode === undefined) return true;
-  if (!(decode instanceof PDFArray)) return false;
-  const expected: number[] = [];
-  if (model.kind === 'indexed') expected.push(0, 2 ** bitsPerComponent - 1);
-  else for (let i = 0; i < componentsOf(model); i++) expected.push(0, 1);
-  if (decode.size() !== expected.length) return false;
-  return expected.every((value, i) => {
-    const entry = decode.lookup(i);
-    return entry instanceof PDFNumber && entry.asNumber() === value;
-  });
-}
 
 type ImageOutcome =
   | { status: 'replaced'; stream: PDFRawStream; preview: () => Promise<PdfComparePreview>; area: number; grayscaled: boolean }
@@ -225,33 +100,6 @@ interface ImageJobContext {
   options: PdfCompressOptions;
   codec: RasterCodec;
   maxPixels: number | null;
-}
-
-/** Decodes a non-JPEG image's stream (any filter chain pdf-lib understands) and undoes its
- *  predictor, returning packed samples or an unsupported reason. */
-function decodeRawSamples(stream: PDFRawStream, filters: PDFName[], width: number, height: number, components: number, bitsPerComponent: number): Uint8Array | UnsupportedImageReason {
-  let data: Uint8Array;
-  try {
-    data = filters.length === 0 ? stream.contents : decodePDFRawStream(stream).decode();
-  } catch {
-    return 'corrupt';
-  }
-
-  const parms = lastDecodeParms(stream.dict, filters.length);
-  const predictor = parms ? (numberAt(parms, 'Predictor') ?? 1) : 1;
-  if (predictor === 1) return data;
-
-  const colors = (parms && numberAt(parms, 'Colors')) ?? components;
-  const bpc = (parms && numberAt(parms, 'BitsPerComponent')) ?? bitsPerComponent;
-  const columns = (parms && numberAt(parms, 'Columns')) ?? width;
-  const rowBytes = packedRowBytes(columns, colors, bpc);
-
-  if (predictor >= 10) {
-    const unfiltered = unfilterPngRows(data, rowBytes, Math.max(1, Math.ceil((colors * bpc) / 8)), height);
-    return unfiltered ?? 'corrupt';
-  }
-  if (predictor === 2 && bpc === 8) return undoTiffPredictor(data, rowBytes, colors, height) ?? 'corrupt';
-  return 'bit-depth';
 }
 
 function copyImageDict(context: PDFContext, original: PDFDict, dropMetadata: boolean): PDFDict {
@@ -293,6 +141,7 @@ async function recompressImage(job: ImageJobContext, stream: PDFRawStream, isMas
   const color = resolveColorSpace(context, dict.get(name('ColorSpace')), isMask);
   if (!color.ok) return { status: 'unsupported', reason: color.reason };
   const { model } = color;
+  if (model.kind === 'cmyk' || (model.kind === 'indexed' && model.base === 'cmyk')) return { status: 'unsupported', reason: 'cmyk' };
   // Grayscale is an explicit request to change how the image looks, not just a size
   // optimization, so it's honoured even for tiny images and even when the result isn't
   // smaller — otherwise a colour image would silently survive into a "grayscale" PDF.
@@ -383,12 +232,6 @@ async function recompressImage(job: ImageJobContext, stream: PDFRawStream, isMas
   };
 }
 
-// Deliberately a plain boolean, not a `object is PDFRawStream` type guard: a guard's false
-// branch would narrow "a raw stream that isn't an image" down to `never`.
-function isImageStream(object: PDFObject): boolean {
-  return object instanceof PDFRawStream && object.dict.lookup(name('Subtype')) === IMAGE;
-}
-
 /** Every image referenced as another image's `/SMask` or `/Mask` — these carry
  *  transparency, so they're only ever re-encoded losslessly (JPEG artefacts in an alpha
  *  channel show up as halos around every edge). */
@@ -440,22 +283,6 @@ function recompressOtherStreams(context: PDFContext): number {
     count += 1;
   }
   return count;
-}
-
-/** FNV-1a, for bucketing streams before the exact byte comparison in `mergeDuplicateStreams`. */
-function fnv1a(bytes: Uint8Array): number {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < bytes.length; i++) {
-    hash ^= bytes[i];
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return hash >>> 0;
-}
-
-function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-  return true;
 }
 
 /** Rewrites every reference in the document per `replacements` (keyed by `ref.toString()`). */

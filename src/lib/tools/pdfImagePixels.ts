@@ -2,27 +2,29 @@ import { zlibSync } from 'fflate';
 import type { RgbaImageData } from './imageCompress';
 
 /**
- * Pure pixel math for the PDF Compressor: turning the raw sample data inside a PDF image
- * XObject into RGBA pixels, resampling them, and packing them back into a Flate-encoded
- * image stream. No DOM, no pdf-lib — the PDF object handling lives in
- * `pdfCompressEngine.ts`, which calls into this.
+ * Pure pixel math for the PDF image tools: turning the raw sample data inside a PDF image
+ * XObject into RGBA pixels (with its transparency), resampling them, and packing them back
+ * into a Flate-encoded image stream. No DOM, no pdf-lib — the PDF object handling lives in
+ * `pdfImageStream.ts` and the per-tool engines, which call into this.
  *
  * pdf-lib's own stream decoder can inflate a FlateDecode stream but doesn't undo PNG/TIFF
  * predictors (which almost every PDF generator applies to image data), and knows nothing
  * about bit depths, colour spaces or palettes — hence this module.
  */
 
-/** How a PDF image's samples map to colour. Only the models this tool can faithfully
- *  re-encode are representable — CMYK, Lab, Separation/DeviceN are skipped upstream. */
+/** How a PDF image's samples map to colour. Lab, Separation/DeviceN are skipped upstream.
+ *  CMYK is representable, but only converted naively (no ICC profile) — fine for viewing an
+ *  extracted image, not for re-encoding print colours, so PDF Compressor skips it. */
 export type PixelColorModel =
   | { kind: 'gray' }
   | { kind: 'rgb' }
+  | { kind: 'cmyk' }
   /** `lookup` is the palette: `(hival + 1) × base-components` bytes, always 8 bits each. */
-  | { kind: 'indexed'; base: 'gray' | 'rgb'; hival: number; lookup: Uint8Array };
+  | { kind: 'indexed'; base: 'gray' | 'rgb' | 'cmyk'; hival: number; lookup: Uint8Array };
 
 /** Samples per pixel in the *encoded* data — an indexed image stores one palette index. */
 export function componentsOf(model: PixelColorModel): number {
-  return model.kind === 'rgb' ? 3 : 1;
+  return model.kind === 'rgb' ? 3 : model.kind === 'cmyk' ? 4 : 1;
 }
 
 /** Bytes per row of packed samples, which PDF (like PNG) pads to a whole byte. */
@@ -189,6 +191,16 @@ export function unpackSamples(
   return { samples, maxValue: mask };
 }
 
+/** The naive, profile-free CMYK → RGB conversion (each ink multiplies away the light it
+ *  absorbs). Colours come out a little more saturated than a colour-managed viewer shows,
+ *  but without the cost of shipping an ICC engine. Writes into `out` at `offset`. */
+function cmykToRgb(c: number, m: number, y: number, k: number, out: Uint8ClampedArray, offset: number): void {
+  const white = (255 - k) / 255;
+  out[offset] = (255 - c) * white;
+  out[offset + 1] = (255 - m) * white;
+  out[offset + 2] = (255 - y) * white;
+}
+
 /** Expands unpacked samples to opaque RGBA. Alpha is always 255: a PDF image's
  *  transparency lives in a separate `/SMask` image, never in its own samples. */
 export function samplesToRgba(
@@ -213,6 +225,8 @@ export function samplesToRgba(
       data[o] = samples[p * 3] * scale;
       data[o + 1] = samples[p * 3 + 1] * scale;
       data[o + 2] = samples[p * 3 + 2] * scale;
+    } else if (model.kind === 'cmyk') {
+      cmykToRgb(samples[p * 4] * scale, samples[p * 4 + 1] * scale, samples[p * 4 + 2] * scale, samples[p * 4 + 3] * scale, data, o);
     } else {
       // Out-of-range indices are clamped to hival, and a short palette reads as black —
       // both are what mainstream viewers do with slightly malformed palettes.
@@ -222,6 +236,9 @@ export function samplesToRgba(
         data[o] = v;
         data[o + 1] = v;
         data[o + 2] = v;
+      } else if (model.base === 'cmyk') {
+        const { lookup } = model;
+        cmykToRgb(lookup[index * 4] ?? 0, lookup[index * 4 + 1] ?? 0, lookup[index * 4 + 2] ?? 0, lookup[index * 4 + 3] ?? 255, data, o);
       } else {
         data[o] = model.lookup[index * 3] ?? 0;
         data[o + 1] = model.lookup[index * 3 + 1] ?? 0;
@@ -229,6 +246,79 @@ export function samplesToRgba(
       }
     }
     data[o + 3] = 255;
+  }
+  return { data, width, height };
+}
+
+/**
+ * Applies a `/Decode` array to unpacked samples: each component's `[min, max]` pair linearly
+ * remaps 0…`maxValue` (the usual non-default case is `[1 0]`, an inverted scan). Returns a
+ * new array; the input is left untouched because a colour-key mask compares *raw* samples.
+ */
+export function applyDecodeArray(samples: Uint8Array, components: number, maxValue: number, ranges: readonly number[]): Uint8Array {
+  const out = new Uint8Array(samples.length);
+  for (let i = 0; i < samples.length; i++) {
+    const c = i % components;
+    const min = ranges[c * 2];
+    const max = ranges[c * 2 + 1];
+    const mapped = min + (samples[i] / maxValue) * (max - min);
+    out[i] = Math.round(Math.max(0, Math.min(1, mapped)) * maxValue);
+  }
+  return out;
+}
+
+/**
+ * Alpha from a colour-key `/Mask` array: a pixel is transparent when *every* component falls
+ * inside its `[min, max]` range (compared against raw samples, as the spec defines). 16-bit
+ * ranges are reduced to the high byte to match `unpackSamples`.
+ */
+export function alphaFromColorKey(samples: Uint8Array, components: number, ranges: readonly number[], bitsPerComponent: number): Uint8Array {
+  const shift = bitsPerComponent === 16 ? 8 : 0;
+  const pixels = Math.floor(samples.length / components);
+  const alpha = new Uint8Array(pixels);
+  for (let p = 0; p < pixels; p++) {
+    let keyed = true;
+    for (let c = 0; c < components && keyed; c++) {
+      const value = samples[p * components + c];
+      keyed = value >= ranges[c * 2] >> shift && value <= ranges[c * 2 + 1] >> shift;
+    }
+    alpha[p] = keyed ? 0 : 255;
+  }
+  return alpha;
+}
+
+/**
+ * Alpha from a mask image's unpacked samples. A soft mask (`/SMask`) is a grayscale coverage
+ * map scaled to 0-255. A stencil mask (`/ImageMask`, or an explicit `/Mask` image) is 1-bit,
+ * where a sample of 0 means "paint" under the default `/Decode [0 1]` — `inverted` flips that
+ * for `/Decode [1 0]`.
+ */
+export function alphaFromMaskSamples(samples: Uint8Array, maxValue: number, kind: 'soft' | 'stencil', inverted = false): Uint8Array {
+  const alpha = new Uint8Array(samples.length);
+  for (let i = 0; i < samples.length; i++) {
+    if (kind === 'soft') alpha[i] = Math.round((samples[i] * 255) / maxValue);
+    else alpha[i] = (samples[i] === 0) !== inverted ? 255 : 0;
+  }
+  return alpha;
+}
+
+/**
+ * Multiplies an alpha map into an image. A mask may have a different resolution from the
+ * image it masks (a 300 DPI photo with a 72 DPI soft mask is legal), so it's sampled
+ * nearest-neighbour at each pixel's position.
+ */
+export function applyAlpha(image: RgbaImageData, alpha: Uint8Array, alphaWidth: number, alphaHeight: number): RgbaImageData {
+  const { width, height } = image;
+  const data = new Uint8ClampedArray(image.data);
+  const sameSize = alphaWidth === width && alphaHeight === height;
+  for (let y = 0; y < height; y++) {
+    const ay = sameSize ? y : Math.min(alphaHeight - 1, Math.floor(((y + 0.5) * alphaHeight) / height));
+    for (let x = 0; x < width; x++) {
+      const ax = sameSize ? x : Math.min(alphaWidth - 1, Math.floor(((x + 0.5) * alphaWidth) / width));
+      const a = alpha[ay * alphaWidth + ax] ?? 255;
+      const o = (y * width + x) * 4 + 3;
+      data[o] = (data[o] * a) / 255;
+    }
   }
   return { data, width, height };
 }
