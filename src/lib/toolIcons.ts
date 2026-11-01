@@ -76,6 +76,8 @@ export const TOOL_ICONS: Record<string, string> = {
   'image-to-pdf': 'I2P',
   'split-pdf': 'SPL',
   'organize-pdf': 'ORG',
+  'protect-pdf': 'LCK',
+  'unlock-pdf': 'UNL',
   'aes-encrypt-decrypt': 'AES',
   'rsa-encrypt-decrypt': 'RSA',
 };

@@ -126,6 +126,8 @@ tools, the three CSS generators).
 | [Image to PDF](https://devmicrotools.com/image-to-pdf/) | Turn JPG, PNG, WebP and other images into one PDF — reorder, rotate, pick page size and margins. Nothing is uploaded. |
 | [Split PDF](https://devmicrotools.com/split-pdf/) | Split a PDF by ranges, every N pages, bookmarks or size — or pick pages from thumbnails. Nothing is uploaded. |
 | [Organize PDF](https://devmicrotools.com/organize-pdf/) | Reorder, rotate, delete and insert PDF pages; add page numbers, a watermark or a background. Nothing is uploaded. |
+| [Protect PDF](https://devmicrotools.com/protect-pdf/) | Add an open password and restrict printing, copying and editing, with AES-256. Nothing is uploaded. |
+| [Unlock PDF](https://devmicrotools.com/unlock-pdf/) | Remove a PDF's password or restrictions when you know the password. Reads RC4 to AES-256. Nothing is uploaded. |
 
 ### CSS
 

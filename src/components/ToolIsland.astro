@@ -61,6 +61,8 @@ import PdfImageExtractor from '../islands/PdfImageExtractor';
 import ImageToPdf from '../islands/ImageToPdf';
 import SplitPdf from '../islands/SplitPdf';
 import OrganizePdf from '../islands/OrganizePdf';
+import ProtectPdf from '../islands/ProtectPdf';
+import UnlockPdf from '../islands/UnlockPdf';
 import AesEncryptDecrypt from '../islands/AesEncryptDecrypt';
 import RsaEncryptDecrypt from '../islands/RsaEncryptDecrypt';
 import ChmodCalculator from '../islands/ChmodCalculator';
@@ -155,5 +157,7 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'image-to-pdf' && <ImageToPdf client:load />}
 {slug === 'split-pdf' && <SplitPdf client:load />}
 {slug === 'organize-pdf' && <OrganizePdf client:load />}
+{slug === 'protect-pdf' && <ProtectPdf client:load />}
+{slug === 'unlock-pdf' && <UnlockPdf client:load />}
 {slug === 'aes-encrypt-decrypt' && <AesEncryptDecrypt client:load />}
 {slug === 'rsa-encrypt-decrypt' && <RsaEncryptDecrypt client:load />}

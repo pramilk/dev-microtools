@@ -1,0 +1,84 @@
+---
+title: Unlock PDF
+headline: Unlock PDF — Remove a PDF Password Without Uploading
+description: Remove the password or restrictions from a PDF you have the password for, right in your browser. Reads RC4 and AES-256. Nothing is uploaded.
+summary: Remove a PDF's password or restrictions when you know the password. Reads RC4 to AES-256. Nothing is uploaded.
+category: PDF
+order: 36
+updated: 2026-11-01
+whatIsIt: >-
+  This tool removes the password from a PDF you already have the password for, entirely inside
+  your browser, and gives you an ordinary copy that opens anywhere without asking. It handles
+  both kinds of PDF protection: a file that needs an open password before it will show
+  anything, and a file that opens freely but forbids printing, copying or editing. It reads
+  every standard PDF encryption in use, from the old 40-bit RC4 used in the late 1990s up to
+  AES-256, including the compressed layout modern PDF software produces. It shows what the file
+  uses and what it restricts before you enter anything. It does not guess or crack passwords: if
+  you have forgotten the password, this tool cannot recover it. The file is decrypted in a
+  background worker on your device and never uploaded, and neither is the password, so it is
+  safe to use with statements, contracts and records.
+useCases:
+  - Opening a bank statement, payslip or tax form that arrives with a password so you can store or search it without retyping the password every time.
+  - Removing the password from your own archived PDFs before merging, splitting or compressing them, since those tools cannot read encrypted files.
+  - Taking the print or copy restriction off a document you own, such as your own report that a colleague locked down.
+  - Giving a file to a system or reader that cannot handle encrypted PDFs, such as an older scanner workflow or an import tool.
+  - Replacing a shared password with a new one by unlocking a file here and protecting it again with Protect PDF.
+  - Checking what protection an unfamiliar PDF actually has, such as its encryption strength and which actions it blocks.
+howTo:
+  - Drop a PDF onto the tool, or choose one from your device. The tool shows the encryption it uses and whether it needs a password to open.
+  - Type the password. Use Show to check it for typos. If the file opens without a password, leave the box empty.
+  - If the file has restrictions and you only have the open password, tick the box confirming you may remove them.
+  - Press Unlock PDF, then Download. The unlocked copy is named after your file with -unlocked added.
+  - Your original file is not changed. Delete the unlocked copy when you no longer need it, since it has no protection.
+example:
+  label: Unlocking a password-protected 3-page quarterly report.
+  input: 'quarterly-report-protected.pdf (3 pages, AES-256, opens only with the password Sample-Pass-42).'
+  output: 'quarterly-report-protected-unlocked.pdf, which opens with no password and shows all three pages with their text and document title intact. The original file is untouched.'
+  note: Press "Load example" to generate this protected sample with its password filled in, then press Unlock PDF.
+faq:
+  - q: Is my PDF or my password uploaded anywhere?
+    a: No. The PDF is read, decrypted and written entirely in your browser, in a background worker, and the password is only held in the page and that worker. Nothing is transmitted. You can disconnect from the internet after the page loads and the tool still works.
+  - q: Can this recover a password I forgot?
+    a: No. This tool only removes protection when you supply the correct password. It never tries to guess or crack one, and with a modern AES-256 file nothing realistically can if the password is strong. If you have lost the password, ask whoever sent the file for a fresh copy or the password.
+  - q: What is the difference between the open password and the permissions password?
+    a: The open password is needed to view the file at all. The permissions password, also called the owner password, is the one that lets you change the restrictions on printing, copying and editing. Either one unlocks the file here. Many files have restrictions but no open password, and those open without any password while still blocking some actions.
+  - q: Why does it ask me to confirm before removing restrictions?
+    a: Restrictions are the author's wishes about what readers may do. When you only have the open password, removing them is not something the author granted you, so the tool asks you to confirm you own the document or have permission. The permissions password needs no confirmation because it exists for exactly this purpose. Check the rules that apply to the document you are working with.
+  - q: Which kinds of encryption can it read?
+    a: Standard password protection in all its versions, meaning RC4 with 40-bit and 128-bit keys, AES-128, and AES-256 in both its original and its current form. It cannot read PDFs locked with a digital certificate or a rights-management system, such as Adobe LiveCycle or FileOpen, because those do not use a password. It tells you when it meets one.
+  - q: Will bookmarks, links, forms and images survive?
+    a: Yes. The tool decrypts the file's contents rather than rebuilding the pages, so text, images, fonts, bookmarks, links, form fields and metadata come through unchanged. A digitally signed PDF is the exception, because a signature covers the exact bytes of the original, so it will not verify in the unlocked copy, and the tool tells you when that applies.
+  - q: Why is the unlocked file a different size?
+    a: Decrypting removes the encryption overhead, which is small, and the file is written again in a compact layout, so the size usually changes by a few percent either way. If you want it smaller, run it through the PDF Compressor afterwards.
+  - q: Is there a limit on file size?
+    a: The PDF can be up to 150 MB. Everything is held in your device's memory while it is decrypted, so a very large file may take a few seconds on a slow phone.
+related:
+  - protect-pdf
+  - pdf-compressor
+  - merge-pdf
+  - split-pdf
+---
+
+## What it does to the file
+
+An encrypted PDF stores every string and stream as scrambled bytes, plus a small security
+record that says how, with values derived from the password. This tool checks your password
+against that record. If it matches, it recovers the file's encryption key, decrypts each
+string and stream, removes the security record and writes the result as a normal PDF.
+Nothing is re-rendered, so pages look identical to the original.
+
+## The compressed layout
+
+PDF software since about 2005 packs most of the file's small objects into compressed
+containers, and encrypts each container as a whole. Reading such a file means decrypting the
+containers before unpacking what is inside them, which is the step simple tools get wrong.
+This tool handles it, and the result was checked against files written by qpdf, an
+independent implementation, for every encryption version above, with and without that layout.
+
+## What powers this tool
+
+PDF parsing and writing use [`pdf-lib`](https://github.com/Hopding/pdf-lib) (MIT licensed),
+which cannot decrypt on its own, so the decryption is written for this site on top of the
+audited AES and SHA-2 primitives in [`@noble/ciphers`](https://github.com/paulmillr/noble-ciphers)
+and [`@noble/hashes`](https://github.com/paulmillr/noble-hashes). Both run in a background
+Web Worker that is only loaded once you choose a file.

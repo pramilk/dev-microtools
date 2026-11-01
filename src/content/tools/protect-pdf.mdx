@@ -1,0 +1,85 @@
+---
+title: Protect PDF
+headline: Protect PDF — Add a Password to a PDF Without Uploading
+description: Password-protect a PDF in your browser with AES-256 encryption, and restrict printing, copying and editing. Nothing is uploaded.
+summary: Add an open password and restrict printing, copying and editing, with AES-256. Nothing is uploaded.
+category: PDF
+order: 35
+updated: 2026-11-01
+whatIsIt: >-
+  This tool encrypts a PDF with a password, entirely inside your browser. Set an open password
+  and the file cannot be viewed without it. Optionally add restrictions on top, such as no
+  printing, no copying of text and images, no editing, or no page changes, which readers that
+  follow the PDF standard will respect. The default is AES-256, the strongest encryption the
+  PDF format offers and the one Acrobat, Preview, Chrome, Edge, Firefox and phone viewers all
+  open. For very old readers there is an AES-128 option. The file is encrypted in a background
+  worker on your device and never uploaded, so it is safe to use with contracts, payslips and
+  medical or financial records, and the passwords never leave the page. Your original file is
+  not changed; you download a new, protected copy.
+useCases:
+  - Emailing a contract, payslip or tax document so that only the person who knows the password can open it.
+  - Sharing a draft that people may read and print but not copy text out of or edit.
+  - Locking down a scan of an ID or bank statement before storing it in cloud storage.
+  - Handing a client a finished report with editing and page changes switched off.
+  - Adding a second layer to a file sent over an unencrypted channel, with the password shared separately.
+  - Protecting a confidential file without uploading it to an online PDF service.
+howTo:
+  - Drop a PDF onto the tool, or choose one from your device. The tool shows its page count.
+  - Type an open password, or press Generate for a strong random one. Use Show to check it for typos.
+  - Optionally choose what readers may do (printing, copying, editing, comments, forms and page changes). Set a separate permissions password if you want to be able to change these later.
+  - Press Protect PDF, then Download. The protected copy is named after your file with -protected added.
+  - Open the downloaded file in your PDF viewer to confirm it asks for the password. Share the password through a different channel from the file.
+example:
+  label: Protecting a 3-page quarterly report so it needs a password and cannot be copied or edited.
+  input: 'quarterly-report.pdf (3 pages), open password Sample-Pass-42, AES-256, with copying and editing switched off.'
+  output: 'quarterly-report-protected.pdf. Opening it asks for the password. With Sample-Pass-42 it shows all three pages, but copying text and editing are disabled in readers that honour permissions. The original file is untouched.'
+  note: Press "Load example" to generate this sample report with those settings filled in, then press Protect PDF.
+faq:
+  - q: Is my PDF or my password uploaded anywhere?
+    a: No. The PDF is read, encrypted and written entirely in your browser, in a background worker, and the passwords are only ever held in the page and that worker. Nothing is transmitted. You can disconnect from the internet after the page loads and the tool still works.
+  - q: How strong is the protection?
+    a: With AES-256 the encryption itself is not the weak point. The password is. A short or common password can be guessed offline by anyone who has the file, with no limit on attempts, so use a long one. 16 or more characters, or a passphrase of several random words, is a good target. The Generate button makes a random 20-character password. If you lose the password, the file cannot be recovered.
+  - q: What is the difference between the open password and the permissions password?
+    a: The open password is needed to view the file at all. The permissions password, sometimes called the owner password, is needed to change the restrictions, such as allowing printing again. Leave it empty and the tool generates a random one and throws it away, so the restrictions become permanent. Set your own if you may need to lift them later, and make it different from the open password, otherwise anyone who opens the file has full rights.
+  - q: Do the permission restrictions really stop people copying or editing?
+    a: Only partly. Restrictions are flags that Acrobat, browsers and most viewers honour, but some tools ignore them, and a person who can open the file can still take screenshots or retype it. Only the open password actually keeps people out. Treat restrictions as a polite barrier against casual copying, not as security.
+  - q: Should I choose AES-256 or AES-128?
+    a: Choose AES-256 unless someone must open the file in software from before about 2010. AES-256 works in every current viewer, uses a stronger way of turning your password into a key, and allows any length of password and any character. AES-128 is limited to 32 characters from the Latin-1 set, so no emoji or non-Latin scripts. RC4, the old weak PDF encryption, is deliberately not offered.
+  - q: Can I protect a PDF that is already protected or digitally signed?
+    a: An already encrypted PDF has to be unlocked first with Unlock PDF, then protected again with new settings. A digitally signed PDF can be protected, but a signature covers the exact bytes of the original file, so it will not verify in the new one. The tool warns you when that happens.
+  - q: Will bookmarks, links and form fields still work?
+    a: Yes. The tool encrypts the file as it is rather than rebuilding it, so bookmarks, links, form fields, images, fonts and metadata all come through unchanged once the file is opened with the password. The title and author are encrypted too.
+  - q: Is there a limit on file size?
+    a: The PDF can be up to 150 MB. Everything is held in your device's memory while it is encrypted, so a very large file may take a few seconds on a slow phone. Compressing it first with the PDF Compressor helps.
+related:
+  - unlock-pdf
+  - pdf-compressor
+  - merge-pdf
+  - aes-encrypt-decrypt
+---
+
+## What gets encrypted
+
+Every string and every stream in the file: page content, fonts, images, bookmarks, form
+values, and the title and author in the document information. Nothing about what the file
+says is left readable. The structure that lets a viewer find those objects stays visible,
+as the PDF standard requires, so anyone can see that it is a PDF with a given number of
+objects, but not what is in them.
+
+## How the password becomes a key
+
+With AES-256 the open password and the permissions password each protect a copy of one
+random 256-bit key, using the iterated hash defined in ISO 32000-2. That key then encrypts
+the content with AES in CBC mode and a fresh random value for every string and stream. A
+checksum of the permissions is stored too, so a viewer can notice if someone has edited the
+restrictions in the file. AES-128 follows the older ISO 32000-1 scheme, where the key is
+derived from the password with MD5 and mixed with the document's ID.
+
+## What powers this tool
+
+PDF parsing and writing use [`pdf-lib`](https://github.com/Hopding/pdf-lib) (MIT licensed),
+which cannot encrypt on its own, so the encryption is written for this site on top of the
+audited AES and SHA-2 primitives in [`@noble/ciphers`](https://github.com/paulmillr/noble-ciphers)
+and [`@noble/hashes`](https://github.com/paulmillr/noble-hashes). Both run in a background
+Web Worker that is only loaded once you choose a file. The output was checked by opening it
+with two independent PDF readers, pdf.js and pypdf, using the right and wrong passwords.

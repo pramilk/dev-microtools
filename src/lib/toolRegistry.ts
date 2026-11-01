@@ -65,6 +65,8 @@ import PdfImageExtractor from '../islands/PdfImageExtractor';
 import ImageToPdf from '../islands/ImageToPdf';
 import SplitPdf from '../islands/SplitPdf';
 import OrganizePdf from '../islands/OrganizePdf';
+import ProtectPdf from '../islands/ProtectPdf';
+import UnlockPdf from '../islands/UnlockPdf';
 import AesEncryptDecrypt from '../islands/AesEncryptDecrypt';
 import RsaEncryptDecrypt from '../islands/RsaEncryptDecrypt';
 
@@ -141,6 +143,8 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'image-to-pdf': ImageToPdf,
   'split-pdf': SplitPdf,
   'organize-pdf': OrganizePdf,
+  'protect-pdf': ProtectPdf,
+  'unlock-pdf': UnlockPdf,
   'aes-encrypt-decrypt': AesEncryptDecrypt,
   'rsa-encrypt-decrypt': RsaEncryptDecrypt,
 };
