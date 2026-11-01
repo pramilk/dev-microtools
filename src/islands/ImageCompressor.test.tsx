@@ -32,6 +32,11 @@ vi.mock('../lib/tools/imageCompress', async (importOriginal) => {
 
 const PNG_SIGNATURE = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
 
+/** "Load example" downloads a static sample from public/samples/; this serves a stand-in. */
+function stubSampleFetch(status = 200) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(status === 200 ? new Blob([PNG_SIGNATURE]) : null, { status }));
+}
+
 class FakeImageBitmap {
   width = 200;
   height = 100;
@@ -97,6 +102,7 @@ const jobRows = () => document.querySelectorAll('.job');
 describe('<ImageCompressor />', () => {
   beforeEach(() => {
     stubCanvasAndDecode();
+    stubSampleFetch();
     quantizeSpy.mockClear();
   });
 
@@ -467,12 +473,25 @@ describe('<ImageCompressor />', () => {
     await waitFor(() => expect(screen.queryByLabelText(/^quality$/i)).not.toBeInTheDocument());
   });
 
-  it('loads a generated sample image when "Load example" is pressed', async () => {
+  it('downloads the sample image for the selected format when "Load example" is pressed', async () => {
+    const fetchSpy = vi.mocked(globalThis.fetch);
     render(<ImageCompressor />);
     fireEvent.click(screen.getByRole('button', { name: /^load example$/i }));
 
     await waitFor(() => expect(jobRows().length).toBe(1));
+    expect(fetchSpy).toHaveBeenCalledWith('/samples/image-compressor/sample.jpg');
+    expect(within(jobRows()[0] as HTMLElement).getByText('sample.jpg')).toBeInTheDocument();
     await waitFor(() => expect(within(jobRows()[0] as HTMLElement).getByText(/smaller|larger|no change/i)).toBeInTheDocument());
+  });
+
+  it('shows a visible error when the sample image cannot be downloaded', async () => {
+    stubSampleFetch(404);
+    render(<ImageCompressor />);
+    fireEvent.click(screen.getByRole('button', { name: /^load example$/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn’t download the example image \(the server answered 404\)/i);
+    expect(jobRows().length).toBe(0);
+    expect(screen.getByRole('button', { name: /^load example$/i })).toBeEnabled();
   });
 
   it('removes a single image from the batch without clearing the rest', async () => {

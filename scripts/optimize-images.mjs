@@ -16,13 +16,16 @@ import sharp from 'sharp';
 
 const distDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const IMAGE_EXTENSIONS = new Set(['.png']);
+// Tool sample files ("Load example" inputs, e.g. the Image Compressor's) are left exactly
+// as authored: pre-optimizing them would leave the compressor demo nothing to compress.
+const SKIP_DIRS = new Set([path.join(distDir, 'samples')]);
 
 async function findImages(dir) {
   const entries = await readdir(dir, { withFileTypes: true });
   const files = await Promise.all(
     entries.map(async (entry) => {
       const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) return findImages(full);
+      if (entry.isDirectory()) return SKIP_DIRS.has(full) ? [] : findImages(full);
       return IMAGE_EXTENSIONS.has(path.extname(entry.name).toLowerCase()) ? [full] : [];
     })
   );

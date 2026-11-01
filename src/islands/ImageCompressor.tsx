@@ -5,6 +5,7 @@ import {
   OUTPUT_FORMATS,
   OUTPUT_FORMAT_LABELS,
   OUTPUT_FORMAT_EXTENSIONS,
+  sampleImagePath,
   LOSSY_FORMATS,
   DEFAULT_QUALITY,
   MAX_BATCH_FILES,
@@ -140,28 +141,14 @@ async function compressImage(
 }
 
 /**
- * Generates a modest, deterministic sample image via canvas, so "Load example" has something
- * with a real size to shrink without bundling an actual photo asset. Encoded in whichever
- * output format is currently selected, so the loaded sample's own filename/type matches what
- * the tool-bar shows instead of always looking like a PNG regardless of format chosen.
+ * Downloads the static sample image for `format` (see `sampleImagePath`), so "Load example"
+ * has a real file to shrink. Fetched in whichever output format is selected, so the
+ * sample's own filename/type matches what the tool-bar shows.
  */
-async function generateSampleImageFile(format: OutputFormat): Promise<File> {
-  const size = 640;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const context = canvas.getContext('2d');
-  if (!context) throw new Error('This browser does not support canvas image export.');
-
-  const gradient = context.createLinearGradient(0, 0, size, size);
-  gradient.addColorStop(0, '#3cbcd4');
-  gradient.addColorStop(0.5, '#7c5cff');
-  gradient.addColorStop(1, '#0d1117');
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, size, size);
-
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, format));
-  if (!blob) throw new Error('Could not generate a sample image.');
+async function fetchSampleImageFile(format: OutputFormat): Promise<File> {
+  const response = await fetch(sampleImagePath(format));
+  if (!response.ok) throw new Error(`the server answered ${response.status}`);
+  const blob = await response.blob();
   return new File([blob], `sample.${OUTPUT_FORMAT_EXTENSIONS[format]}`, { type: format });
 }
 
@@ -213,6 +200,8 @@ export default function ImageCompressor() {
   // was heavy enough to make the slider itself feel laggy while dragging.
   const [debouncedQuality, setDebouncedQuality] = useState(DEFAULT_QUALITY);
   const [zipping, setZipping] = useState(false);
+  const [loadingExample, setLoadingExample] = useState(false);
+  const [exampleError, setExampleError] = useState<string | null>(null);
   // Per-image debounce for the Max dimension slider/input, same reasoning as quality above.
   // Typed `number` (the browser's setTimeout return type) rather than `ReturnType<typeof
   // setTimeout>`, which resolves to Node's `Timeout` here because @types/node is in scope.
@@ -320,6 +309,7 @@ export default function ImageCompressor() {
 
   const clearAll = () => {
     batch.clearAll();
+    setExampleError(null);
     setFormat('image/jpeg');
     setPngMode('lossless');
     setKeepOriginalFormat(false);
@@ -332,8 +322,18 @@ export default function ImageCompressor() {
     formatTouchedRef.current = false;
   };
 
-  const loadExample = () => {
-    void generateSampleImageFile(format).then((file) => batch.addFiles([file]));
+  const loadExample = async () => {
+    setLoadingExample(true);
+    setExampleError(null);
+    try {
+      batch.addFiles([await fetchSampleImageFile(format)]);
+    } catch (thrown: unknown) {
+      setExampleError(
+        `Couldn’t download the example image${thrown instanceof Error && thrown.message ? ` (${thrown.message})` : ''}. Check your connection and try again, or drop your own image.`
+      );
+    } finally {
+      setLoadingExample(false);
+    }
   };
 
   /**
@@ -549,8 +549,8 @@ export default function ImageCompressor() {
         </label>
 
         <span class="tool-bar__spacer" />
-        <button type="button" class="btn" onClick={loadExample} title="Generate a sample image to try the tool with">
-          Load example
+        <button type="button" class="btn" onClick={() => void loadExample()} disabled={loadingExample} title="Load a sample image to try the tool with">
+          {loadingExample ? 'Loading…' : 'Load example'}
         </button>
         <button type="button" class="btn" onClick={clearAll} disabled={batch.jobs.length === 0} title="Remove every image and start over">
           Clear
@@ -632,6 +632,7 @@ export default function ImageCompressor() {
       />
 
       <ErrorMessage message={batch.batchError} />
+      <ErrorMessage message={exampleError} />
 
       {completedJobs.length > 0 && (
         <BatchSavingsBanner

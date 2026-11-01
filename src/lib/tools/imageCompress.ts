@@ -17,6 +17,12 @@ export const OUTPUT_FORMAT_EXTENSIONS: Record<OutputFormat, string> = {
   'image/png': 'png',
 };
 
+/** Static sample image "Load example" downloads, one per format — plain files in
+ *  public/samples/image-compressor/, so they can be swapped without touching code. That
+ *  folder is skipped by scripts/optimize-images.mjs, so the samples keep room to compress. */
+export const sampleImagePath = (format: OutputFormat): string =>
+  `/samples/image-compressor/sample.${OUTPUT_FORMAT_EXTENSIONS[format]}`;
+
 /** Formats whose re-encoding is lossy and controlled by a quality value. PNG output is
  *  always lossless — the browser's canvas PNG encoder has no quality parameter. */
 export const LOSSY_FORMATS = new Set<OutputFormat>(['image/jpeg', 'image/webp']);

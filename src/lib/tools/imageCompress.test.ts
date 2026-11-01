@@ -1,5 +1,26 @@
 import { describe, it, expect, vi } from 'vitest';
-import { validateImageFile, computeTargetDimensions, qualityToColorCount, quantizePngPixels, MAX_INPUT_FILE_SIZE, type RgbaImageData } from './imageCompress';
+import {
+  validateImageFile,
+  computeTargetDimensions,
+  qualityToColorCount,
+  quantizePngPixels,
+  sampleImagePath,
+  MAX_INPUT_FILE_SIZE,
+  OUTPUT_FORMATS,
+  type RgbaImageData,
+} from './imageCompress';
+
+describe('sampleImagePath', () => {
+  it('points each output format at its own static sample file', () => {
+    expect(sampleImagePath('image/jpeg')).toBe('/samples/image-compressor/sample.jpg');
+    expect(sampleImagePath('image/webp')).toBe('/samples/image-compressor/sample.webp');
+    expect(sampleImagePath('image/png')).toBe('/samples/image-compressor/sample.png');
+  });
+
+  it('has a distinct file for every format', () => {
+    expect(new Set(OUTPUT_FORMATS.map(sampleImagePath)).size).toBe(OUTPUT_FORMATS.length);
+  });
+});
 
 describe('validateImageFile', () => {
   it('accepts a JPEG under the size limit', () => {
