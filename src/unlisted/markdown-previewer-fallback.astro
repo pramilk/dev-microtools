@@ -1,0 +1,14 @@
+---
+import { getEntry } from 'astro:content';
+import ToolPage from '../components/ToolPage.astro';
+
+// Served at a disabled unlisted page's URL (see src/lib/unlistedPages.ts): the regular
+// Markdown Previewer tool page, rendered in place so the address bar doesn't change. Its
+// canonical URL stays /markdown-previewer/, so search engines don't see a duplicate.
+const tool = await getEntry('tools', 'markdown-previewer');
+if (!tool) {
+  throw new Error('src/unlisted/markdown-previewer-fallback.astro expects the "markdown-previewer" tool entry to exist.');
+}
+---
+
+<ToolPage tool={tool} />

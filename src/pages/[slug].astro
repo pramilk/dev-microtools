@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import ToolPage from '../components/ToolPage.astro';
+import { UNLISTED_SLUGS } from '../lib/unlistedPages';
 
 // Tool pages live at the site root (/<slug>/) rather than under /tools/<slug>/ — one
 // fewer path segment, and every keyword in the slug sits directly after the domain
@@ -8,11 +9,12 @@ import ToolPage from '../components/ToolPage.astro';
 //
 export async function getStaticPaths() {
   // Reserved words below cannot be used as tool slugs, since they would collide with a
-  // real static route (src/pages/<name>.astro). This throws at build time rather than
+  // real static route (src/pages/<name>.astro) or an unlisted page (src/lib/unlistedPages.ts
+  // — reserved even while disabled, so enabling it later can't collide). This throws at build time rather than
   // letting a future tool silently shadow — or be shadowed by — a site page. Declared
   // inside the function because Astro bundles getStaticPaths independently of the rest
   // of the frontmatter, so a module-level const here is not guaranteed to be in scope.
-  const RESERVED_SLUGS = ['about', 'privacy-policy', '404'];
+  const RESERVED_SLUGS = ['about', 'privacy-policy', '404', ...UNLISTED_SLUGS];
 
   const tools = await getCollection('tools');
 

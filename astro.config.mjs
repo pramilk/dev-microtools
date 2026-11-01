@@ -7,6 +7,8 @@ import preact from '@astrojs/preact';
 import sitemap from '@astrojs/sitemap';
 import mdx from '@astrojs/mdx';
 import { load as loadYaml } from 'js-yaml';
+import { UNLISTED_SLUGS, unlistedRoutes } from './src/lib/unlistedPages';
+import { SITE as SITE_CONFIG } from './src/lib/site';
 
 // Required for @astrojs/sitemap to emit absolute URLs and for canonical link tags.
 const SITE = 'https://devmicrotools.com';
@@ -45,13 +47,26 @@ export default defineConfig({
   trailingSlash: 'always',
   // Static build-time redirect: /feedback/ has no content of its own, it just forwards
   // to GitHub Issues so the site can link to a stable internal URL from the nav.
-  redirects: {
-    '/feedback': 'https://github.com/pramilk/dev-microtools/issues/new',
-  },
+  // Toggled by SITE.feedbackEnabled in src/lib/site.ts.
+  redirects: SITE_CONFIG.feedbackEnabled
+    ? { '/feedback': 'https://github.com/pramilk/dev-microtools/issues/new' }
+    : {},
   integrations: [
     preact(),
     mdx(),
+    // Routes the unlisted, direct-link-only pages that are switched on in
+    // src/lib/unlistedPages.ts — the one place to enable or disable them.
+    {
+      name: 'unlisted-pages',
+      hooks: {
+        'astro:config:setup': ({ injectRoute }) => {
+          for (const route of unlistedRoutes()) injectRoute(route);
+        },
+      },
+    },
     sitemap({
+      // Unlisted pages (src/lib/unlistedPages.ts) stay out of the sitemap.
+      filter: (page) => !UNLISTED_SLUGS.some((slug) => new URL(page).pathname === `/${slug}/`),
       // Gives Google/Bing a real recrawl signal per tool page instead of a bare <loc> —
       // reuses the same `updated` frontmatter date [slug].astro's JSON-LD `dateModified`
       // already relies on. Non-tool pages (home, about, privacy) are left without
