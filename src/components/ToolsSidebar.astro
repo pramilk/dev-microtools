@@ -10,7 +10,14 @@ const tools = (await getCollection('tools')).sort((a, b) => a.data.order - b.dat
 // Section order comes from CATEGORIES, not tool.order — those only sort tools within
 // a category, not the categories themselves.
 const categories = CATEGORIES.filter((category) => tools.some((tool) => tool.data.category === category));
-const currentPath = Astro.url.pathname;
+interface Props {
+  /** The page to mark as current. Defaults to the URL being rendered; the layout passes
+   *  the canonical path, so a page rendered at another URL (an unlisted page's fallback)
+   *  still highlights the tool it shows. */
+  currentPath?: string;
+}
+
+const currentPath = Astro.props.currentPath ?? Astro.url.pathname;
 ---
 
 <aside class="sidebar" id="tools-sidebar" aria-label="All tools">

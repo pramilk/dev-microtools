@@ -143,7 +143,7 @@ const ogImage = new URL(ogImagePath ?? '/og-image.png', Astro.site ?? SITE.url).
     <a class="skip-link" href="#main">Skip to content</a>
     <Header />
     <div class="shell">
-      {!hideSidebar && <ToolsSidebar />}
+      {!hideSidebar && <ToolsSidebar currentPath={canonicalPath} />}
       <main id="main" class="shell__main">
         <slot />
         <BuyMeACoffee />
