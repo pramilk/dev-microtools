@@ -26,13 +26,12 @@ import {
   applyAlpha,
   applyDecodeArray,
   componentsOf,
-  encodeLossless,
   jpegComponentCount,
   samplesToRgba,
   unpackSamples,
   type PixelColorModel,
 } from './pdfImagePixels';
-import { bytesEqual, decodeRawSamples, filterChain, fnv1a, hasDefaultDecode, isImageStream, numberAt, readDecodeArray, resolveColorSpace } from './pdfImageStream';
+import { bytesEqual, decodeRawSamples, filterChain, fnv1a, hasDefaultDecode, isImageStream, numberAt, readDecodeArray, registerLosslessImage, resolveColorSpace } from './pdfImageStream';
 import {
   looksLikePdf,
   type ExtractedImageColor,
@@ -394,23 +393,6 @@ function rgbaImage(width: number, height: number, paint: (x: number, y: number) 
     for (let x = 0; x < width; x++) data.set(paint(x, y), (y * width + x) * 4);
   }
   return { data, width, height };
-}
-
-/** A lossless (Flate + PNG predictor) image XObject, the way PDF stores PNG-style images. */
-function registerLosslessImage(context: PDFContext, image: RgbaImageData, extra: Record<string, PDFRef> = {}): PDFRef {
-  const encoded = encodeLossless(image);
-  const dict = context.obj({
-    Type: 'XObject',
-    Subtype: 'Image',
-    Width: image.width,
-    Height: image.height,
-    BitsPerComponent: 8,
-    ColorSpace: encoded.channels === 1 ? 'DeviceGray' : 'DeviceRGB',
-    Filter: 'FlateDecode',
-    DecodeParms: encoded.decodeParms,
-    ...extra,
-  });
-  return context.register(PDFRawStream.of(dict, encoded.data));
 }
 
 function placeImage(page: PDFPage, ref: PDFRef, x: number, y: number, width: number, height: number): void {

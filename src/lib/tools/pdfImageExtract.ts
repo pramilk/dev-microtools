@@ -123,7 +123,4 @@ export function formatPages(pages: readonly number[]): string {
   return `${pages.length === 1 ? 'p.' : 'pp.'} ${runs.join(', ')}`;
 }
 
-/** "3 images" style pluralisation for the results panel. */
-export function plural(count: number, singular: string, pluralForm = `${singular}s`): string {
-  return `${count.toLocaleString('en-US')} ${count === 1 ? singular : pluralForm}`;
-}
+export { plural } from './fileBatch';

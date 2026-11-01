@@ -1,11 +1,12 @@
 import type { RgbaImageData } from '../lib/tools/imageCompress';
 import type { RasterCodec } from '../lib/tools/pdfCompressEngine';
+import type { ImageDecodeCodec } from '../lib/tools/imageToPdfEngine';
 
 /**
  * Browser image codecs for the PDF tools' workers, backed by `createImageBitmap` +
- * `OffscreenCanvas` — shared by PDF Compressor and PDF Image Extractor. Lives beside the
+ * `OffscreenCanvas` — shared by PDF Compressor, PDF Image Extractor and Image to PDF. Lives beside the
  * workers (not in `lib/`) because it needs the real canvas APIs, which jsdom lacks; the
- * engines take it as an injected `RasterCodec` so they stay unit-testable.
+ * engines take it as an injected codec so they stay unit-testable.
  */
 
 function context2d(canvas: OffscreenCanvas): OffscreenCanvasRenderingContext2D {
@@ -47,6 +48,25 @@ export const offscreenCanvasCodec: RasterCodec = {
   },
   encodeJpeg: (image, quality) => canvasBytes(canvasFrom(image), 'image/jpeg', quality),
   encodePng: (image) => canvasBytes(canvasFrom(image), 'image/png'),
+};
+
+/** Image to PDF's codec: decodes whatever the browser can (applying EXIF orientation, since
+ *  these pixels are placed upright as-is) and encodes JPEG. */
+export const browserImageCodec: ImageDecodeCodec = {
+  async decodeImage(bytes) {
+    // No `type` on the blob: createImageBitmap sniffs the format from the bytes themselves.
+    const bitmap = await createImageBitmap(new Blob([bytes as Uint8Array<ArrayBuffer>]), { imageOrientation: 'from-image' });
+    try {
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const context = context2d(canvas);
+      context.drawImage(bitmap, 0, 0);
+      const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
+      return { data, width: bitmap.width, height: bitmap.height };
+    } finally {
+      bitmap.close();
+    }
+  },
+  encodeJpeg: (image, quality) => canvasBytes(canvasFrom(image), 'image/jpeg', quality),
 };
 
 /** A deterministic landscape "photo" with fine noise, so it's large as a high-quality JPEG

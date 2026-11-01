@@ -1,0 +1,75 @@
+---
+title: Image to PDF
+headline: Image to PDF — Convert JPG, PNG & WebP to PDF Without Uploading
+description: Convert JPG, PNG, WebP and other images to one PDF in your browser. Reorder, rotate, choose A4, Letter or fit-to-image pages. Nothing is uploaded.
+summary: Turn JPG, PNG, WebP and other images into one PDF — reorder, rotate, pick page size and margins. Nothing is uploaded.
+category: PDF
+order: 40
+updated: 2026-11-01
+whatIsIt: >-
+  This tool turns a set of images into a single PDF, one image per page, entirely inside your
+  browser. Drop in photos, scans, screenshots or diagrams, put them in order by dragging or
+  with the arrow buttons (or sort them by file name), rotate any that are sideways, and
+  choose the page size — A4, US Letter, or pages that exactly fit each image — along with
+  the orientation and margin. A live preview shows the finished document, and it rebuilds
+  automatically whenever you change something. JPEG photos go into the PDF exactly as they
+  are, with no re-compression, so there's no quality loss and the file stays as small as the
+  photos themselves. PNG images are stored losslessly with their transparency, and phone
+  photos that the camera saved sideways are turned upright automatically. Nothing is
+  uploaded: the images are read and the PDF is written by a background worker on your own
+  device, which matters for ID documents, receipts and anything else you'd rather keep private.
+useCases:
+  - Combining phone photos of a multi-page document, receipt or form into one PDF for an upload portal or an email.
+  - Turning scanned pages saved as separate JPGs back into a single document, in the right order.
+  - Sending a set of screenshots or design mockups as one file a client can scroll through.
+  - Making a PDF of ID documents or certificates for an application without handing them to an online converter.
+  - Assembling a simple photo booklet or printable handout with consistent A4 or Letter pages.
+howTo:
+  - Drop your images onto the tool, or choose them from your device — you can add more at any time.
+  - Put them in page order by dragging the ⠿ handle, using the ↑ and ↓ buttons, or sorting by file name.
+  - Rotate any sideways image with ↻; phone photos are already turned upright from the camera's orientation tag.
+  - Choose a page size (A4, Letter or Fit to image), orientation and margin — the preview updates as you go.
+  - Name the file if you like, then press Download PDF.
+example:
+  label: Three images — a landscape photo, a PNG chart and a portrait phone photo saved sideways — on A4 with small margins.
+  input: '01-landscape-photo.jpg (1600×1067), 02-sales-chart.png (900×560), 03-receipt-phone-photo.jpg (stored 1200×800 with EXIF orientation 6).'
+  output: 'A 3-page PDF: two landscape A4 pages for the photo and the chart, and a portrait A4 page with the receipt upright. Both JPEGs are embedded unchanged and the chart is stored losslessly.'
+  note: Press "Load example" to add these three images and see the PDF built in the preview.
+faq:
+  - q: Are my images uploaded to a server?
+    a: No. The images are read and the PDF is written entirely in your browser, in a background worker so the page stays responsive. Nothing you choose is transmitted anywhere — you can disconnect from the internet after the page loads and the tool still works.
+  - q: Does converting to PDF reduce the image quality?
+    a: Not for JPEG and PNG. A PDF can store JPEG data natively, so JPEG photos are placed in the PDF byte for byte, with no re-compression at all. PNG images are stored losslessly. Other formats (WebP, AVIF, GIF, BMP) can't go into a PDF directly, so they're decoded and stored as a 92% quality JPEG if they're opaque — visually identical, and far smaller than raw pixels — or losslessly if they have transparency.
+  - q: Why was my phone photo sideways in other converters but upright here?
+    a: Phone cameras usually save the pixels in the sensor's orientation and add an EXIF tag saying how to rotate them for display. Image viewers follow that tag, but PDF viewers never do, so a converter that copies the JPEG in naively produces a sideways page. This tool reads the tag and rotates the page drawing to match, without touching the photo's data. If an image is still the wrong way round, use the ↻ button on its row.
+  - q: Which page size should I choose?
+    a: A4 or Letter if the PDF will be printed or submitted somewhere that expects standard pages — each image is scaled to fit inside the margins and centred, and Auto orientation gives wide images a landscape page. Choose Fit to image for screenshots and designs, where you want each page to be exactly its image with no white border or scaling; the page is sized at 96 pixels per inch, so it opens at the size the image looked on screen.
+  - q: Can I convert HEIC photos from an iPhone?
+    a: Only in Safari, which is the one browser that can decode HEIC. Elsewhere a HEIC image is flagged as unreadable and left out, while the rest of the batch still converts. On an iPhone you can choose Settings › Camera › Formats › Most Compatible to take JPEG photos instead, or share the photo as JPEG. GIFs contribute their first frame, and SVG files need exporting as PNG first.
+  - q: How many images can I add, and how big can the PDF get?
+    a: Up to 200 images and 300 MB in total per PDF. Because JPEGs are embedded unchanged, the PDF ends up about the size of the photos you added. If it's too large to email, run it through the PDF Compressor afterwards, or shrink the photos first with the Image Compressor.
+related:
+  - merge-pdf
+  - pdf-compressor
+  - pdf-image-extractor
+  - image-compressor
+---
+
+## How the images are placed on the page
+
+With **A4** or **Letter**, every image is scaled — up or down — to fill the space inside the
+margins while keeping its proportions, then centred. **Auto** orientation picks a landscape
+page for a wide image and a portrait page for a tall one, so nothing ends up tiny in the
+middle of the wrong-shaped page. Forcing **Portrait** or **Landscape** gives every page the
+same orientation, which is usually what you want for printing a set of photos.
+
+With **Fit to image**, there is no fixed paper size: each page is cut to its own image, which
+suits screenshots, slides and diagrams. The margin setting still applies, as a white border
+around the image.
+
+## What powers this tool
+
+The PDF is written with [`pdf-lib`](https://github.com/Hopding/pdf-lib) (MIT licensed), with
+this site's own lossless image encoder (using [`fflate`](https://github.com/101arrowz/fflate),
+MIT licensed) for PNG-style images. Decoding WebP, AVIF, GIF and BMP uses your browser's
+built-in image codecs. All of it runs locally on your device.

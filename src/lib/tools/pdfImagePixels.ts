@@ -323,6 +323,12 @@ export function applyAlpha(image: RgbaImageData, alpha: Uint8Array, alphaWidth: 
   return { data, width, height };
 }
 
+/** True when any pixel is less than fully opaque. */
+export function hasTransparency(image: RgbaImageData): boolean {
+  for (let o = 3; o < image.data.length; o += 4) if (image.data[o] !== 255) return true;
+  return false;
+}
+
 /** Converts to grayscale with Rec. 601 luma weights — the same weighting JPEG itself
  *  uses for its Y channel, so a later JPEG encode doesn't shift perceived brightness. */
 export function rgbaToGrayscale(image: RgbaImageData): RgbaImageData {

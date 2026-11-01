@@ -24,6 +24,7 @@ import { MultiFileDropzone } from './shared/MultiFileDropzone';
 import { PdfPreview } from './shared/PdfPreview';
 import { downloadUrl } from './shared/downloadUrl';
 import { useWorkerTask } from './shared/useWorkerTask';
+import { useReorderableList } from './shared/useReorderableList';
 import PdfMergeWorker from '../workers/pdfMerge.worker?worker';
 import type { PdfMergeWorkerRequest, PdfMergeWorkerResult } from '../workers/pdfMerge.worker';
 
@@ -67,8 +68,6 @@ const sameOptions = (a: PdfMergeOptions, b: PdfMergeOptions): boolean =>
 
 const fileNameOf = (item: MergeItem): string => item.file.name;
 
-const hasFiles = (event: DragEvent): boolean => Array.from(event.dataTransfer?.types ?? []).includes('Files');
-
 let nextItemId = 1;
 
 export default function MergePdf() {
@@ -81,15 +80,10 @@ export default function MergePdf() {
   const [result, setResult] = useState<MergedPdf | null>(null);
   const [loadingExample, setLoadingExample] = useState(false);
   const [announcement, setAnnouncement] = useState('');
-  const [draggingId, setDraggingId] = useState<number | null>(null);
-  const [dropTarget, setDropTarget] = useState<{ id: number; after: boolean } | null>(null);
   const [settledKey, setSettledKey] = useState('');
 
   const worker = useWorkerTask<PdfMergeWorkerRequest, PdfMergeWorkerResult>(() => new PdfMergeWorker());
   const resultRef = useRef<MergedPdf | null>(null);
-  const listRef = useRef<HTMLOListElement>(null);
-  const pendingFocusRef = useRef<{ id: number; direction: 'up' | 'down' } | null>(null);
-  const dragIdRef = useRef<number | null>(null);
   /** Latest-wins coalescing, as in PDF Compressor: at most one merge in flight plus one
    *  queued, so a burst of edits on big files costs one extra run, not one per edit. */
   const inFlightRef = useRef(false);
@@ -193,17 +187,6 @@ export default function MergePdf() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settledKey]);
 
-  // After a move via the arrow buttons the row's DOM node is re-inserted, which drops focus;
-  // put it back on the same control (or its sibling, if that one just became disabled).
-  useEffect(() => {
-    const pending = pendingFocusRef.current;
-    if (!pending || !listRef.current) return;
-    pendingFocusRef.current = null;
-    const find = (direction: string) => listRef.current?.querySelector<HTMLButtonElement>(`[data-move="${pending.id}-${direction}"]`);
-    const button = find(pending.direction);
-    (button && !button.disabled ? button : find(pending.direction === 'up' ? 'down' : 'up'))?.focus();
-  }, [items]);
-
   const updateItem = (id: number, patch: Partial<MergeItem>) => setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
 
   const inspect = async (item: MergeItem): Promise<void> => {
@@ -240,7 +223,7 @@ export default function MergePdf() {
     const from = items.findIndex((item) => item.id === id);
     const moving = items[from];
     if (!moving || to < 0 || to >= items.length || from === to) return;
-    if (focus) pendingFocusRef.current = { id, direction: focus };
+    if (focus) reorder.restoreFocusAfterMove(id, focus);
     setItems(moveItem(items, from, to));
     setAnnouncement(`Moved ${moving.file.name} to position ${to + 1} of ${items.length}.`);
   };
@@ -280,42 +263,8 @@ export default function MergePdf() {
     }
   };
 
-  // ---------------------------------------------------------- drag to reorder
-
-  const endDrag = () => {
-    dragIdRef.current = null;
-    setDraggingId(null);
-    setDropTarget(null);
-  };
-
-  const onRowDragOver = (event: DragEvent, item: MergeItem) => {
-    if (dragIdRef.current === null) {
-      if (hasFiles(event)) event.preventDefault(); // Files from the desktop can be dropped onto the list too.
-      return;
-    }
-    event.preventDefault();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    const after = event.clientY > rect.top + rect.height / 2;
-    if (dropTarget?.id !== item.id || dropTarget.after !== after) setDropTarget({ id: item.id, after });
-  };
-
-  const onRowDrop = (event: DragEvent, item: MergeItem) => {
-    event.preventDefault();
-    const dragged = dragIdRef.current;
-    if (dragged === null) {
-      const files = Array.from(event.dataTransfer?.files ?? []);
-      if (files.length > 0) addFiles(files);
-      return;
-    }
-    const from = items.findIndex((candidate) => candidate.id === dragged);
-    const targetIndex = items.findIndex((candidate) => candidate.id === item.id);
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    let to = event.clientY > rect.top + rect.height / 2 ? targetIndex + 1 : targetIndex;
-    if (from < to) to -= 1;
-    endDrag();
-    moveTo(dragged, to);
-  };
+  const reorder = useReorderableList({ items, onMove: (id, to) => moveTo(id, to), onFilesDropped: (files) => addFiles(files), dragLabel: fileNameOf });
+  const { draggingId, dropTarget } = reorder;
 
   // ------------------------------------------------------------------ render
 
@@ -364,7 +313,7 @@ export default function MergePdf() {
             </button>
           </div>
 
-          <ol class="mergepdf-list" ref={listRef} onDragLeave={(event) => event.currentTarget === event.target && setDropTarget(null)}>
+          <ol class="mergepdf-list" ref={reorder.listRef} onDragLeave={reorder.onListDragLeave}>
             {items.map((item, index) => {
               const selection = selections.get(item.id);
               const rangeId = `mergepdf-range-${item.id}`;
@@ -378,29 +327,8 @@ export default function MergePdf() {
                 .filter(Boolean)
                 .join(' ');
               return (
-                <li key={item.id} class={classes} data-testid="merge-row" onDragOver={(event) => onRowDragOver(event, item)} onDrop={(event) => onRowDrop(event, item)}>
-                  <span
-                    class="mergepdf-row__handle"
-                    draggable
-                    aria-hidden="true"
-                    title="Drag to reorder"
-                    onDragStart={(event) => {
-                      dragIdRef.current = item.id;
-                      // Deferred a frame: Chromium aborts a drag (firing dragend at once) if the
-                      // source's DOM changes while dragstart is still being dispatched.
-                      window.requestAnimationFrame(() => {
-                        if (dragIdRef.current === item.id) setDraggingId(item.id);
-                      });
-                      if (event.dataTransfer) {
-                        event.dataTransfer.effectAllowed = 'move';
-                        // Firefox won't start a drag without some data set.
-                        event.dataTransfer.setData('text/plain', item.file.name);
-                        const row = (event.currentTarget as HTMLElement).closest('li');
-                        if (row) event.dataTransfer.setDragImage(row, 24, 24);
-                      }
-                    }}
-                    onDragEnd={endDrag}
-                  >
+                <li key={item.id} class={classes} data-testid="merge-row" {...reorder.rowProps(item)}>
+                  <span class="mergepdf-row__handle" aria-hidden="true" title="Drag to reorder" {...reorder.handleProps(item)}>
                     ⠿
                   </span>
                   <span class="mergepdf-row__index" aria-hidden="true">

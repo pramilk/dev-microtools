@@ -6,6 +6,7 @@ import {
   applyAlpha,
   applyDecodeArray,
   componentsOf,
+  hasTransparency,
   downscaleRgba,
   encodeLossless,
   filterPngRowsAdaptive,
@@ -213,6 +214,14 @@ describe('alphaFromMaskSamples', () => {
   it('paints stencil samples of 0, or of 1 when inverted', () => {
     expect(Array.from(alphaFromMaskSamples(new Uint8Array([0, 1]), 1, 'stencil'))).toEqual([255, 0]);
     expect(Array.from(alphaFromMaskSamples(new Uint8Array([0, 1]), 1, 'stencil', true))).toEqual([0, 255]);
+  });
+});
+
+describe('hasTransparency', () => {
+  it('detects any non-opaque pixel, and treats an empty image as opaque', () => {
+    expect(hasTransparency(rgba(2, 1, () => [0, 0, 0, 255]))).toBe(false);
+    expect(hasTransparency(rgba(2, 1, (x) => [0, 0, 0, x === 1 ? 254 : 255]))).toBe(true);
+    expect(hasTransparency(rgba(0, 0, () => [0, 0, 0, 0]))).toBe(false);
   });
 });
 

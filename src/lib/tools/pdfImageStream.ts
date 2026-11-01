@@ -1,11 +1,13 @@
 import { PDFArray, PDFDict, PDFHexString, PDFName, PDFNumber, PDFRawStream, PDFRef, PDFStream, PDFString, decodePDFRawStream, type PDFContext, type PDFObject } from 'pdf-lib';
-import { componentsOf, packedRowBytes, undoTiffPredictor, unfilterPngRows, type PixelColorModel } from './pdfImagePixels';
+import { componentsOf, encodeLossless, hasTransparency, packedRowBytes, undoTiffPredictor, unfilterPngRows, type PixelColorModel } from './pdfImagePixels';
+import type { RgbaImageData } from './imageCompress';
 
 /**
- * Reading image XObjects out of a pdf-lib object graph — the parts every PDF image tool
- * needs (PDF Compressor re-encodes them, PDF Image Extractor saves them out): the filter
- * chain, the colour space, the `/Decode` mapping, and the decoded, un-predicted sample
- * bytes. Worker-only, like everything else that imports pdf-lib.
+ * Reading and writing image XObjects in a pdf-lib object graph — the parts every PDF image
+ * tool needs (PDF Compressor re-encodes them, PDF Image Extractor saves them out, Image to
+ * PDF creates them): the filter chain, the colour space, the `/Decode` mapping, the decoded,
+ * un-predicted sample bytes, and lossless image streams with soft masks. Worker-only, like
+ * everything else that imports pdf-lib.
  */
 
 const name = (value: string): PDFName => PDFName.of(value);
@@ -191,4 +193,42 @@ export function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
   return true;
+}
+
+/**
+ * Registers RGBA pixels as a lossless image XObject — Flate with PNG row filters, which is how
+ * PDF stores a PNG-style image — and returns its reference. Alpha is ignored here; pass a
+ * separately registered mask as `extra.SMask` to keep transparency (or use `registerWithAlpha`).
+ */
+export function registerLosslessImage(context: PDFContext, image: RgbaImageData, extra: Record<string, PDFRef> = {}): PDFRef {
+  const encoded = encodeLossless(image);
+  const dict = context.obj({
+    Type: 'XObject',
+    Subtype: 'Image',
+    Width: image.width,
+    Height: image.height,
+    BitsPerComponent: 8,
+    ColorSpace: encoded.channels === 1 ? 'DeviceGray' : 'DeviceRGB',
+    Filter: 'FlateDecode',
+    DecodeParms: encoded.decodeParms,
+    ...extra,
+  });
+  return context.register(PDFRawStream.of(dict, encoded.data));
+}
+
+/** Registers RGBA pixels losslessly with their alpha channel as a soft mask — or with no
+ *  mask at all when every pixel is opaque, so an opaque PNG doesn't carry a useless one. */
+export function registerWithAlpha(context: PDFContext, image: RgbaImageData): PDFRef {
+  if (!hasTransparency(image)) return registerLosslessImage(context, image);
+  const { data, width, height } = image;
+  const alpha = new Uint8ClampedArray(width * height * 4);
+  for (let p = 0; p < width * height; p++) {
+    const a = data[p * 4 + 3];
+    alpha[p * 4] = a;
+    alpha[p * 4 + 1] = a;
+    alpha[p * 4 + 2] = a;
+    alpha[p * 4 + 3] = 255;
+  }
+  const mask = registerLosslessImage(context, { data: alpha, width, height });
+  return registerLosslessImage(context, image, { SMask: mask });
 }

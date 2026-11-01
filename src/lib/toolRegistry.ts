@@ -62,6 +62,7 @@ import TextBannerGenerator from '../islands/TextBannerGenerator';
 import PdfCompressor from '../islands/PdfCompressor';
 import MergePdf from '../islands/MergePdf';
 import PdfImageExtractor from '../islands/PdfImageExtractor';
+import ImageToPdf from '../islands/ImageToPdf';
 import AesEncryptDecrypt from '../islands/AesEncryptDecrypt';
 import RsaEncryptDecrypt from '../islands/RsaEncryptDecrypt';
 
@@ -135,6 +136,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'pdf-compressor': PdfCompressor,
   'merge-pdf': MergePdf,
   'pdf-image-extractor': PdfImageExtractor,
+  'image-to-pdf': ImageToPdf,
   'aes-encrypt-decrypt': AesEncryptDecrypt,
   'rsa-encrypt-decrypt': RsaEncryptDecrypt,
 };

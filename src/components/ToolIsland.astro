@@ -58,6 +58,7 @@ import TextBannerGenerator from '../islands/TextBannerGenerator';
 import PdfCompressor from '../islands/PdfCompressor';
 import MergePdf from '../islands/MergePdf';
 import PdfImageExtractor from '../islands/PdfImageExtractor';
+import ImageToPdf from '../islands/ImageToPdf';
 import AesEncryptDecrypt from '../islands/AesEncryptDecrypt';
 import RsaEncryptDecrypt from '../islands/RsaEncryptDecrypt';
 import ChmodCalculator from '../islands/ChmodCalculator';
@@ -149,5 +150,6 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'pdf-compressor' && <PdfCompressor client:load />}
 {slug === 'merge-pdf' && <MergePdf client:load />}
 {slug === 'pdf-image-extractor' && <PdfImageExtractor client:load />}
+{slug === 'image-to-pdf' && <ImageToPdf client:load />}
 {slug === 'aes-encrypt-decrypt' && <AesEncryptDecrypt client:load />}
 {slug === 'rsa-encrypt-decrypt' && <RsaEncryptDecrypt client:load />}
