@@ -1,17 +1,24 @@
 ---
 import { SITE } from '../lib/site';
+
+// Hidden entirely while SITE.buyMeACoffeeUrl is null (see src/lib/site.ts).
+const url = SITE.buyMeACoffeeUrl;
 ---
 
 {/* Rendered once, in BaseLayout, so it shows up at the end of every page's content without
     every page having to remember to add it. */}
-<div class="coffee-cta">
-  <p>
-    <span aria-hidden="true">☕</span> Find these tools useful? A coffee helps keep them free and ad-light.
-  </p>
-  <a href={SITE.buyMeACoffeeUrl} class="coffee-cta__btn" target="_blank" rel="noopener noreferrer">
-    Buy me a coffee
-  </a>
-</div>
+{
+  url && (
+    <div class="coffee-cta">
+      <p>
+        <span aria-hidden="true">☕</span> Find these tools useful? A coffee helps keep them free and ad-light.
+      </p>
+      <a href={url} class="coffee-cta__btn" target="_blank" rel="noopener noreferrer">
+        Buy me a coffee
+      </a>
+    </div>
+  )
+}
 
 <style>
   .coffee-cta {

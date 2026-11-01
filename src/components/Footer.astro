@@ -16,12 +16,16 @@ const year = new Date().getFullYear();
       <ul class="footer-links">
         <li><a href="/about/">About</a></li>
         <li><a href="/privacy-policy/">Privacy</a></li>
-        <li><a href={SITE.repoUrl}>Source on GitHub</a></li>
-        <li>
-          <a href={SITE.buyMeACoffeeUrl} target="_blank" rel="noopener noreferrer">
-            <span aria-hidden="true">☕</span> Buy me a coffee
-          </a>
-        </li>
+        {SITE.githubLinkEnabled && <li><a href={SITE.repoUrl}>Source on GitHub</a></li>}
+        {
+          SITE.buyMeACoffeeUrl && (
+            <li>
+              <a href={SITE.buyMeACoffeeUrl} target="_blank" rel="noopener noreferrer">
+                <span aria-hidden="true">☕</span> Buy me a coffee
+              </a>
+            </li>
+          )
+        }
       </ul>
       <p class="footer-credit">
         <a href="/about/#open-source-components">Open source components &amp; AI models</a>

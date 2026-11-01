@@ -32,6 +32,7 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
       </ul>
     </nav>
 
+    {SITE.githubLinkEnabled && (
     <a
       href={SITE.repoUrl}
       class="github-link"
@@ -53,6 +54,7 @@ const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWit
         ></path>
       </svg>
     </a>
+    )}
 
     <ThemeToggle />
   </div>
