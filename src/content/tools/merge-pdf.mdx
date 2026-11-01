@@ -1,0 +1,86 @@
+---
+title: Merge PDF
+headline: Merge PDF — Combine PDF Files Without Uploading
+description: Combine PDFs in your browser. Reorder files, pick page ranges, rotate, keep bookmarks, links and form fields, and preview the result. Nothing is uploaded.
+summary: Combine PDFs in any order — pick pages, rotate, keep bookmarks and form fields, and preview. Nothing is uploaded.
+category: PDF
+order: 20
+updated: 2026-10-13
+whatIsIt: >-
+  This tool combines several PDF files into one, entirely inside your browser. Drop in your
+  files, put them in the order you want by dragging or with the arrow buttons, and the merged
+  document appears in a live preview as you work, ready to download. It goes well beyond
+  gluing pages together: for each file you can choose exactly which pages to include
+  (ranges like 1-3, 8-, reversed ranges, or just the odd or even pages), and rotate a
+  sideways scan. The parts of a PDF that cheaper mergers lose are kept intact. Each file's
+  own bookmarks are carried across and re-pointed at the right pages, with an optional
+  bookmark per file on top. Clickable links inside a document keep working. Fillable form
+  fields stay fillable, and two forms that use the same field name are kept independent
+  instead of silently sharing values. Every page keeps its own size and orientation, and text
+  stays selectable because nothing is converted to images. The files are processed in a
+  background worker on your device and never uploaded, so you can safely merge contracts,
+  statements and records.
+useCases:
+  - Combining a cover letter, CV and certificates into the single PDF an application portal asks for.
+  - Assembling a report from separately exported chapters, keeping each chapter's bookmarks in the merged file.
+  - Pulling just the signed pages or a few relevant pages out of several long documents into one handout.
+  - Fixing a sideways scan and re-ordering pages from a document scanner before archiving them as one file.
+  - Merging confidential invoices, bank statements or medical records without sending them to a third-party server.
+  - Preparing a document for double-sided printing so every file starts on a fresh sheet of paper.
+howTo:
+  - Drop your PDFs onto the tool, or choose them from your device. You can add more at any time, up to 50 files.
+  - Put the files in order by dragging the ⠿ handle, using the ↑ and ↓ buttons, or sorting by name.
+  - Optionally type a page range for a file (for example 1-3, 7 or 10-) and press ↻ to rotate its pages.
+  - Choose merge options such as bookmarks per file, keeping existing bookmarks, blank pages for double-sided printing, and a document title.
+  - Scroll through the merged preview to check the order. It updates automatically after every change.
+  - Name the file if you like, then press Download merged PDF. Your original files are never modified.
+example:
+  label: Merging three files, with bookmarks, a link and a form field preserved.
+  input: 'cover-letter.pdf (1 page), quarterly-report.pdf (3 pages, with its own bookmarks and an internal "Jump to Next steps" link) and appendix.pdf (2 pages, one landscape, with a fillable "reviewer" field).'
+  output: 'One 6-page merged.pdf with a bookmark per file and the report''s own bookmarks nested underneath, the internal link still jumping to the right page, the landscape page still landscape, and the reviewer field still fillable.'
+  note: Press "Load example" to add these three sample files and see the merged preview yourself. Try typing 3-1 as the report's page range to reverse its pages.
+faq:
+  - q: Are my PDFs uploaded to a server?
+    a: No. The files are read, merged and written entirely in your browser, in a background worker so the page stays responsive. Nothing you add is transmitted anywhere. You can disconnect from the internet after the page loads and the tool still works.
+  - q: How do I merge only some pages of a file?
+    a: Type a page range in the file's Pages box. You can list pages and ranges separated by commas (1-3, 5, 9), use an open-ended range like 8- for page 8 to the end, write a range backwards (5-1) to reverse those pages, or type odd or even. Listing a page twice includes it twice. Leave the box empty to include every page. An invalid range is highlighted with an explanation, and the preview waits until it is fixed.
+  - q: Will bookmarks, links and form fields still work in the merged PDF?
+    a: Yes. Each file's bookmarks are copied and re-pointed at the right merged pages. Bookmarks for pages you left out are dropped. Links from one page to another inside a file keep working, including links that use named destinations. Form fields stay fillable with their current values. If two files use the same field name, the later one is renamed (for example name_2), because PDF would otherwise treat them as one field and typing in either would fill both.
+  - q: Can I merge password-protected or digitally signed PDFs?
+    a: Encrypted PDFs, meaning those with an open password or with permission restrictions, cannot be rewritten in a browser. They are flagged in the file list and left out of the merge. Open such a file in a PDF viewer, use "Print to PDF" to save an unprotected copy, and add that instead. Signed PDFs can be merged, but a digital signature only covers the exact original file, so it will not show as valid in the merged document. The tool warns you when that happens.
+  - q: Why is the preview blank on my phone?
+    a: The preview uses your browser's built-in PDF viewer, and most mobile browsers cannot show a PDF inside a page. Use "Open in new tab" above the preview instead, or simply download the merged file. The merge itself works the same on every device.
+  - q: Is there a limit on how many files or pages I can merge?
+    a: You can merge up to 50 files, with up to 150 MB per file and 250 MB in total. All the files are held in your device's memory while merging, so very large batches may be slow on low-memory phones. For huge documents, merge in stages, or shrink the files first with the PDF Compressor.
+related:
+  - pdf-compressor
+  - image-compressor
+  - image-cropper
+---
+
+## Page ranges, rotation and order
+
+Each file's **Pages** box takes a page selection in the order you want those pages to appear.
+`1-3, 5` takes four pages, `8-` runs from page 8 to the end, `5-1` reverses the first five
+pages, and `odd` or `even` pick alternating pages. That last option is handy for
+interleaving the front and back sides of a single-sided duplex scan. The ↻ button rotates
+all of that file's pages by 90° at a time, on top of any rotation they already had, which
+fixes sideways scans without a separate tool.
+
+## What a professional merge keeps
+
+Many quick online mergers copy each page in isolation. That breaks links between pages,
+discards bookmarks, and turns two copies of the same form into one field that shares a
+single value. This tool copies each file's pages as a group, so links between pages land
+on the merged copy of their target. Bookmarks are remapped, and named destinations are
+rewritten so they keep working. Form field names are made unique whenever two files
+collide. The merged file opens with its bookmarks panel showing, so readers can jump
+straight to each original document. A digital signature is the one thing that cannot
+survive: it certifies the exact bytes of the original file, so the tool warns you to keep
+the signed original as well.
+
+## What powers this tool
+
+PDF parsing and writing use [`pdf-lib`](https://github.com/Hopding/pdf-lib) (MIT licensed),
+in a background Web Worker that is only loaded once you add your first file. The preview is
+your browser's own PDF viewer, so no PDF-rendering library is downloaded at all.

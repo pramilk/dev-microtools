@@ -98,4 +98,10 @@ describe('<MultiFileDropzone />', () => {
     renderZone({ accept: 'image/*' });
     expect(screen.getByLabelText('Choose images to compress')).toHaveAttribute('accept', 'image/*');
   });
+
+  it('names the kind of file it takes in the prompt and the button', () => {
+    renderZone({ noun: 'PDFs', roomRemaining: 2 });
+    expect(screen.getByText(/drag more PDFs here \(2 more allowed\)/i)).toBeInTheDocument();
+    expect(screen.getByText('Choose PDFs')).toBeInTheDocument();
+  });
 });

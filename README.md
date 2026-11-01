@@ -121,6 +121,7 @@ tools, the three CSS generators).
 | Tool | Description |
 |---|---|
 | [PDF Compressor](https://devmicrotools.com/pdf-compressor/) | Shrink PDFs in your browser — pick image format, quality and DPI; text stays sharp and nothing is uploaded. |
+| [Merge PDF](https://devmicrotools.com/merge-pdf/) | Combine PDFs in any order — pick pages, rotate, keep bookmarks and form fields, and preview. Nothing is uploaded. |
 
 ### CSS
 

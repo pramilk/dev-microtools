@@ -20,6 +20,7 @@ import { SavingsBadge } from './shared/SavingsBadge';
 import { CompareSlider } from './shared/CompareSlider';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { FileDropzone } from './shared/FileDropzone';
+import { PdfPreview } from './shared/PdfPreview';
 import { downloadUrl } from './shared/downloadUrl';
 import { useWorkerTask } from './shared/useWorkerTask';
 import PdfCompressWorker from '../workers/pdfCompress.worker?worker';
@@ -57,11 +58,6 @@ function revoke(result: CompressedPdf | null): void {
 
 /** Which document the whole-file viewer shows. */
 type ViewerSource = 'compressed' | 'original';
-
-/** `#view=FitH` asks Chromium's and Firefox's built-in viewers to fit the page width, so the
- *  preview opens readable instead of at an arbitrary zoom. Viewers that don't understand the
- *  fragment ignore it. */
-const viewerSrc = (url: string): string => `${url}#view=FitH`;
 
 const dpiLabel = (dpi: number | null): string => (dpi === null ? 'Original (no downsampling)' : `${dpi} DPI`);
 
@@ -384,10 +380,12 @@ export default function PdfCompressor() {
             const url = showing === 'original' ? originalUrl : result.url;
             if (!url) return null;
             return (
-              <div class="pdfc-viewer">
-                <div class="pdfc-viewer__bar">
-                  <span class="field__label">Document preview</span>
-                  {!report.keptOriginal && (
+              <PdfPreview
+                url={url}
+                heading="Document preview"
+                frameTitle={`${showing === 'original' ? 'Original' : 'Compressed'} PDF preview`}
+                controls={
+                  !report.keptOriginal && (
                     <div class="seg" role="group" aria-label="Document to preview">
                       <button type="button" class="seg__btn" aria-pressed={showing === 'compressed'} onClick={() => setViewerSource('compressed')} title="Scroll through the compressed PDF exactly as it will download">
                         Compressed
@@ -396,18 +394,9 @@ export default function PdfCompressor() {
                         Original
                       </button>
                     </div>
-                  )}
-                  <span class="tool-bar__spacer" />
-                  <a class="field__hint" href={url} target="_blank" rel="noopener" title="Open this PDF in your browser's full PDF viewer">
-                    Open in new tab ↗
-                  </a>
-                </div>
-                {/* The browser's own PDF viewer: scrolling, zoom and page navigation for free,
-                    with no PDF-rendering library shipped. Keyed on the URL so switching
-                    documents reloads the frame instead of keeping the old one's scroll state. */}
-                <iframe key={url} class="pdfc-viewer__frame" src={viewerSrc(url)} title={`${showing === 'original' ? 'Original' : 'Compressed'} PDF preview`} />
-                <p class="field__hint">Blank preview? Some browsers (most phones) can't display PDFs inside a page — use “Open in new tab” instead.</p>
-              </div>
+                  )
+                }
+              />
             );
           })()}
 
@@ -443,15 +432,6 @@ export default function PdfCompressor() {
         .pdfc-stats { margin: var(--space-3) 0 0; padding-left: var(--space-5); color: var(--text-muted); font-size: var(--text-sm); }
         .pdfc-stats li + li { margin-top: var(--space-1); }
         .pdfc-preview { margin-top: var(--space-4); }
-        .pdfc-viewer { margin-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
-        .pdfc-viewer__bar { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-        .pdfc-viewer .field__hint { margin: 0; }
-        /* Fixed height reserved up front, so the frame loading its content never shifts the
-           page (CLS); the document scrolls inside it. */
-        .pdfc-viewer__frame {
-          width: 100%; height: 75vh; min-height: 28rem; max-height: 60rem;
-          border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2);
-        }
       `}</style>
     </div>
   );

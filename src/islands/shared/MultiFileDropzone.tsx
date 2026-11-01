@@ -10,13 +10,15 @@ interface Props {
   chooseLabel: string;
   /** Native `accept` filter, e.g. "image/*". Passed straight through to the file input. */
   accept?: string;
+  /** What the files are, in the plural, for the prompt and button ("images", "PDFs"). */
+  noun?: string;
 }
 
 /**
  * A drop zone that accepts one or many files at once — unlike the shared single-file
  * `FileDropzone`, which every non-batch file-based tool here uses.
  */
-export function MultiFileDropzone({ onFilesSelected, roomRemaining, maxFiles, chooseLabel, accept }: Props) {
+export function MultiFileDropzone({ onFilesSelected, roomRemaining, maxFiles, chooseLabel, accept, noun = 'images' }: Props) {
   const [dragOver, setDragOver] = useState(false);
 
   return (
@@ -36,13 +38,13 @@ export function MultiFileDropzone({ onFilesSelected, roomRemaining, maxFiles, ch
     >
       <p>
         {roomRemaining === maxFiles
-          ? `Drag one or more images here (up to ${maxFiles} at once), or`
+          ? `Drag one or more ${noun} here (up to ${maxFiles} at once), or`
           : roomRemaining > 0
-            ? `Drag more images here (${roomRemaining} more allowed), or`
+            ? `Drag more ${noun} here (${roomRemaining} more allowed), or`
             : `Batch is full (${maxFiles} max) — remove one to add another, or`}
       </p>
       <label class="btn">
-        Choose images
+        Choose {noun}
         <input
           type="file"
           class="sr-only"

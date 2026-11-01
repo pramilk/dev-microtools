@@ -18,6 +18,7 @@ import {
 } from 'pdf-lib';
 import { unzlibSync, zlibSync } from 'fflate';
 import { type ToolResult, ok, err } from './result';
+import { removeUnreachableObjects } from './pdfObjectGraph';
 import { computeTargetDimensions, type RgbaImageData } from './imageCompress';
 import {
   componentsOf,
@@ -509,45 +510,6 @@ function mergeDuplicateStreams(context: PDFContext): number {
     if (replacements.has(ref.toString())) context.delete(ref);
   }
   return replacements.size;
-}
-
-/**
- * Deletes every object no longer reachable from the trailer — superseded versions left
- * behind by incremental saves, the XMP/thumbnail streams just detached, duplicates just
- * merged, and old image streams just replaced. A valid PDF reaches everything it renders
- * from `/Root` (or `/Info`), so this can never drop visible content.
- */
-function removeUnreachableObjects(context: PDFContext): number {
-  const reachable = new Set<string>();
-  const stack: PDFObject[] = [];
-  const { Root, Info, Encrypt } = context.trailerInfo;
-  for (const entry of [Root, Info, Encrypt]) if (entry) stack.push(entry);
-
-  while (stack.length > 0) {
-    const object = stack.pop();
-    if (object instanceof PDFRef) {
-      const key = object.toString();
-      if (reachable.has(key)) continue;
-      reachable.add(key);
-      const target = context.lookup(object);
-      if (target) stack.push(target);
-    } else if (object instanceof PDFDict) {
-      stack.push(...object.values());
-    } else if (object instanceof PDFArray) {
-      stack.push(...object.asArray());
-    } else if (object instanceof PDFStream) {
-      stack.push(object.dict);
-    }
-  }
-
-  let removed = 0;
-  for (const [ref] of context.enumerateIndirectObjects()) {
-    if (!reachable.has(ref.toString())) {
-      context.delete(ref);
-      removed += 1;
-    }
-  }
-  return removed;
 }
 
 /** Strips the Info dictionary, every XMP `/Metadata` stream and editor-private `/PieceInfo`. */

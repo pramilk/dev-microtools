@@ -60,6 +60,7 @@ import AsciiArtGenerator from '../islands/AsciiArtGenerator';
 import MermaidDiagramGenerator from '../islands/MermaidDiagramGenerator';
 import TextBannerGenerator from '../islands/TextBannerGenerator';
 import PdfCompressor from '../islands/PdfCompressor';
+import MergePdf from '../islands/MergePdf';
 import AesEncryptDecrypt from '../islands/AesEncryptDecrypt';
 import RsaEncryptDecrypt from '../islands/RsaEncryptDecrypt';
 
@@ -131,6 +132,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'mermaid-diagram-generator': MermaidDiagramGenerator,
   'ascii-text-banner-generator': TextBannerGenerator,
   'pdf-compressor': PdfCompressor,
+  'merge-pdf': MergePdf,
   'aes-encrypt-decrypt': AesEncryptDecrypt,
   'rsa-encrypt-decrypt': RsaEncryptDecrypt,
 };
