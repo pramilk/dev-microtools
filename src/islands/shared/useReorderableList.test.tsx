@@ -10,7 +10,7 @@ interface Row {
 }
 
 /** The smallest list that wires the hook up the way Merge PDF and Image to PDF do. */
-function Harness({ onFilesDropped = vi.fn() }: { onFilesDropped?: (files: File[]) => void }) {
+function Harness({ onFilesDropped = vi.fn(), axis }: { onFilesDropped?: (files: File[]) => void; axis?: 'vertical' | 'horizontal' }) {
   const [items, setItems] = useState<Row[]>([
     { id: 1, name: 'one' },
     { id: 2, name: 'two' },
@@ -20,7 +20,7 @@ function Harness({ onFilesDropped = vi.fn() }: { onFilesDropped?: (files: File[]
     if (focus) reorder.restoreFocusAfterMove(id, focus);
     setItems(moveItem(items, items.findIndex((item) => item.id === id), to));
   };
-  const reorder = useReorderableList({ items, onMove: (id, to) => moveTo(id, to), onFilesDropped, dragLabel: (item) => item.name });
+  const reorder = useReorderableList({ items, onMove: (id, to) => moveTo(id, to), onFilesDropped, dragLabel: (item) => item.name, axis });
 
   return (
     <ol ref={reorder.listRef} onDragLeave={reorder.onListDragLeave}>
@@ -45,6 +45,13 @@ function Harness({ onFilesDropped = vi.fn() }: { onFilesDropped?: (files: File[]
 const order = () => screen.getAllByTestId('row').map((row) => row.textContent?.replace(/⠿|up.*$/g, '').trim());
 const dataTransfer = (files: File[] = []) => ({ setData: vi.fn(), setDragImage: vi.fn(), effectAllowed: '', dropEffect: '', types: files.length ? ['Files'] : ['text/plain'], files });
 
+/** jsdom has no DragEvent, and fireEvent's stand-in drops clientX/clientY — a MouseEvent keeps them. */
+function dropAt(transfer: ReturnType<typeof dataTransfer>, clientX: number, clientY: number): MouseEvent {
+  const event = new MouseEvent('drop', { bubbles: true, cancelable: true, clientX, clientY });
+  Object.defineProperty(event, 'dataTransfer', { value: transfer });
+  return event;
+}
+
 describe('useReorderableList', () => {
   it('moves a dragged row to where it is dropped', () => {
     render(<Harness />);
@@ -56,6 +63,24 @@ describe('useReorderableList', () => {
     fireEvent.dragOver(first, { dataTransfer: transfer });
     fireEvent.drop(first, { dataTransfer: transfer });
     expect(order()).toEqual(['three', 'one', 'two']);
+  });
+
+  it('decides before/after by the left and right halves on a horizontal (grid) axis', () => {
+    render(<Harness axis="horizontal" />);
+    const transfer = dataTransfer();
+    const [first] = screen.getAllByTestId('row');
+    if (!first) throw new Error('no rows');
+    first.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 100, right: 100, bottom: 100, x: 0, y: 0, toJSON: () => ({}) });
+    fireEvent.dragStart(screen.getByTestId('handle-three'), { dataTransfer: transfer });
+    // Low on the card (which a vertical list would call "after") but in its left half: before.
+    fireEvent(first, dropAt(transfer, 20, 90));
+    expect(order()).toEqual(['three', 'one', 'two']);
+    fireEvent.dragStart(screen.getByTestId('handle-three'), { dataTransfer: transfer });
+    const [, second] = screen.getAllByTestId('row');
+    if (!second) throw new Error('no rows');
+    second.getBoundingClientRect = first.getBoundingClientRect;
+    fireEvent(second, dropAt(transfer, 80, 10));
+    expect(order()).toEqual(['one', 'three', 'two']);
   });
 
   it('hands files dropped from the desktop onto a row to onFilesDropped', () => {

@@ -32,6 +32,7 @@ import { downloadZip } from './shared/downloadZip';
 import { useWorkerTask } from './shared/useWorkerTask';
 import { usePdfThumbnails } from './shared/usePdfThumbnails';
 import { PdfPageThumb } from './shared/PdfPageThumb';
+import { PdfPageViewer } from './shared/PdfPageViewer';
 import PdfSplitWorker from '../workers/pdfSplit.worker?worker';
 import type { PdfSplitWorkerRequest, PdfSplitWorkerResult } from '../workers/pdfSplit.worker';
 
@@ -99,6 +100,8 @@ export default function SplitPdf() {
    *  doesn't throw the drawn thumbnails away. */
   const [pickOpened, setPickOpened] = useState(false);
   const pickAnchorRef = useRef<number | null>(null);
+  /** The page open full size in the viewer, if any. */
+  const [zoomedPage, setZoomedPage] = useState<number | null>(null);
   // pdf.js only loads once "Pick pages" is opened, and only for a file pdf-lib could read.
   const thumbnails = usePdfThumbnails(info && (pickOpened || settings.mode === 'pick') ? file : null);
   const resultRef = useRef<SplitResult | null>(null);
@@ -208,6 +211,7 @@ export default function SplitPdf() {
     setFile(next);
     setFileId((id) => id + 1);
     setPickOpened(false);
+    setZoomedPage(null);
     pickAnchorRef.current = null;
     setReading(true);
     try {
@@ -430,6 +434,7 @@ export default function SplitPdf() {
                           src={thumbnails.thumbnailFor(page)}
                           failed={thumbnails.hasFailed(page)}
                           onVisible={() => thumbnails.request(page)}
+                          onZoom={() => setZoomedPage(page)}
                           selected={picked}
                         >
                           <span class="splitpdf-page__row">
@@ -643,6 +648,17 @@ export default function SplitPdf() {
 
           <PdfPreview url={preview.url} heading={`Preview — ${preview.name}`} frameTitle={`Preview of ${preview.name}`} />
         </div>
+      )}
+
+      {zoomedPage !== null && zoomedPage < pageCount && (
+        <PdfPageViewer
+          title={`Page ${zoomedPage + 1} of ${pageCount}`}
+          pageKey={`${fileId}:${zoomedPage}`}
+          load={() => thumbnails.renderLarge(zoomedPage)}
+          onClose={() => setZoomedPage(null)}
+          onPrevious={zoomedPage > 0 ? () => setZoomedPage(zoomedPage - 1) : undefined}
+          onNext={zoomedPage < pageCount - 1 ? () => setZoomedPage(zoomedPage + 1) : undefined}
+        />
       )}
 
       <p class="sr-only" aria-live="polite">

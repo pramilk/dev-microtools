@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/preact';
-import { usePdfThumbnails } from './usePdfThumbnails';
+import { usePdfThumbnailSet, usePdfThumbnails } from './usePdfThumbnails';
 
 // pdf.js needs a real canvas, which jsdom lacks; the hook's job is the queueing and lifecycle
 // around it, so the renderer is a controllable stand-in.
 const renderer = vi.hoisted(() => ({
   open: vi.fn(),
   render: vi.fn(),
+  renderPixels: vi.fn(),
   destroy: vi.fn(),
 }));
 vi.mock('./pdfThumbnails', () => ({ openThumbnailDocument: renderer.open }));
@@ -19,7 +20,8 @@ beforeEach(() => {
   URL.revokeObjectURL = vi.fn();
   renderer.render.mockReset().mockImplementation(async (page: number) => new Blob([`page ${page}`]));
   renderer.destroy.mockReset().mockResolvedValue(undefined);
-  renderer.open.mockReset().mockImplementation(async () => ({ pageCount: 5, render: renderer.render, destroy: renderer.destroy }));
+  renderer.renderPixels.mockReset().mockResolvedValue({ data: new Uint8ClampedArray(4), width: 1, height: 1 });
+  renderer.open.mockReset().mockImplementation(async () => ({ pageCount: 5, render: renderer.render, renderPixels: renderer.renderPixels, destroy: renderer.destroy }));
 });
 
 describe('usePdfThumbnails', () => {
@@ -111,5 +113,47 @@ describe('usePdfThumbnails', () => {
     act(() => result.current.request(0));
     expect(renderer.open).not.toHaveBeenCalled();
     expect(result.current.unavailable).toBeNull();
+  });
+
+  it('draws a page large on request, once the document is open', async () => {
+    const pdf = file();
+    const { result } = renderHook(() => usePdfThumbnails(pdf));
+    await waitFor(() => expect(renderer.open).toHaveBeenCalled());
+    expect(await result.current.renderLarge(3)).toBeInstanceOf(Blob);
+    expect(renderer.render).toHaveBeenCalledWith(3, 900, 1200);
+  });
+});
+
+describe('usePdfThumbnailSet', () => {
+  it('keeps each file’s pages apart and releases only a file that goes away', async () => {
+    const a = file('a.pdf');
+    const b = file('b.pdf');
+    const { result, rerender } = renderHook(({ files }: { files: File[] }) => usePdfThumbnailSet(files), { initialProps: { files: [a, b] } });
+    await waitFor(() => expect(renderer.open).toHaveBeenCalledTimes(2));
+    act(() => {
+      result.current.request(a, 0);
+      result.current.request(b, 0);
+    });
+    await waitFor(() => expect(result.current.thumbnailFor(b, 0)).toBeDefined());
+    await waitFor(() => expect(result.current.thumbnailFor(a, 0)).toBeDefined());
+    expect(result.current.thumbnailFor(a, 0)).not.toBe(result.current.thumbnailFor(b, 0));
+    expect(result.current.thumbnailFor(a, 1)).toBeUndefined();
+
+    const kept = result.current.thumbnailFor(a, 0);
+    rerender({ files: [a] });
+    await waitFor(() => expect(renderer.destroy).toHaveBeenCalledTimes(1));
+    expect(result.current.thumbnailFor(b, 0)).toBeUndefined();
+    expect(result.current.thumbnailFor(a, 0)).toBe(kept);
+    expect(renderer.open).toHaveBeenCalledTimes(2);
+  });
+
+  it('measures a page’s pixels, and rejects for a file that isn’t open', async () => {
+    const a = file();
+    const { result } = renderHook(() => usePdfThumbnailSet([a]));
+    await expect(result.current.pixels(file('other.pdf'), 0)).rejects.toThrow(/isn’t open/);
+    await act(async () => {
+      expect(await result.current.pixels(a, 2)).toEqual({ data: new Uint8ClampedArray(4), width: 1, height: 1 });
+    });
+    expect(renderer.renderPixels).toHaveBeenCalledWith(2, 150, 200);
   });
 });

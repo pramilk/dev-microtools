@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/preact';
+import { render, screen, fireEvent } from '@testing-library/preact';
 import { PdfPageThumb } from './PdfPageThumb';
 
 afterEach(() => {
@@ -31,6 +31,36 @@ describe('<PdfPageThumb />', () => {
     );
     expect(screen.getByText('File 2')).toBeInTheDocument();
     expect(container.firstElementChild?.className).toContain('pdf-thumb--muted');
+  });
+
+  it('turns the page for a pending rotation, swapping its limits on a quarter turn', () => {
+    render(<PdfPageThumb pageNumber={1} src="blob:p" failed={false} onVisible={() => {}} rotation={-90} />);
+    const image = screen.getByRole('img', { name: 'Page 1' });
+    expect(image.style.transform).toBe('rotate(270deg)');
+    expect(image).toHaveClass('pdf-thumb__sheet--quarter');
+  });
+
+  it('shows a blank sheet for an inserted blank page', () => {
+    render(<PdfPageThumb pageNumber={2} src={undefined} failed={false} onVisible={() => {}} blank />);
+    expect(screen.getByRole('img', { name: 'Blank page' })).toHaveClass('pdf-thumb__blank');
+  });
+
+  it('opens the full-size view from the zoom button without the click reaching the card', () => {
+    const onZoom = vi.fn();
+    const onCardClick = vi.fn();
+    render(
+      <div onClick={onCardClick}>
+        <PdfPageThumb pageNumber={4} src={undefined} failed={false} onVisible={() => {}} onZoom={onZoom} />
+      </div>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'View page 4 full size' }));
+    expect(onZoom).toHaveBeenCalledTimes(1);
+    expect(onCardClick).not.toHaveBeenCalled();
+  });
+
+  it('has no zoom button unless asked', () => {
+    render(<PdfPageThumb pageNumber={4} src={undefined} failed={false} onVisible={() => {}} />);
+    expect(screen.queryByRole('button')).toBeNull();
   });
 
   it('asks to be drawn straight away when IntersectionObserver isn’t available', () => {

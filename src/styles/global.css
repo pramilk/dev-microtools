@@ -19,6 +19,9 @@
   --surface: #ffffff;
   --surface-2: #f2f4f8;
   --surface-3: #e8ebf1;
+  /* A sheet of paper in a page preview — white in both themes, like the drawn pages beside it,
+     so it is deliberately not redefined for dark mode. */
+  --paper: #ffffff;
   --border: #e2e6ee;
   --border-strong: #c8cfdb;
 

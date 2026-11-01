@@ -125,6 +125,7 @@ tools, the three CSS generators).
 | [PDF Image Extractor](https://devmicrotools.com/pdf-image-extractor/) | Pull every image out of a PDF at full quality — preview, then download one or all as a ZIP. Nothing is uploaded. |
 | [Image to PDF](https://devmicrotools.com/image-to-pdf/) | Turn JPG, PNG, WebP and other images into one PDF — reorder, rotate, pick page size and margins. Nothing is uploaded. |
 | [Split PDF](https://devmicrotools.com/split-pdf/) | Split a PDF by ranges, every N pages, bookmarks or size — or pick pages from thumbnails. Nothing is uploaded. |
+| [Organize PDF](https://devmicrotools.com/organize-pdf/) | Reorder, rotate, delete and insert PDF pages; add page numbers, a watermark or a background. Nothing is uploaded. |
 
 ### CSS
 

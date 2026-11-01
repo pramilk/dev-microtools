@@ -118,6 +118,14 @@ test.describe('Split PDF', () => {
     // Actually drawn, not just present: every image decoded to real pixels.
     await expect.poll(() => thumbnails.evaluateAll((images) => images.every((image) => (image as HTMLImageElement).naturalWidth > 0))).toBe(true);
 
+    // The zoom button shows a page full size, without picking it.
+    await tool.getByRole('button', { name: 'View page 3 full size' }).click();
+    const large = page.getByRole('dialog', { name: 'Page 3 of 6' }).getByRole('img');
+    await expect.poll(() => large.evaluate((element) => (element as HTMLImageElement).naturalWidth), { timeout: 30_000 }).toBeGreaterThan(400);
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(tool.getByText(/Click the pages you want/)).toBeVisible();
+
     await tool.getByTestId('split-page').nth(1).click();
     await tool.getByTestId('split-page').nth(4).click();
     await expect(tool.getByText(/2 of 6 pages picked/)).toBeVisible();

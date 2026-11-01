@@ -1,0 +1,88 @@
+---
+title: Organize PDF
+headline: Organize PDF — Rearrange, Rotate and Delete Pages Online
+description: Rearrange, rotate, delete and insert PDF pages from thumbnails, then add page numbers, a watermark or a background and compress. Nothing is uploaded.
+summary: Reorder, rotate, delete and insert PDF pages; add page numbers, a watermark or a background. Nothing is uploaded.
+category: PDF
+order: 27
+updated: 2026-11-01
+whatIsIt: >-
+  This tool lets you fix up a PDF page by page, entirely inside your browser. Every page is
+  shown as a thumbnail you can drag into a new order, rotate, duplicate or remove, and you can
+  insert blank pages or the pages of other PDFs anywhere. Click the magnifier on any thumbnail
+  to see the page full size. Two buttons handle common scanning jobs: Collate duplex scan puts
+  a one-sided scan of double-sided paper back in reading order, and Find blank pages picks out
+  the empty backs and separator sheets so you can delete them in one go. On top of the page
+  edits you can add page numbers, a line of header or footer text, a watermark such as
+  CONFIDENTIAL or DRAFT, and a background colour or image, then optionally compress the result.
+  Every change can be undone, and the finished PDF is rewritten and previewed automatically.
+  Bookmarks follow their pages, links between kept pages keep working, and form fields stay
+  fillable. The file is processed on your device and never uploaded.
+useCases:
+  - Putting the pages of a scanned contract back in order and turning the sideways ones upright before filing it.
+  - Removing draft notes, duplicate pages or blank scanned backs from a report before sending it to a client.
+  - Fixing a duplex document scanned on a one-sided scanner, where all the fronts came first and the backs came out in reverse.
+  - Slotting a signed signature page, taken from a separate PDF, into the right place in an agreement.
+  - Adding "Page 1 of 12" numbering and a company name footer to a document assembled from several sources.
+  - Stamping DRAFT or CONFIDENTIAL across every page of a document before sharing it for review.
+howTo:
+  - Drop a PDF onto the tool, or choose one from your device. A thumbnail of every page appears.
+  - Click pages to select them (Shift-click selects a run, Ctrl+A selects all), then use Rotate, Earlier, Later, Duplicate or Remove. You can also drag a page to a new place, or use the small rotate and remove buttons on each page.
+  - Click the magnifier on a thumbnail to check a page at full size. Use the arrow keys to step through the pages.
+  - Use + Blank page or + Insert PDF to add pages after the selection, or at the end when nothing is selected. Reverse, Collate duplex scan and Find blank pages work on the whole document.
+  - Optionally turn on page numbers, header or footer text, a watermark or a background, and choose a compression level.
+  - Check the preview, then press Download PDF. Undo (Ctrl+Z) and Reset are there if you change your mind, and your original file is never modified.
+example:
+  label: Tidying a six-page report before sending it.
+  input: 'quarterly-report.pdf (6 pages, with bookmarks): a cover, section 3 placed before section 2 by mistake, a revenue chart scanned sideways, a page of internal draft notes, and an appendix.'
+  output: 'A five-page quarterly-report-organized.pdf: section 2 dragged before section 3, the chart rotated upright, the draft notes removed, and "Page 1 of 4" numbers at the bottom of every page after the cover. The bookmarks still open the right sections, and the one pointing at the removed notes is gone.'
+  note: Press "Load example" to open this sample report and fix it yourself. Turn on Page numbers with "Number from page" set to 2 to leave the cover unnumbered.
+faq:
+  - q: Is my PDF uploaded to a server?
+    a: No. The PDF is read and rewritten entirely in your browser, in a background worker so the page stays responsive, and the thumbnails are drawn on your device too. Nothing is transmitted anywhere. You can disconnect from the internet after the page loads and the tool still works.
+  - q: How do I move several pages at once?
+    a: Select them first. Click one page, then Shift-click another to select everything in between, or Ctrl-click style toggling by clicking pages one at a time. Then press Earlier or Later to move the whole selection one place at a time. Pages that were spread out gather together as they move. To move a single page a long way, it is quicker to drag it and drop it on the left or right half of the page it should go before or after.
+  - q: What does Collate duplex scan do?
+    a: It fixes the page order you get when you scan double-sided paper on a scanner that only scans one side. You scan all the fronts, turn the stack over and scan all the backs, which come out from the last sheet to the first. Collate duplex scan interleaves the two halves into front 1, back 1, front 2, back 2 and so on. If the result looks wrong, press Undo.
+  - q: How does Find blank pages decide a page is blank?
+    a: It draws each page small and measures how much of it is ink, ignoring a thin border where scanners often pick up dark edges. A page with almost no ink, such as an empty back or a separator sheet with a few specks of dust, counts as blank. The pages it finds are selected rather than deleted, so you can check them with the magnifier and press Remove when you are happy. A page with only a page number or a single short line is not treated as blank.
+  - q: Can I add page numbers, a watermark or a background?
+    a: Yes. Page numbers can go at any corner or the middle of the top or bottom edge, in formats like "3", "Page 3" or "Page 3 of 12", starting from any number and from any page, so a cover can stay unnumbered. Header or footer text and a watermark are drawn the same way, upright even on rotated pages. A background colour or JPG or PNG image is drawn underneath each page's content. Scanned pages, and pages that paint their own white background, cover it. The text uses the PDF built-in Helvetica font, which covers Western European letters, digits and common symbols.
+  - q: Will bookmarks, links and form fields still work?
+    a: Yes. The pages are copied as a group with the same engine as Merge PDF and Split PDF, so bookmarks are re-pointed at each page's new position, links between pages you kept still land on the right page, and form fields stay fillable with their current values. A link or bookmark pointing at a page you removed cannot work, so it is removed rather than left pointing nowhere. If an inserted PDF has a form field with the same name as one in your document, it is renamed so the two do not share a value.
+  - q: Can I organize password-protected or digitally signed PDFs?
+    a: Encrypted PDFs, meaning those with an open password or permission restrictions, cannot be rewritten in a browser. Open such a file in a PDF viewer, use "Print to PDF" to save an unprotected copy, and organize that instead. Signed PDFs can be organized, but a digital signature only covers the exact original file, so it will not show as valid in the new one. The tool warns you when that happens.
+related:
+  - split-pdf
+  - merge-pdf
+  - pdf-compressor
+  - image-to-pdf
+---
+
+## Page edits and page stamps
+
+The tool works in two layers. The **page grid** is where the document's structure changes:
+order, rotation, which pages are in it, and where blank pages or pages from other PDFs go.
+Every edit there goes onto an undo history, so trying something costs nothing. The
+**Add to the pages** options are then drawn onto the finished pages: page numbers, a header
+or footer line, a watermark, and a background. They count pages in the new order, and they
+are positioned against each page as it is displayed, so a page you rotated still gets its
+number at the bottom rather than up the side.
+
+## Why a rewrite, not a re-print
+
+Many online page organizers rebuild the PDF by copying each page in isolation, which breaks
+internal links and drops bookmarks, or by turning pages into images, which makes text
+unselectable and files bigger. This tool rewrites the document with the same page-assembly
+engine as Merge PDF and Split PDF. Pages keep their text, fonts and images exactly as they
+were, so the result is usually about the same size as the original. Compression is optional
+and uses the PDF Compressor's presets, applied to the finished file.
+
+## What powers this tool
+
+PDF parsing and writing use [`pdf-lib`](https://github.com/Hopding/pdf-lib) (MIT licensed),
+in a background Web Worker that is only loaded once you choose a file. Thumbnails, the
+full-size page view and blank-page detection use [`pdf.js`](https://github.com/mozilla/pdf.js)
+(Apache 2.0 licensed), which is downloaded when you open your first PDF and is given the file
+directly, so it never leaves your device either. The preview of the result is your browser's
+own PDF viewer.

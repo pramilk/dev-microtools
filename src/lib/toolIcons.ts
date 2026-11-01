@@ -75,6 +75,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'pdf-image-extractor': 'XIM',
   'image-to-pdf': 'I2P',
   'split-pdf': 'SPL',
+  'organize-pdf': 'ORG',
   'aes-encrypt-decrypt': 'AES',
   'rsa-encrypt-decrypt': 'RSA',
 };
