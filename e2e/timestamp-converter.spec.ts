@@ -38,4 +38,18 @@ test.describe('Timestamp Converter', () => {
     await tool.getByLabel(/^date/i).fill('2023-11-14T22:13:20Z');
     await expect(tool.getByText('1700000000', { exact: true })).toBeVisible();
   });
+
+  test('reads a Windows FILETIME and lists the other epoch formats', async ({ page }) => {
+    await gotoTool(page, 'timestamp-converter');
+    const tool = widget(page);
+
+    await tool.getByLabel(/timestamp format/i).selectOption('filetime');
+    await tool.getByLabel(/windows filetime/i).fill('133444736000000000');
+    await expect(tool.getByText('2023-11-14T22:13:20.000Z')).toBeVisible();
+
+    // The same moment in the other formats, exact despite exceeding 2^53.
+    const others = tool.getByLabel('Other epoch formats');
+    await expect(others.getByText('638355968000000000', { exact: true })).toBeVisible();
+    await expect(others.getByText('13344473600000000', { exact: true })).toBeVisible();
+  });
 });

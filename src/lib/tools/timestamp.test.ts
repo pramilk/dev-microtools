@@ -173,3 +173,128 @@ describe('COMMON_TIME_ZONES', () => {
     expect(new Set(zones).size).toBe(zones.length);
   });
 });
+
+describe('non-Unix epochs', () => {
+  const NOW_FIXED = new Date('2026-01-01T00:00:00Z');
+  const iso = (input: string, unit: Parameters<typeof fromEpoch>[1]) => {
+    const result = fromEpoch(input, unit, NOW_FIXED);
+    return result.ok ? result.value.iso : result.error;
+  };
+
+  it('reads each format to the same instant (published epoch anchors)', () => {
+    expect(iso('116444736000000000', 'filetime')).toBe('1970-01-01T00:00:00.000Z');
+    expect(iso('621355968000000000', 'dotnet-ticks')).toBe('1970-01-01T00:00:00.000Z');
+    expect(iso('11644473600000000', 'webkit')).toBe('1970-01-01T00:00:00.000Z');
+    expect(iso('2082844800', 'hfs-plus')).toBe('1970-01-01T00:00:00.000Z');
+    expect(iso('25569', 'excel')).toBe('1970-01-01T00:00:00.000Z');
+    expect(iso('0', 'mac-absolute')).toBe('2001-01-01T00:00:00.000Z');
+    expect(iso('0', 'dotnet-ticks')).toBe('0001-01-01T00:00:00.000Z');
+    expect(iso('0', 'filetime')).toBe('1601-01-01T00:00:00.000Z');
+  });
+
+  it('reads one known moment from every format', () => {
+    const expected = '2023-11-14T22:13:20.000Z';
+    expect(iso('1700000000', 'seconds')).toBe(expected);
+    expect(iso('1700000000000', 'milliseconds')).toBe(expected);
+    expect(iso('1700000000000000', 'microseconds')).toBe(expected);
+    expect(iso('1700000000000000000', 'nanoseconds')).toBe(expected);
+    expect(iso('133444736000000000', 'filetime')).toBe(expected);
+    expect(iso('638355968000000000', 'dotnet-ticks')).toBe(expected);
+    expect(iso('13344473600000000', 'webkit')).toBe(expected);
+    expect(iso('721692800', 'mac-absolute')).toBe(expected);
+    expect(iso('3782844800', 'hfs-plus')).toBe(expected);
+  });
+
+  it('keeps full precision for values beyond 2^53', () => {
+    // 133444736000000001 is one 100 ns tick past a whole second; a double would round it away
+    // but the millisecond result must still be exact.
+    const result = fromEpoch('133444736001230000', 'filetime', NOW_FIXED);
+    expect(result.ok && result.value.iso).toBe('2023-11-14T22:13:20.123Z');
+  });
+
+  it('reads Excel serials with a fractional day', () => {
+    expect(iso('45244.5', 'excel')).toBe('2023-11-14T12:00:00.000Z');
+    expect(iso('45244.925926', 'excel')).toMatch(/^2023-11-14T22:13:2\d/);
+    expect(iso('-1', 'excel')).toBe('1899-12-29T00:00:00.000Z');
+  });
+
+  it('auto-detects microseconds and nanoseconds by digit count', () => {
+    expect(guessUnit(1_700_000_000_000_000)).toBe('microseconds');
+    expect(guessUnit(1_700_000_000_000_000_000n)).toBe('nanoseconds');
+    expect(iso('1700000000000000', 'auto')).toBe('2023-11-14T22:13:20.000Z');
+    expect(iso('1700000000000000000', 'auto')).toBe('2023-11-14T22:13:20.000Z');
+    expect(iso('-1700000000000000', 'auto')).toBe('1916-02-18T01:46:40.000Z');
+  });
+
+  it('never auto-detects the platform epochs', () => {
+    // 133444736000000000 has 18 digits; auto reads it as Unix microseconds/nanoseconds, not FILETIME.
+    expect(guessUnit(133_444_736_000_000_000n)).not.toBe('seconds');
+    expect(iso('133444736000000000', 'auto')).not.toBe('2023-11-14T22:13:20.000Z');
+  });
+
+  it('rejects decimals everywhere except Excel, and bad Excel input', () => {
+    expect(fromEpoch('1.5', 'filetime', NOW_FIXED).ok).toBe(false);
+    expect(fromEpoch('4524x', 'excel', NOW_FIXED).ok).toBe(false);
+    expect(fromEpoch('1e5', 'excel', NOW_FIXED).ok).toBe(false);
+    const huge = fromEpoch('999999999999999', 'excel', NOW_FIXED);
+    expect(!huge.ok && huge.error).toMatch(/outside the range/i);
+  });
+
+  it('rejects values past 64 bits and seconds outside the Date range', () => {
+    const tooBig = fromEpoch('18446744073709551616', 'filetime', NOW_FIXED);
+    expect(!tooBig.ok && tooBig.error).toMatch(/too large/i);
+    // Large, but still a valid 64-bit tick count: far-future dates are fine for 100 ns units.
+    expect(fromEpoch('9223372036854775807', 'dotnet-ticks', NOW_FIXED).ok).toBe(true);
+    const outOfRange = fromEpoch('18446744073709551615', 'seconds', NOW_FIXED);
+    expect(!outOfRange.ok && outOfRange.error).toMatch(/outside the range/i);
+  });
+
+  it('returns negative Unix values correctly in the finer units', () => {
+    expect(iso('-1', 'milliseconds')).toBe('1969-12-31T23:59:59.999Z');
+    expect(iso('-1', 'microseconds')).toBe('1969-12-31T23:59:59.999Z');
+    expect(iso('-1000000001', 'nanoseconds')).toBe('1969-12-31T23:59:58.999Z');
+  });
+});
+
+describe('epoch readings for a moment', () => {
+  it('lists the same instant in every format', () => {
+    const result = fromEpoch('1700000000', 'seconds', NOW);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const byUnit = Object.fromEntries(result.value.epochs.map((reading) => [reading.unit, reading.value]));
+    expect(byUnit).toMatchObject({
+      seconds: '1700000000',
+      milliseconds: '1700000000000',
+      microseconds: '1700000000000000',
+      nanoseconds: '1700000000000000000',
+      filetime: '133444736000000000',
+      'dotnet-ticks': '638355968000000000',
+      webkit: '13344473600000000',
+      'mac-absolute': '721692800',
+      'hfs-plus': '3782844800',
+    });
+    expect(Number(byUnit.excel)).toBeCloseTo(45244.925926, 5);
+  });
+
+  it('marks formats that cannot represent a moment before their epoch', () => {
+    const result = fromDateString('1500-06-15T00:00:00Z', NOW);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const filetime = result.value.epochs.find((reading) => reading.unit === 'filetime')!;
+    expect(filetime.value).toBeNull();
+    expect(filetime.note).toMatch(/1601-01-01/);
+    // Unix and .NET can still represent it.
+    expect(result.value.epochs.find((reading) => reading.unit === 'seconds')!.value).toMatch(/^-/);
+    expect(result.value.epochs.find((reading) => reading.unit === 'dotnet-ticks')!.value).not.toBeNull();
+  });
+
+  it('warns about the 1900 leap-year quirk for early Excel serials', () => {
+    const result = fromDateString('1900-01-15T00:00:00Z', NOW);
+    expect(result.ok && result.value.epochs.find((reading) => reading.unit === 'excel')!.note).toMatch(/leap-year/);
+  });
+
+  it('floors, not truncates, pre-1970 values in whole seconds', () => {
+    const result = fromDateString('1969-12-31T23:59:59.500Z', NOW);
+    expect(result.ok && result.value.epochs.find((reading) => reading.unit === 'seconds')!.value).toBe('-1');
+  });
+});

@@ -1,0 +1,69 @@
+---
+title: Timezone Converter
+headline: Time Zone Converter & Meeting Planner
+description: Convert a time between time zones, handle daylight saving correctly, and find the working hours every city shares. Free, runs in your browser.
+summary: Convert a time across time zones and find the working hours everyone shares.
+category: Date & Time
+order: 67
+updated: 2026-11-05
+whatIsIt: >-
+  A time zone converter answers "when it is 09:00 here, what time is it there?" The hard part
+  is not the arithmetic but the rules behind it: zones differ from UTC by whole hours, half
+  hours and even 45 minutes, and most of them shift by an hour twice a year on dates that
+  differ from country to country. This tool takes a date and time in one zone and shows the
+  same moment in as many other zones as you like, with each zone's offset, its abbreviation and
+  a flag when the result lands on a different calendar day. A meeting planner below the results
+  lays the 24 hours of the day side by side so you can see at a glance which hours fall inside
+  everyone's working day. The zone data comes from your browser's own copy of the IANA time zone
+  database, so daylight saving is applied for the date you chose, not today's.
+useCases:
+  - Scheduling a call or release window across offices in different regions without opening three browser tabs.
+  - Working out what a UTC timestamp from a log or an alert means in the local time of the person who has to act on it.
+  - Checking what a recurring meeting does to attendees when one region changes its clocks and another does not.
+  - Writing a deadline or an event time in an email or a web page in several zones so nobody has to convert it themselves.
+howTo:
+  - Enter the date and time, and set the source time zone by typing an IANA name such as America/New_York and picking it from the suggestions.
+  - Read the converted times below. Each row shows the offset from UTC, the zone abbreviation, and "+1 day" or "-1 day" when the date differs.
+  - Add more zones by typing a name or clicking a city chip, and remove any you do not need with the cross beside it.
+  - Set the working hours (9 to 17 by default) and use the meeting planner grid to find the bordered columns where every zone is at work, then copy a row or the share link.
+example:
+  label: A 09:00 call in New York on 14 March 2026.
+  input: 2026-03-14T09:00 in America/New_York
+  output: |-
+    New York    Sat, 14 Mar 2026, 09:00   EDT, UTC-4
+    London      Sat, 14 Mar 2026, 13:00   GMT, UTC
+    Kolkata     Sat, 14 Mar 2026, 18:30   UTC+5:30
+    Tokyo       Sat, 14 Mar 2026, 22:00   UTC+9
+    Sydney      Sun, 15 Mar 2026, 00:00   UTC+11, +1 day
+  note: New York had already moved to daylight saving time on 8 March, while London does not until 29 March, so the gap between them is four hours rather than the usual five.
+faq:
+  - q: Why use IANA names like America/New_York instead of EST or PST?
+    a: Abbreviations are ambiguous. "CST" can mean Central Standard Time, China Standard Time or Cuba Standard Time, and "EST" is wrong for half of the year in New York, which is on EDT. An IANA name identifies a region and carries its full history of offset and daylight saving rules, so the same name gives the right answer in January and in July. The abbreviation is shown only as a label on the result.
+  - q: What happens if I choose a time that does not exist?
+    a: When clocks spring forward, one hour is skipped. 02:30 on 8 March 2026 never happened in New York. The tool tells you so instead of silently picking a neighbouring time. When clocks fall back, an hour happens twice, such as 01:30 on 1 November 2026. The tool uses the first occurrence and adds a note saying so.
+  - q: Which date does the meeting planner use?
+    a: The date you entered, in the source time zone. The grid shows the 24 hours that follow midnight on that date, so a column near the end of the row can fall on the next calendar day in a zone far to the east; those cells carry a "+" marker. On a daylight saving change day the grid still shows 24 elapsed hours.
+  - q: Does it handle zones that are not on the hour?
+    a: Yes. India is UTC+5:30, Nepal is UTC+5:45 and parts of Australia use +9:30 or +10:30. Their offsets are shown exactly and the planner grid labels those hours with their minutes, for example 18:30, so you can see why a 09:00 start does not line up on the hour for them.
+  - q: Is the time zone data up to date?
+    a: It comes from your browser, which ships the IANA database and updates it with the browser itself, so it is as current as your browser. Governments occasionally change their rules at short notice; if a zone changed very recently and your browser is old, results for future dates may be off by an hour.
+related:
+  - timestamp-converter
+  - date-calculator
+  - cron-expression-explainer
+  - iso-duration-parser
+---
+
+## Plan around the overlap, not the average
+
+When teams span more than a few time zones, the useful question is not "what time is it for
+each person" but "is there any hour that works for everyone". The planner highlights those hours
+for the working day you set. If the summary says no hour is shared, that is the signal to split
+the meeting into two sessions or rotate the inconvenient slot, rather than to keep nudging the
+start time.
+
+## Share a time in UTC
+
+For anything that will be read by people in many places, such as an incident timeline or a
+release notice, write the time in UTC or in ISO 8601 with an explicit offset
+(`2026-03-14T09:00:00-04:00`). Each row has a copy button that gives exactly that form.

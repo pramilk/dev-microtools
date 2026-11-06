@@ -576,3 +576,47 @@
   .finding { grid-template-columns: 1fr; gap: var(--space-1); }
   .finding__tag { justify-self: start; }
 }
+
+/* Label / value rows with a per-row copy button (ResultRows). */
+.result-rows {
+  display: grid;
+  grid-template-columns: minmax(8rem, auto) 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--space-4);
+  font-size: var(--text-sm);
+}
+.result-rows dt {
+  color: var(--text-muted);
+}
+.result-rows dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.result-rows__text {
+  min-width: 0;
+}
+.result-rows__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+  min-width: 0;
+}
+.result-rows__hint {
+  display: block;
+  font-family: var(--font-sans, inherit);
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+}
+@media (max-width: 36rem) {
+  .result-rows {
+    grid-template-columns: 1fr;
+  }
+}

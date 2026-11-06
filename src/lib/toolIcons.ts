@@ -86,6 +86,9 @@ export const TOOL_ICONS: Record<string, string> = {
   'security-headers-analyzer': 'HDR',
   'totp-generator': 'OTP',
   'x509-certificate-decoder': 'CRT',
+  'timezone-converter': 'TZ',
+  'date-calculator': 'CAL',
+  'iso-duration-parser': 'DUR',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

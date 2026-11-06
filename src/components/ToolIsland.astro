@@ -74,6 +74,9 @@ import CertificateDecoder from '../islands/CertificateDecoder';
 import ChmodCalculator from '../islands/ChmodCalculator';
 import ColorPaletteGenerator from '../islands/ColorPaletteGenerator';
 import CronGenerator from '../islands/CronGenerator';
+import TimezoneConverter from '../islands/TimezoneConverter';
+import DateCalculator from '../islands/DateCalculator';
+import IsoDurationParser from '../islands/IsoDurationParser';
 import { registeredSlugs } from '../lib/toolRegistry';
 
 interface Props {
@@ -173,3 +176,6 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'security-headers-analyzer' && <SecurityHeadersAnalyzer client:load />}
 {slug === 'totp-generator' && <TotpGenerator client:load />}
 {slug === 'x509-certificate-decoder' && <CertificateDecoder client:load />}
+{slug === 'timezone-converter' && <TimezoneConverter client:load />}
+{slug === 'date-calculator' && <DateCalculator client:load />}
+{slug === 'iso-duration-parser' && <IsoDurationParser client:load />}

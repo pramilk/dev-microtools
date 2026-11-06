@@ -1,0 +1,70 @@
+---
+title: Date Calculator
+headline: Date Calculator for Days Between Dates and Date Math
+description: Count the days, months and years between two dates, or add and subtract days, months and business days from a date. Free, no sign-up.
+summary: Find the time between two dates, or add and subtract days, months and business days.
+category: Date & Time
+order: 68
+updated: 2026-11-05
+whatIsIt: >-
+  A date calculator does the two jobs people actually reach for a calendar to do: working out
+  how long it is between two dates, and working out which date falls a given time after or
+  before another. It breaks a span into years, months and days the way a person would say it,
+  and also gives the totals - days, weeks, months - and how many of those days are weekdays.
+  Adding and subtracting handles the awkward parts correctly: a month is not a fixed number of
+  days, so 31 January plus one month is 28 February (or 29 in a leap year), and a business-day
+  count skips weekends. It works on whole calendar dates with no time of day, so daylight saving
+  can never shift the answer by an hour.
+useCases:
+  - Counting the days left until a deadline, a launch, a certificate expiry or the end of a trial.
+  - Working out an exact age or tenure in years, months and days, or the length of a contract.
+  - Finding a due date that is 30 days, 6 weeks or 10 business days after an invoice or ticket date.
+  - Checking which weekday, ISO week number or day of the year a date falls on for a report or a sprint plan.
+howTo:
+  - Choose "Days between dates" and enter a start and an end date, or use the Today link beside either field.
+  - Read the difference as years, months and days, along with total days, weeks, whole months and business days.
+  - Tick "Include the end date" if both the first and the last day count, as they do for a booking or a leave request.
+  - Switch to "Add / subtract", enter years, months, weeks, days or business days, and choose whether to add or subtract them from the start date.
+example:
+  label: From 15 January 2000 to 14 March 2026.
+  input: 2000-01-15 to 2026-03-14
+  output: |-
+    Difference:     26 years, 1 month, 27 days
+    Total days:     9,555
+    Weeks and days: 1,365 weeks, 0 days
+    Business days:  6,825
+  note: 9,555 days is exactly 1,365 weeks, so the span contains exactly five weekdays and two weekend days for every week of it.
+faq:
+  - q: How are months counted when the days do not line up?
+    a: The calculator adds whole months to the start date until adding another would pass the end date, then counts the remaining days. When the start day does not exist in a month, such as the 31st in February, it is clamped to the last day of that month. From 31 January to 1 March 2026 that gives 1 month and 1 day, and 29 days in total. Different calculators resolve this differently; the total number of days is always the unambiguous figure.
+  - q: Does the count include the start and end dates?
+    a: By default the end date is not counted, so 1 March to 5 March is 4 days, matching how date subtraction works in code. Tick "Include the end date" to count both ends, which makes it 5 days - the convention for a hotel stay, a leave request or a project that runs from the 1st to the 5th inclusive.
+  - q: Are public holidays excluded from business days?
+    a: No. Business days here means Monday to Friday. Public holidays differ by country, region and even employer, and a list that was wrong would be worse than none, so subtract any holidays yourself. The result tells you the weekday count; the holiday adjustment is one subtraction away.
+  - q: What is an ISO week number?
+    a: ISO 8601 weeks start on Monday, and week 1 is the week that contains the year's first Thursday. This means the first days of January can belong to week 52 or 53 of the previous year, and the last days of December can belong to week 1 of the next. The calculator shows the ISO week with its ISO year so there is no ambiguity.
+  - q: Which dates can it handle?
+    a: Any date from year 1 to year 9999 in the Gregorian calendar, applied backwards before the calendar was adopted in 1582 (the proleptic Gregorian calendar). Leap years follow the standard rules, so 1900 is not a leap year and 2000 is. Results outside that range are reported as an error instead of wrapping around.
+related:
+  - timestamp-converter
+  - timezone-converter
+  - iso-duration-parser
+  - cron-expression-explainer
+---
+
+## Date arithmetic is not time arithmetic
+
+Adding 24 hours to a moment and adding one day to a date are different operations. On the day
+clocks change, a calendar day is 23 or 25 hours long, so code that adds `86400` seconds to a
+local timestamp can land an hour off. This calculator works purely on calendar dates, which is
+what you want for deadlines, ages and contract terms. For a moment in time across zones, use the
+[Timezone Converter](/timezone-converter/); for a duration written as `P1M2D`, use the
+[ISO 8601 Duration Parser](/iso-duration-parser/).
+
+## Month-end clamping
+
+Adding one month to 31 January does not give 31 February, because that date does not exist. The
+common, least surprising rule is to move to the last day of the target month, which is what
+this tool does. It also means adding a month and then subtracting a month does not always return
+the date you started with: 31 January plus one month is 28 February, and minus one month is 28
+January.

@@ -1,58 +1,74 @@
 ---
 title: Cron Expression Explainer
-headline: Cron Expression Explainer & Next Runs
-description: Parse a cron expression into a plain-English description and see its next scheduled run times. Runs in your browser. Free, no sign-up required.
-summary: Explain a cron expression in plain English and see its next run times.
-category: Web & Network
+headline: Cron Expression Explainer for Unix, Quartz & AWS
+description: Explain cron expressions in plain English for Unix crontab, Quartz/Spring and AWS EventBridge, with the next run times in any time zone. Free.
+summary: Explain Unix, Quartz and AWS EventBridge cron expressions and list the next runs.
+category: Date & Time
 order: 39
-updated: 2026-08-23
+updated: 2026-11-05
 whatIsIt: >-
-  A cron expression is the five-field schedule syntax (`minute hour day-of-month month
-  day-of-week`) used by crontab, CI pipelines, Kubernetes CronJobs and countless job
-  schedulers to define when a task runs. Reading one at a glance is genuinely hard — `*`,
-  `*/15`, ranges, lists and steps combine in ways that are easy to misread, and a day-of-month
-  plus day-of-week combination doesn't mean what most people assume. This tool parses an
-  expression, explains exactly what it means in plain English, and calculates the next several
-  times it will actually fire, so you can verify a schedule before it goes anywhere near
-  production.
+  A cron expression is a compact schedule that says when a job should run. Three dialects are
+  in everyday use: the five-field Unix crontab form (`minute hour day-of-month month
+  day-of-week`) used by crontab, GitHub Actions, GitLab CI and Kubernetes CronJobs; the
+  Quartz form used by Spring, Jenkins and many Java schedulers, which adds a leading seconds
+  field, an optional year and the special characters `?`, `L`, `W` and `#`; and the AWS
+  EventBridge form, which has six fields, no seconds and a required year. Reading any of them
+  at a glance is genuinely hard. This tool parses an expression in the dialect you choose,
+  explains it in plain English, and calculates the next several times it will actually fire in
+  the time zone you pick, so you can verify a schedule before it goes anywhere near production.
 useCases:
-  - Verifying a cron schedule in a CI/CD pipeline, Kubernetes CronJob, or crontab entry actually means what you intended before deploying it.
+  - Verifying a cron schedule in a CI/CD pipeline, Kubernetes CronJob, crontab entry, Spring `@Scheduled` annotation or EventBridge rule actually means what you intended before deploying it.
   - Reviewing a schedule in a pull request without mentally simulating cron syntax field by field.
-  - Working out when a job will next run, to know when to expect its output or check its logs.
-  - Learning cron syntax by trying expressions and immediately seeing both the explanation and real upcoming run times.
+  - Working out when a job will next run in UTC, in your team's time zone or in a customer's, including across a daylight saving change.
+  - Translating a schedule between systems by seeing what the same intent looks like in Unix, Quartz and EventBridge syntax.
 howTo:
-  - Type or paste a cron expression, or start from a common preset like "Every weekday at 9am".
+  - Choose the syntax your scheduler uses (Unix, Quartz or AWS EventBridge), then type or paste an expression or start from a preset.
   - Read the plain-English explanation of what the schedule means.
-  - Check the next 5 run times, calculated in your browser's local timezone.
-  - Copy a link that restores this exact expression to share with a teammate.
+  - Pick a time zone and check the next 5 run times. EventBridge defaults to UTC because that is where it evaluates cron.
+  - Copy a link that restores this exact expression, syntax and time zone to share with a teammate.
 example:
   label: A weekday morning job.
   input: '0 9 * * 1-5'
   output: 'At 09:00, Monday through Friday.'
   note: The next-run list beneath the explanation shows the actual upcoming dates this fires on, skipping weekends.
 faq:
-  - q: What happens when both day-of-month and day-of-week are set?
-    a: 'This is the single most common cron misunderstanding: when both fields are restricted (not "*"), standard cron treats them as OR, not AND — the job runs when either condition is true, not only when both are. "0 0 1 * 1" runs on the 1st of the month AND on every Monday, not only on Mondays that happen to be the 1st. This tool spells that out explicitly in the description rather than leaving it ambiguous.'
-  - q: Does this support the 6-field format with seconds?
-    a: No — this tool supports standard 5-field POSIX cron (minute, hour, day-of-month, month, day-of-week), which is what crontab, GitHub Actions, GitLab CI and Kubernetes CronJobs all use. The 6-field variant with a leading seconds column is specific to schedulers like Quartz and Spring, and parsing it as 5-field would silently misread every field by one position, so it's rejected with a clear error instead.
-  - q: What timezone are the "next run" times in?
-    a: Your browser's local timezone — this tool runs entirely client-side with no server, so it has no way to know what timezone a given crontab or CI system is actually configured to run in. If the schedule matters in UTC or a specific server timezone, mentally offset the displayed times, or temporarily change your system clock's timezone.
-  - q: Why is a range like "22-2" (10pm to 2am) rejected?
-    a: 'Because whether a "backwards" range like this wraps around midnight is inconsistent across real cron implementations — some support it, many don''t. Rather than guess and risk describing a schedule that doesn''t match what your actual scheduler does, this tool rejects it and suggests the unambiguous alternative: list the hours explicitly, e.g. "22,23,0,1,2".'
-  - q: Can I use month and day names instead of numbers?
-    a: Yes — three-letter abbreviations like JAN-DEC and SUN-SAT work anywhere a number would, case-insensitively, alongside the standard `@daily`, `@weekly`, `@monthly`, `@yearly` and `@hourly` shortcuts.
+  - q: What is the difference between Unix, Quartz and AWS EventBridge cron?
+    a: Unix cron has 5 fields. Quartz has 6 or 7 - a seconds field in front and an optional year at the end - and numbers weekdays 1 (Sunday) to 7 (Saturday). EventBridge has 6 fields - no seconds, but a required year - and also numbers weekdays 1 to 7. Both Quartz and EventBridge require a `?` in either day-of-month or day-of-week. Pasting the wrong dialect is the commonest source of off-by-one-field schedules, which is why this tool makes you choose and rejects a mismatch with a clear error.
+  - q: What do ?, L, W and # mean in Quartz and EventBridge?
+    a: 'A `?` means "no specific value" and goes in whichever of day-of-month or day-of-week you are not using. `L` is the last day of the month (or, after a weekday number such as `6L`, the last such weekday - the last Friday). `L-3` is three days before the last day. `15W` is the weekday nearest the 15th without leaving the month, and `LW` is the last weekday. `2#3` is the third Monday. All of these are explained in the description and honoured when the next runs are calculated.'
+  - q: What happens when both day-of-month and day-of-week are set in Unix cron?
+    a: 'This is the single most common cron misunderstanding: when both fields are restricted (not "*"), standard Unix cron treats them as OR, not AND, so the job runs when either condition is true. "0 0 1 * 1" runs on the 1st of the month and on every Monday, not only on Mondays that happen to be the 1st. Quartz and EventBridge avoid the trap by refusing to accept both, which is what the required `?` is for.'
+  - q: What time zone are the next-run times in?
+    a: Whichever you choose in the selector - your browser's zone by default, or UTC and a list of major cities. The calculation follows that zone's clock, including daylight saving. A time that daylight saving skips, such as 02:30 on a spring-forward night, does not run that day, and a time that is repeated on a fall-back night runs once. AWS EventBridge evaluates cron in UTC unless the rule sets another zone, so check the zone your own scheduler uses.
+  - q: Can I wrap a range around midnight, like 22-2?
+    a: Quartz and EventBridge accept it, so `22-2` in the hour field means 22, 23, 0, 1 and 2. Standard Unix cron implementations are inconsistent about it, so this tool rejects a backwards range in Unix mode and suggests listing the hours explicitly, for example `22,23,0,1,2`, which every scheduler understands.
+  - q: Does it understand AWS rate() expressions?
+    a: Yes, in EventBridge mode. `rate(5 minutes)` is explained as "Every 5 minutes", and the tool checks the singular/plural rule (`rate(1 minute)`, not `rate(1 minutes)`). A rate has no calendar - it counts from when the rule is created - so no list of run times is shown.
 related:
   - cron-expression-generator
   - timestamp-converter
-  - regex-tester
-  - json-formatter
+  - timezone-converter
+  - iso-duration-parser
 ---
 
 ## The classic cron mistake
 
-`0 30 8 * * *` — six fields — is a schedule for a completely different system (Quartz/Spring,
-which count seconds first) accidentally typed into a five-field crontab. Most 5-field parsers
-would silently read the first `0` as minutes and shift everything else by one field, producing
-a schedule that runs at a different time than intended with no error at all. This tool rejects
-a 6-field input outright rather than guessing, specifically to catch this mistake before it
-reaches production.
+`0 30 8 * * *` - six fields - is a schedule for a different system (Quartz or Spring, which
+count seconds first) accidentally typed into a five-field crontab. A lenient parser would
+silently read the first `0` as minutes and shift every other field by one position, producing
+a schedule that runs at the wrong time with no error at all. Choose the right syntax above and
+this tool tells you exactly which dialect an expression belongs to instead of guessing.
+
+## Writing the same schedule in each dialect
+
+Every weekday at 09:15 looks different in each system:
+
+| Syntax | Expression |
+| --- | --- |
+| Unix crontab | `15 9 * * 1-5` |
+| Quartz / Spring | `0 15 9 ? * MON-FRI` |
+| AWS EventBridge | `15 9 ? * MON-FRI *` |
+
+Note the extra leading `0` for seconds in Quartz, the `?` standing in for day-of-month, and
+the trailing `*` for the year in EventBridge. Convert a schedule between systems by checking
+the plain-English description matches in each mode.

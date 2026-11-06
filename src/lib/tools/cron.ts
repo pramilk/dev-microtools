@@ -10,11 +10,11 @@ const FIELD_MIN = { minute: 0, hour: 0, dayOfMonth: 1, month: 1, dayOfWeek: 0 } 
 const FIELD_MAX = { minute: 59, hour: 23, dayOfMonth: 31, month: 12, dayOfWeek: 7 } as const;
 export type FieldName = keyof typeof FIELD_MIN;
 
-const MONTH_NAMES = [
+export const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
-const DOW_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+export const DOW_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const MONTH_NAME_MAP: Record<string, number> = Object.fromEntries(
   MONTH_NAMES.map((name, index) => [name.slice(0, 3).toUpperCase(), index + 1])
@@ -160,7 +160,7 @@ function parseField(
   return ok({ values, parts, isWildcard });
 }
 
-function joinWithAnd(items: string[]): string {
+export function joinWithAnd(items: string[]): string {
   if (items.length === 0) return '';
   if (items.length === 1) return items[0]!;
   if (items.length === 2) return `${items[0]} and ${items[1]}`;
@@ -218,7 +218,7 @@ const describeHour = (parts: RangePart[]) =>
     (vals) => `hours ${vals}`
   );
 
-const ordinal = (n: number): string => {
+export const ordinal = (n: number): string => {
   const rem100 = n % 100;
   if (rem100 >= 11 && rem100 <= 13) return `${n}th`;
   switch (n % 10) {

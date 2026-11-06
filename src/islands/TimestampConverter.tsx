@@ -5,12 +5,14 @@ import {
   nowBreakdown,
   formatInTimeZone,
   COMMON_TIME_ZONES,
+  EPOCH_FORMATS,
   type TimestampBreakdown,
-  type TimestampUnit,
+  type EpochUnit,
 } from '../lib/tools/timestamp';
 import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { CopyButton } from './shared/CopyButton';
+import { ResultRows } from './shared/ResultRows';
 import { ShareLinkButton } from './shared/ShareLinkButton';
 
 type Mode = 'epoch' | 'date';
@@ -18,7 +20,7 @@ type Mode = 'epoch' | 'date';
 interface ShareState {
   mode: Mode;
   input: string;
-  unit: TimestampUnit | 'auto';
+  unit: EpochUnit | 'auto';
   extraZones: string[];
 }
 
@@ -39,7 +41,7 @@ export default function TimestampConverter() {
   // Seeded with the current time rather than empty, so a result is visible the
   // instant the tool loads — nobody has to click anything to see it working.
   const [input, setInput] = useState(() => String(nowBreakdown().seconds));
-  const [unit, setUnit] = useState<TimestampUnit | 'auto'>('auto');
+  const [unit, setUnit] = useState<EpochUnit | 'auto'>('auto');
   const [now, setNow] = useState<TimestampBreakdown>(() => nowBreakdown());
 
   // The live clock is the reason many people open this page.
@@ -52,6 +54,13 @@ export default function TimestampConverter() {
     if (input.trim() === '') return null;
     return mode === 'epoch' ? fromEpoch(input, unit) : fromDateString(input);
   }, [input, mode, unit]);
+
+  const selectedFormat = EPOCH_FORMATS.find((format) => format.unit === unit);
+
+  /** A moment written in the currently selected epoch format (Unix seconds when auto-detecting). */
+  const epochText = (moment: TimestampBreakdown): string =>
+    (selectedFormat ? moment.epochs.find((reading) => reading.unit === selectedFormat.unit)?.value : null) ??
+    String(moment.seconds);
 
   const value = result?.ok ? result.value : null;
   const error = result && !result.ok ? result.error : null;
@@ -90,9 +99,9 @@ export default function TimestampConverter() {
   const switchMode = (nextMode: Mode) => {
     if (nextMode === mode) return;
     if (value) {
-      setInput(nextMode === 'epoch' ? String(value.seconds) : value.iso);
+      setInput(nextMode === 'epoch' ? epochText(value) : value.iso);
     } else {
-      setInput(nextMode === 'epoch' ? String(now.seconds) : new Date().toISOString());
+      setInput(nextMode === 'epoch' ? epochText(now) : new Date().toISOString());
     }
     setMode(nextMode);
   };
@@ -139,19 +148,24 @@ export default function TimestampConverter() {
 
         {mode === 'epoch' && (
           <label class="checkbox">
-            <span class="field__hint">Unit</span>
+            <span class="field__hint">Format</span>
             <select
               class="select"
               value={unit}
-              aria-label="Timestamp unit"
-              title="Whether to read the input as seconds or milliseconds since the epoch"
-              onChange={(event) =>
-                setUnit((event.target as HTMLSelectElement).value as TimestampUnit | 'auto')
-              }
+              aria-label="Timestamp format"
+              title={selectedFormat?.description ?? 'Auto-detect reads 10 digits as seconds, 13 as milliseconds, 16 as microseconds and 19 as nanoseconds'}
+              onChange={(event) => setUnit((event.target as HTMLSelectElement).value as EpochUnit | 'auto')}
             >
-              <option value="auto">Auto-detect</option>
-              <option value="seconds">Seconds</option>
-              <option value="milliseconds">Milliseconds</option>
+              <option value="auto">Auto-detect (Unix)</option>
+              {(['Unix', 'Other systems'] as const).map((group) => (
+                <optgroup key={group} label={group}>
+                  {EPOCH_FORMATS.filter((format) => format.group === group).map((format) => (
+                    <option key={format.unit} value={format.unit}>
+                      {format.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
           </label>
         )}
@@ -162,7 +176,7 @@ export default function TimestampConverter() {
           type="button"
           class="btn"
           onClick={() =>
-            setInput(mode === 'epoch' ? String(now.seconds) : new Date().toISOString())
+            setInput(mode === 'epoch' ? epochText(now) : new Date().toISOString())
           }
           title="Replace the input with the current moment"
         >
@@ -181,9 +195,13 @@ export default function TimestampConverter() {
 
       <div class="field">
         <label class="field__label" for="ts-input">
-          <span>{mode === 'epoch' ? 'Unix timestamp' : 'Date'}</span>
+          <span>
+            {mode === 'epoch' ? (selectedFormat && selectedFormat.group !== 'Unix' ? selectedFormat.label : 'Unix timestamp') : 'Date'}
+          </span>
           <span class="field__hint">
-            {mode === 'epoch' ? 'Seconds or milliseconds' : 'ISO 8601 works best'}
+            {mode === 'epoch'
+              ? (selectedFormat?.description ?? 'Seconds, milliseconds, microseconds or nanoseconds')
+              : 'ISO 8601 works best'}
           </span>
         </label>
         <input
@@ -236,6 +254,20 @@ export default function TimestampConverter() {
             </>
           ))}
         </dl>
+      )}
+
+      {value && (
+        <ResultRows
+          label="Other epoch formats"
+          rows={value.epochs
+            .filter((reading) => reading.unit !== 'seconds' && reading.unit !== 'milliseconds')
+            .map((reading) => ({
+              label: reading.label,
+              value: reading.value ?? '—',
+              copyValue: reading.value ?? '',
+              hint: reading.note ?? EPOCH_FORMATS.find((format) => format.unit === reading.unit)?.description,
+            }))}
+        />
       )}
 
       {value && (

@@ -75,6 +75,9 @@ import PhishingEmailChecker from '../islands/PhishingEmailChecker';
 import SecurityHeadersAnalyzer from '../islands/SecurityHeadersAnalyzer';
 import TotpGenerator from '../islands/TotpGenerator';
 import CertificateDecoder from '../islands/CertificateDecoder';
+import TimezoneConverter from '../islands/TimezoneConverter';
+import DateCalculator from '../islands/DateCalculator';
+import IsoDurationParser from '../islands/IsoDurationParser';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -159,6 +162,9 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'security-headers-analyzer': SecurityHeadersAnalyzer,
   'totp-generator': TotpGenerator,
   'x509-certificate-decoder': CertificateDecoder,
+  'timezone-converter': TimezoneConverter,
+  'date-calculator': DateCalculator,
+  'iso-duration-parser': IsoDurationParser,
 };
 
 /**

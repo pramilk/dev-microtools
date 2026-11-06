@@ -1,0 +1,67 @@
+---
+title: ISO 8601 Duration Parser
+headline: ISO 8601 Duration Parser and Builder
+description: Parse ISO 8601 durations like PT1H30M or P3Y6M4DT12H30M5S into plain English and total seconds, or build one from fields. Free.
+summary: Parse and build ISO 8601 durations such as PT1H30M, with totals and a date calculator.
+category: Date & Time
+order: 69
+updated: 2026-11-05
+whatIsIt: >-
+  An ISO 8601 duration is a compact, language-neutral way to write a length of time:
+  `P3Y6M4DT12H30M5S` means 3 years, 6 months, 4 days, 12 hours, 30 minutes and 5 seconds. The P
+  stands for period, the T separates the date units from the time units, and each number is
+  followed by a letter naming its unit. Durations show up in YouTube and media APIs, calendar
+  and schedule files, OpenAPI and JSON Schema, Java's `Duration`, .NET's `XmlConvert`, and
+  anywhere a timeout or an interval has to be stored as text. This tool reads one and explains
+  it in plain English with totals in seconds, minutes, hours and days, can apply it to a start
+  date to show where it lands, and builds a correctly formed string from separate fields.
+useCases:
+  - Decoding the `PT4M13S` in a video API response or the `P1M` in a subscription or billing payload.
+  - Writing a valid duration for an OpenAPI schema, a calendar entry, a Java or .NET configuration value or a test fixture.
+  - Converting a number of seconds, such as a timeout, into the ISO 8601 form an API expects.
+  - Checking what a duration will do when added to a particular date before putting it in a scheduler.
+howTo:
+  - On "Parse a duration", paste a value such as PT1H30M or pick a chip. The explanation and totals appear immediately.
+  - Optionally set a start date and time to see the result of adding (or, for a negative duration, subtracting) the duration in UTC.
+  - Switch to "Build a duration" and fill in the units you need, or enter a number of seconds and press "Fill fields".
+  - Copy the normalised ISO 8601 string, or copy any other row, with the button beside it.
+example:
+  label: A duration using every unit.
+  input: P3Y6M4DT12H30M5S
+  output: |-
+    In words:       3 years, 6 months, 4 days, 12 hours, 30 minutes, 5 seconds
+    Total seconds:  ≈ 110,839,937
+    Total days:     ≈ 1,282.8696
+  note: Years and months have no fixed length, so totals that involve them are marked approximate and use the average Gregorian year and month. A duration made only of weeks, days, hours, minutes and seconds is exact.
+faq:
+  - q: What does the T mean, and why is M used twice?
+    a: The T separates the date part from the time part. M means months before the T and minutes after it, so P1M is one month and PT1M is one minute. That is the single most common source of bugs with these strings, which is why the parser reads the letters by position and shows the result in words so you can check it.
+  - q: Are weeks allowed together with days?
+    a: The original 2004 standard only allowed weeks on their own, as in P2W. The 2019 edition and most libraries accept them alongside other units, so the parser accepts P1W2D but shows a warning, because a stricter parser elsewhere in your stack may reject it.
+  - q: Can a duration have decimals?
+    a: Yes, but only on the smallest unit you use - PT1.5H or PT0.5S are valid, while P1.5DT2H is not, because it would be ambiguous. Both a dot and a comma are accepted as the decimal mark. Fractional years and months are accepted by the parser but cannot be added to a calendar date, since the length of a year or month depends on which one you mean; express the fraction in days instead.
+  - q: Why are the totals marked approximate?
+    a: A month can be 28, 29, 30 or 31 days and a year 365 or 366, so "one month" has no fixed number of seconds. The totals use the average Gregorian values - 365.2425 days a year and a twelfth of that for a month - and say so. If you apply the duration to a start date, the answer is exact for that date.
+  - q: What about negative durations?
+    a: A leading minus, as in -P1D, is not part of the original standard but is widely used (Java, the 2019 edition of ISO 8601, and many APIs). The parser accepts it and applies it as subtraction when you give it a start date.
+related:
+  - date-calculator
+  - timestamp-converter
+  - timezone-converter
+  - cron-expression-explainer
+---
+
+## Reading a duration at a glance
+
+Split at the T. Everything before it is calendar units - years, months, weeks, days - and
+everything after is clock units - hours, minutes, seconds. `P1DT12H` is a day and a half.
+`PT90M` is the same as `PT1H30M`; durations are not required to be normalised, and this tool
+shows both the string you gave and its canonical form.
+
+## Why not just store seconds?
+
+A number of seconds is exact but loses intent. "One month" and "30 days" are different promises
+on a billing system, and "one day" is not always 86,400 seconds across a daylight saving change.
+An ISO 8601 duration keeps the unit the author meant. When you do need a plain number, for a
+timeout or a sleep, the totals in this tool give it to you, and the seconds-to-duration option
+in the builder goes the other way.

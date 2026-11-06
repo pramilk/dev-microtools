@@ -1,27 +1,31 @@
 ---
 title: Timestamp Converter
 headline: Unix Timestamp and Epoch Converter
-description: Convert Unix timestamps to human-readable dates and back, in seconds or milliseconds, with a live clock. Runs in your browser. Free, no sign-up.
-summary: Convert Unix epoch timestamps to dates and back, with a live current time.
-category: Convert
+description: Convert Unix, Windows FILETIME, .NET ticks, Chrome and Apple epoch timestamps to dates and back, with a live clock. Free and private.
+summary: Convert Unix, FILETIME, .NET, WebKit and Apple epoch timestamps to dates and back.
+category: Date & Time
 order: 4
-updated: 2026-08-22
+updated: 2026-11-05
 whatIsIt: >-
   A Unix timestamp counts the seconds elapsed since midnight UTC on 1 January 1970. It is
   how most systems store a moment in time internally, because it is a single number with
   no time zone or formatting ambiguity — but it is unreadable to humans. This tool
-  converts in both directions, auto-detects whether a value is in seconds or
-  milliseconds, and shows the result in ISO 8601, RFC 1123, your local time zone, and as
-  a relative description like "3 days ago".
+  converts in both directions, auto-detects whether a value is in seconds, milliseconds,
+  microseconds or nanoseconds, and shows the result in ISO 8601, RFC 1123, your local time
+  zone, and as a relative description like "3 days ago". It also reads and writes the other
+  epochs that turn up in logs and databases: Windows FILETIME and LDAP, .NET ticks,
+  Chrome's WebKit time, Apple Cocoa and Core Data, classic Mac HFS+, and Excel serial dates.
 useCases:
   - Reading a timestamp out of a log line or database column to find out when an event actually happened.
   - Working out the exact expiry moment of a token or cache entry whose TTL is stored as an epoch value.
   - Producing a timestamp for a test fixture or API request that expects epoch seconds.
+  - Decoding a Windows FILETIME from Active Directory, a .NET DateTime tick count, or a Chrome history or cookie timestamp.
   - Grabbing the current Unix time to paste into a query or a configuration value.
 howTo:
   - The current Unix time is shown live at the top of the page — copy it in seconds or milliseconds with one click.
   - To convert a timestamp, leave the mode on "Timestamp → date" and paste your number in. The unit is auto-detected.
   - To go the other way, switch to "Date → timestamp" and enter a date; ISO 8601 is parsed most reliably.
+  - For a value from Windows, .NET, Chrome or Apple, pick its format from the list so the right starting date and unit are used. The "Other epoch formats" table also shows the same moment in every format.
   - Every row of the result has its own copy button, so you can take just the format you need.
 example:
   label: Converting a ten-digit epoch value.
@@ -36,6 +40,10 @@ faq:
     a: Count the digits. A present-day timestamp in seconds has ten digits; in milliseconds it has thirteen. This tool auto-detects using that rule, treating anything of magnitude one trillion or more as milliseconds. Mixing the two up by a factor of a thousand is an extremely common bug — a seconds value read as milliseconds lands in January 1970.
   - q: Why does the displayed local time differ from what I expected?
     a: The local time row uses your computer's time zone setting, while the ISO and RFC rows are always UTC. If they seem inconsistent, check your system's time zone. A Unix timestamp itself carries no time zone at all — it is always an absolute moment, and the time zone only affects how it is displayed.
+  - q: What are FILETIME, .NET ticks and WebKit timestamps?
+    a: They are the same idea as a Unix timestamp with a different starting date and unit. Windows FILETIME (also used by LDAP and Active Directory) counts 100-nanosecond intervals since 1 January 1601; .NET ticks count the same intervals since 1 January 0001; Chrome's WebKit time counts microseconds since 1601; Apple's Cocoa time counts seconds since 1 January 2001. Their values are large enough to overflow a normal JavaScript number, so the converter does the arithmetic with big integers to stay exact. Pick the format explicitly - they are never auto-detected, because their ranges overlap Unix values.
+  - q: Why does auto-detect only cover Unix formats?
+    a: Because a Windows or .NET value and a Unix nanosecond value can have the same number of digits and mean completely different dates. The converter reads 10 digits as seconds, 13 as milliseconds, 16 as microseconds and 19 as nanoseconds, which is right for any present-day Unix value, and leaves everything else to the format list.
   - q: What happens after the year 2038?
     a: Systems that store timestamps in a signed 32-bit integer overflow on 19 January 2038, wrapping to a negative number and appearing to jump back to 1901. This is the "Year 2038 problem". Modern systems use 64-bit values and are unaffected for billions of years. This tool handles any value JavaScript can represent as a date.
   - q: Can I convert a date from before 1970?
@@ -43,9 +51,9 @@ faq:
   - q: Does leap-second handling matter here?
     a: Not for Unix time. The Unix timestamp specification deliberately ignores leap seconds, treating every day as exactly 86,400 seconds. This means Unix time is not a true count of elapsed SI seconds since 1970, but it does keep the arithmetic simple and consistent, which is the trade-off nearly every system has chosen.
 related:
-  - uuid-generator
+  - timezone-converter
+  - date-calculator
   - jwt-decoder
-  - cron-expression-generator
   - cron-expression-explainer
 ---
 

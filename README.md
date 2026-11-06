@@ -25,7 +25,6 @@ tools, the three CSS generators).
 | [Docker Run ↔ Compose Converter](https://devmicrotools.com/docker-run-compose-converter/) | Convert a docker run command into a compose service, or a compose service back into a docker run command. |
 | [Base Converter](https://devmicrotools.com/base-encode-decode/) | Encode and decode Base64, Base32 and Base58 in one tool — text or file, with format-specific options for each. |
 | [URL Encoder & Decoder](https://devmicrotools.com/url-encode-decode/) | Percent-encode or decode URLs, and break one down into its parts. |
-| [Timestamp Converter](https://devmicrotools.com/timestamp-converter/) | Convert Unix epoch timestamps to dates and back, with a live current time. |
 | [Color Converter](https://devmicrotools.com/color-converter/) | Convert between HEX, RGB, HSL and OKLCH, with WCAG contrast checking. |
 | [Chmod Calculator](https://devmicrotools.com/chmod-calculator/) | Convert Unix file permissions between octal (755) and symbolic (rwxr-xr-x) notation, with checkboxes and setuid/setgid/sticky bits. |
 | [JSON, YAML, CSV & XML Converter](https://devmicrotools.com/data-format-converter/) | Convert data between JSON, YAML, CSV and XML in either direction. |
@@ -86,6 +85,17 @@ tools, the three CSS generators).
 | [Invisible & Homoglyph Inspector](https://devmicrotools.com/invisible-char-inspector/) | Find zero-width characters, bidi overrides, odd whitespace and Latin-lookalike homoglyphs, then clean them. |
 | [ASCII Text Banner Generator](https://devmicrotools.com/ascii-text-banner-generator/) | Convert any text into big block-letter ASCII art — pick the fill character, size and spacing, then copy or download. |
 
+### Date & Time
+
+| Tool | Description |
+|---|---|
+| [Timestamp Converter](https://devmicrotools.com/timestamp-converter/) | Convert Unix, FILETIME, .NET, WebKit and Apple epoch timestamps to dates and back. |
+| [Timezone Converter](https://devmicrotools.com/timezone-converter/) | Convert a time across time zones and find the working hours everyone shares. |
+| [Date Calculator](https://devmicrotools.com/date-calculator/) | Find the time between two dates, or add and subtract days, months and business days. |
+| [Cron Expression Explainer](https://devmicrotools.com/cron-expression-explainer/) | Explain Unix, Quartz and AWS EventBridge cron expressions and list the next runs. |
+| [Cron Expression Generator](https://devmicrotools.com/cron-expression-generator/) | Build a cron expression from simple field controls instead of writing the syntax by hand, with a live plain-English description and next run times. |
+| [ISO 8601 Duration Parser](https://devmicrotools.com/iso-duration-parser/) | Parse and build ISO 8601 durations such as PT1H30M, with totals and a date calculator. |
+
 ### AI
 
 | Tool | Description |
@@ -99,8 +109,6 @@ tools, the three CSS generators).
 |---|---|
 | [Bundle Size Checker](https://devmicrotools.com/bundle-size-checker/) | Check an npm package's real gzipped size, README and project health, or size a whole package.json at once. |
 | [ASCII, Unicode & Keycode Inspector](https://devmicrotools.com/ascii-unicode-keycode-inspector/) | Look up any ASCII or Unicode character by code, hex, or name, and inspect a live keyboard event's key, code, keyCode and modifiers as you press it. |
-| [Cron Expression Explainer](https://devmicrotools.com/cron-expression-explainer/) | Explain a cron expression in plain English and see its next run times. |
-| [Cron Expression Generator](https://devmicrotools.com/cron-expression-generator/) | Build a cron expression from simple field controls instead of writing the syntax by hand, with a live plain-English description and next run times. |
 | [CIDR / Subnet Calculator](https://devmicrotools.com/cidr-subnet-calculator/) | Calculate network address, broadcast address, host range and mask from a CIDR block. |
 | [User-Agent Parser](https://devmicrotools.com/user-agent-parser/) | Parse a User-Agent string into browser, OS, rendering engine and device type. |
 | [URL Parser](https://devmicrotools.com/url-parser/) | Decompose a URL into its parts and edit its query parameters live. |
