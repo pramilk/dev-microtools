@@ -32,10 +32,25 @@ test.describe('QR Code Link Checker', () => {
     // Render a real QR code with the sibling generator tool, screenshot it, then feed the
     // PNG to the checker — exercises canvas + jsQR in a real browser.
     await gotoTool(page, 'qr-code-generator');
+    // The generator renders its preview asynchronously and replaces the <svg> node on every
+    // regeneration, so a handle to the <svg> itself can detach mid-screenshot. Screenshot the
+    // wrapper (which persists) and wait for the preview to settle on the new text first.
+    const image = widget(page).locator('.qr-preview__image');
+    await expect(image.locator('svg')).toBeVisible();
+    const initialSvg = await image.innerHTML();
     await widget(page).locator('textarea, input[type="text"]').first().fill('https://bit.ly/3abc12');
-    const svg = widget(page).locator('.qr-preview__image svg');
-    await expect(svg).toBeVisible();
-    const png = await svg.screenshot({ type: 'png' });
+    await expect.poll(() => image.innerHTML()).not.toBe(initialSvg);
+    // Let any trailing re-render finish: the markup must be identical across two reads.
+    let previous = '';
+    await expect
+      .poll(async () => {
+        const current = await image.innerHTML();
+        const stable = current === previous;
+        previous = current;
+        return stable;
+      })
+      .toBe(true);
+    const png = await image.screenshot({ type: 'png' });
 
     await gotoTool(page, 'qr-code-link-checker');
     const tool = widget(page);
