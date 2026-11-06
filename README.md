@@ -70,6 +70,9 @@ tools, the three CSS generators).
 | [RSA Encrypt / Decrypt](https://devmicrotools.com/rsa-encrypt-decrypt/) | Encrypt text with an RSA public key and decrypt it with the private key (RSA-OAEP), or generate a new key pair. |
 | [QR Code Link Checker](https://devmicrotools.com/qr-code-link-checker/) | Scan a QR code and see whether it goes straight to its site or through a redirect service. |
 | [Phishing Email Checker](https://devmicrotools.com/phishing-email-checker/) | Paste an email's source to spot spoofed senders, failed SPF/DKIM/DMARC, deceptive links and risky attachments. |
+| [Security Headers Analyzer](https://devmicrotools.com/security-headers-analyzer/) | Paste HTTP response headers to grade HSTS, CSP, cookies, clickjacking and CORS, with ready-to-use fixes. |
+| [TOTP Generator](https://devmicrotools.com/totp-generator/) | Generate and check live TOTP two-factor codes from a base32 secret, with a countdown and QR code. |
+| [Certificate Decoder](https://devmicrotools.com/x509-certificate-decoder/) | Decode a PEM certificate or CSR to see names, expiry, key, fingerprints and problems, plus a hostname check. |
 
 ### Text
 
@@ -156,8 +159,11 @@ src/
   components/                # Header, Footer, ToolCard, RelatedTools, AdSlot, ToolIsland, ...
   content/tools/<slug>.mdx   # per-tool metadata + written content (required by content.config.ts)
   islands/<Tool>.tsx         # one Preact component per tool — the interactive widget
+  islands/shared/            # primitives reused across tools (CopyButton, FindingList, CollapsibleHelp, ...)
   lib/tools/<name>.ts        # pure, framework-free, unit-tested logic
   lib/toolRegistry.ts        # slug -> component registration
+  lib/toolIcons.ts           # slug -> short sidebar/directory label
+  styles/tool.css            # shared tool UI styles (tool-bar, messages, result cards, findings)
   pages/
     index.astro              # tool directory
     [slug].astro              # dynamic route over the content collection (tools live at /<slug>/)
@@ -167,7 +173,10 @@ public/                      # robots.txt (AI crawler policy), ads.txt, favicon
 
 Each tool keeps three concerns separate: pure logic (`lib/tools/`), UI/state (`islands/`),
 and content (`content/tools/`). Adding a new tool is additive — one file in each of those
-three places, plus a registry entry — never a change to another tool's code.
+three places, plus three slug registrations (`lib/toolRegistry.ts`, the dispatch in
+`components/ToolIsland.astro`, and `lib/toolIcons.ts`) — never a change to another tool's
+code. Shared pieces (the findings list, the collapsible "how do I get this input?" help)
+live in `islands/shared/` and are extended, not copied.
 
 See [AGENTS.md](AGENTS.md) for the full set of engineering conventions this project follows
 (performance budget, testing requirements, SOLID layering, SEO requirements) — the same file
@@ -181,6 +190,7 @@ npm run dev          # dev server at localhost:4321
 npm run build        # production build to dist/
 npm run preview      # serve the built site locally
 npm run test         # unit + component tests
+npm run test:e2e     # build, then Playwright smoke tests against the built site
 ```
 
 ## License

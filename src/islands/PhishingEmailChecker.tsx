@@ -4,15 +4,15 @@ import {
   formatReport,
   type AuthResults,
   type FindingCategory,
-  type PhishingFinding,
   type RiskLevel,
-  type Severity,
 } from '../lib/tools/phishingEmail';
 import { readShareStateFromLocation } from '../lib/shareLink';
 import { ErrorMessage } from './shared/ErrorMessage';
 import { CopyButton } from './shared/CopyButton';
 import { ShareLinkButton } from './shared/ShareLinkButton';
 import { useTextFileDrop } from './shared/useTextFileDrop';
+import { FindingList } from './shared/FindingList';
+import { CollapsibleHelp } from './shared/CollapsibleHelp';
 
 // Matches the worked example in phishing-email-checker.mdx exactly, so the page and the
 // button can never drift apart. All addresses use reserved example domains.
@@ -46,13 +46,6 @@ const LEVEL_STYLE: Record<RiskLevel, { cls: string; icon: string }> = {
   low: { cls: 'msg--info', icon: 'i' },
 };
 
-const SEVERITY_LABEL: Record<Severity, string> = {
-  danger: 'Danger',
-  warning: 'Warning',
-  info: 'Note',
-  ok: 'OK',
-};
-
 const CATEGORY_LABEL: Record<FindingCategory, string> = {
   sender: 'Sender',
   authentication: 'Authentication (SPF · DKIM · DMARC)',
@@ -62,18 +55,6 @@ const CATEGORY_LABEL: Record<FindingCategory, string> = {
 };
 
 const CATEGORY_ORDER: FindingCategory[] = ['sender', 'authentication', 'links', 'content', 'attachments'];
-
-function FindingRow({ item }: { item: PhishingFinding }) {
-  return (
-    <li class={`pec-finding pec-finding--${item.severity}`}>
-      <span class="pec-finding__tag">{SEVERITY_LABEL[item.severity]}</span>
-      <div>
-        <p class="pec-finding__title">{item.title}</p>
-        <p class="pec-finding__detail">{item.detail}</p>
-      </div>
-    </li>
-  );
-}
 
 function authClass(kind: 'spf' | 'dkim' | 'dmarc', value: string | null): string {
   if (!value) return 'pec-pill';
@@ -96,11 +77,10 @@ function AuthPills({ auth }: { auth: AuthResults }) {
 }
 
 /** Steps for getting the full message source out of the two most common mail apps. */
-function RawEmailHelp({ open, onToggle }: { open: boolean; onToggle: (open: boolean) => void }) {
+function RawEmailHelp() {
   return (
-    <details class="pec-help" open={open} onToggle={(event) => onToggle((event.currentTarget as HTMLDetailsElement).open)}>
-      <summary>How do I get the raw email? (Gmail, Outlook)</summary>
-      <div class="pec-help__grid">
+    <CollapsibleHelp summary="How do I get the raw email? (Gmail, Outlook)">
+      <div class="help-callout__grid">
         <section>
           <h3>Gmail</h3>
           <ol>
@@ -141,24 +121,23 @@ function RawEmailHelp({ open, onToggle }: { open: boolean; onToggle: (open: bool
               Copy the whole <strong>Internet headers</strong> box at the bottom and paste it above.
             </li>
           </ol>
-          <p class="pec-help__note">
+          <p class="help-callout__note">
             This gives the headers only: enough to check the sender and SPF/DKIM/DMARC, but not the links or attachments. To check those
             too, paste the message text below the headers.
           </p>
         </section>
       </div>
-      <p class="pec-help__note">
+      <p class="help-callout__note">
         Always use the original source, not a forwarded copy. Forwarding rewrites the headers and hides the evidence. Prefer{' '}
         <strong>Forward as attachment</strong> if you must send it to someone else.
       </p>
-    </details>
+    </CollapsibleHelp>
   );
 }
 
 export default function PhishingEmailChecker() {
   const [input, setInput] = useState('');
   const [debounced, setDebounced] = useState('');
-  const [helpOpen, setHelpOpen] = useState(false);
 
   // Restore a shared link, if the page was opened with one.
   useEffect(() => {
@@ -216,7 +195,7 @@ export default function PhishingEmailChecker() {
       </div>
 
       {/* Collapsed by default, but highlighted: most visitors have never had to find an email's source. */}
-      <RawEmailHelp open={helpOpen} onToggle={setHelpOpen} />
+      <RawEmailHelp />
 
       <div class="field">
         <label class="field__label" for="pec-input">
@@ -252,8 +231,8 @@ export default function PhishingEmailChecker() {
           </div>
 
           {analysis.message.hasHeaders && (
-            <div class="pec-card">
-              <h3 class="pec-card__title">Message details</h3>
+            <div class="result-card">
+              <h3 class="result-card__title">Message details</h3>
               <dl class="pec-grid">
                 {analysis.message.from && (
                   <>
@@ -307,20 +286,16 @@ export default function PhishingEmailChecker() {
             </p>
           ) : (
             grouped.map((group) => (
-              <div class="pec-card" key={group.category}>
-                <h3 class="pec-card__title">{CATEGORY_LABEL[group.category]}</h3>
-                <ul class="pec-findings">
-                  {group.items.map((item) => (
-                    <FindingRow key={item.id} item={item} />
-                  ))}
-                </ul>
+              <div class="result-card" key={group.category}>
+                <h3 class="result-card__title">{CATEGORY_LABEL[group.category]}</h3>
+                <FindingList items={group.items} />
               </div>
             ))
           )}
 
           {analysis.links.length > 0 && (
-            <div class="pec-card">
-              <h3 class="pec-card__title">Links found ({analysis.links.length})</h3>
+            <div class="result-card">
+              <h3 class="result-card__title">Links found ({analysis.links.length})</h3>
               <p class="pec-note">Shown as plain text on purpose, so nothing here can be clicked by accident.</p>
               <ul class="pec-links">
                 {analysis.links.map((link, index) => (
@@ -335,8 +310,8 @@ export default function PhishingEmailChecker() {
           )}
 
           {analysis.attachments.length > 0 && (
-            <div class="pec-card">
-              <h3 class="pec-card__title">Attachments ({analysis.attachments.length})</h3>
+            <div class="result-card">
+              <h3 class="result-card__title">Attachments ({analysis.attachments.length})</h3>
               <ul class="pec-links">
                 {analysis.attachments.map((attachment, index) => (
                   <li key={`${attachment.filename}-${index}`} class={`pec-link pec-link--${attachment.severity}`}>
@@ -349,8 +324,8 @@ export default function PhishingEmailChecker() {
           )}
 
           {analysis.hops.length > 0 && (
-            <div class="pec-card">
-              <h3 class="pec-card__title">Route the message took (oldest first)</h3>
+            <div class="result-card">
+              <h3 class="result-card__title">Route the message took (oldest first)</h3>
               <ol class="pec-hops">
                 {analysis.hops.map((hop, index) => (
                   <li key={index}>
@@ -372,38 +347,11 @@ export default function PhishingEmailChecker() {
       )}
 
       <style>{`
-        .pec-help {
-          border: 1px solid var(--accent); border-left-width: 4px; border-radius: var(--radius);
-          background: var(--accent-subtle); padding: var(--space-3) var(--space-4);
-        }
-        .pec-help > summary {
-          cursor: pointer; font-weight: 700; font-size: var(--text-sm); color: var(--accent);
-        }
-        .pec-help > summary::marker { color: var(--accent); }
-        .pec-help > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-        .pec-help__grid {
-          display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-          gap: var(--space-4); margin-top: var(--space-3);
-        }
-        .pec-help h3 { margin: 0 0 var(--space-2); font-size: var(--text-sm); }
-        .pec-help ol { margin: 0; padding-left: 1.25rem; font-size: var(--text-sm); color: var(--text-muted); display: flex; flex-direction: column; gap: var(--space-1); }
-        .pec-help strong { color: var(--text); }
-        .pec-help code { font-family: var(--font-mono); font-size: var(--text-xs); }
-        .pec-help__note { margin: var(--space-3) 0 0; font-size: var(--text-sm); color: var(--text-muted); }
         .pec-result { display: flex; flex-direction: column; gap: var(--space-3); }
         .pec-verdict { align-items: flex-start; }
         .pec-verdict__headline { margin: 0; font-weight: 700; font-size: var(--text-base); }
         .pec-verdict__summary { margin: var(--space-1) 0 0; color: var(--text); }
         .pec-verdict__score { margin: var(--space-2) 0 0; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
-        .pec-card {
-          border: 1px solid var(--border); border-radius: var(--radius);
-          background: var(--surface); padding: var(--space-4);
-          display: flex; flex-direction: column; gap: var(--space-3);
-        }
-        .pec-card__title {
-          font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .08em;
-          color: var(--text-subtle); font-family: var(--font-mono); font-weight: 600; margin: 0;
-        }
         .pec-grid {
           display: grid; grid-template-columns: minmax(8rem, auto) 1fr;
           gap: var(--space-2) var(--space-4); margin: 0; font-size: var(--text-sm);
@@ -419,19 +367,7 @@ export default function PhishingEmailChecker() {
         .pec-pill--ok { color: var(--success); background: var(--success-subtle); border-color: var(--success-border); }
         .pec-pill--warning { color: var(--warning); background: var(--warning-subtle); border-color: var(--warning-border); }
         .pec-pill--danger { color: var(--danger); background: var(--danger-subtle); border-color: var(--danger-border); }
-        .pec-findings, .pec-links { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
-        .pec-finding { display: grid; grid-template-columns: 4.5rem 1fr; gap: var(--space-3); align-items: start; }
-        .pec-finding__tag {
-          font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 700;
-          text-transform: uppercase; text-align: center; padding: 2px var(--space-2);
-          border-radius: var(--radius-sm, 4px); border: 1px solid var(--border);
-        }
-        .pec-finding--danger .pec-finding__tag { color: var(--danger); background: var(--danger-subtle); border-color: var(--danger-border); }
-        .pec-finding--warning .pec-finding__tag { color: var(--warning); background: var(--warning-subtle); border-color: var(--warning-border); }
-        .pec-finding--ok .pec-finding__tag { color: var(--success); background: var(--success-subtle); border-color: var(--success-border); }
-        .pec-finding--info .pec-finding__tag { color: var(--text-muted); background: var(--surface); }
-        .pec-finding__title { margin: 0; font-weight: 600; color: var(--text); font-size: var(--text-sm); }
-        .pec-finding__detail { margin: var(--space-1) 0 0; color: var(--text-muted); font-size: var(--text-sm); }
+        .pec-links { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
         .pec-note { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
         .pec-link { display: flex; flex-direction: column; gap: 2px; padding-left: var(--space-3); border-left: 3px solid var(--border); }
         .pec-link--danger { border-left-color: var(--danger); }
@@ -443,8 +379,6 @@ export default function PhishingEmailChecker() {
         .pec-hops { margin: 0; padding-left: 1.25rem; font-size: var(--text-sm); display: flex; flex-direction: column; gap: var(--space-1); }
         .pec-hop__ip, .pec-hop__date { color: var(--text-muted); font-size: var(--text-xs); }
         @media (max-width: 36rem) {
-          .pec-finding { grid-template-columns: 1fr; gap: var(--space-1); }
-          .pec-finding__tag { justify-self: start; }
           .pec-grid { grid-template-columns: 1fr; gap: 0; }
           .pec-grid dd { margin-bottom: var(--space-2); }
         }

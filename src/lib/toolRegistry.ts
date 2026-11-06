@@ -72,6 +72,9 @@ import UnlockPdf from '../islands/UnlockPdf';
 import AesEncryptDecrypt from '../islands/AesEncryptDecrypt';
 import RsaEncryptDecrypt from '../islands/RsaEncryptDecrypt';
 import PhishingEmailChecker from '../islands/PhishingEmailChecker';
+import SecurityHeadersAnalyzer from '../islands/SecurityHeadersAnalyzer';
+import TotpGenerator from '../islands/TotpGenerator';
+import CertificateDecoder from '../islands/CertificateDecoder';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -153,6 +156,9 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'aes-encrypt-decrypt': AesEncryptDecrypt,
   'rsa-encrypt-decrypt': RsaEncryptDecrypt,
   'phishing-email-checker': PhishingEmailChecker,
+  'security-headers-analyzer': SecurityHeadersAnalyzer,
+  'totp-generator': TotpGenerator,
+  'x509-certificate-decoder': CertificateDecoder,
 };
 
 /**

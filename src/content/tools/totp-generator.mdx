@@ -1,0 +1,86 @@
+---
+title: TOTP Generator
+headline: TOTP Generator & Validator — Live 2FA Codes in Your Browser
+description: Generate and check TOTP two-factor codes from a base32 secret or otpauth link, with a live countdown and QR code. Runs in your browser.
+summary: Generate and check live TOTP two-factor codes from a base32 secret, with a countdown and QR code.
+category: Security
+order: 65
+updated: 2026-11-05
+whatIsIt: >-
+  A TOTP code is the six-digit number your authenticator app shows and changes every thirty
+  seconds. It is not stored anywhere: the app and the website each combine a shared secret
+  with the current time using a standard algorithm (RFC 6238) and arrive at the same number.
+  This tool does that calculation in your browser. Paste the base32 secret, or a whole otpauth
+  link, and it shows the live code with a countdown, the previous and next codes, and lets you
+  check a code someone gave you. It can also generate a fresh random secret and turn it into a
+  QR code for Google Authenticator, Authy, 1Password and similar apps. It is built for
+  developers testing a two-factor login flow, and for anyone who needs to see whether a secret
+  and its settings are correct. The calculation uses the browser's built-in Web Crypto API.
+  Nothing is uploaded, stored or logged.
+useCases:
+  - Testing the two-factor login flow of an app you are building, by generating valid codes for a secret without needing a phone.
+  - Debugging a code that a server keeps rejecting, by checking whether the secret, algorithm, digits, period and your clock agree with what the server expects.
+  - Creating a secret and QR code to enrol a test account or a service account in an authenticator app, and confirming the first code works.
+  - Learning how time-based one-time passwords work, using the published RFC 6238 test vectors to see the exact numbers a correct implementation must produce.
+howTo:
+  - Paste the base32 secret into the Secret box, or paste a full otpauth:// link and every setting is filled in. To start fresh, press Generate secret.
+  - Read the live code and the countdown bar. The previous and next codes are shown too, since servers usually accept one step of clock drift either side.
+  - To test a code, type it into Check a code. It reports whether it is the current, previous or next code, or not valid.
+  - To enrol an authenticator app, add an account name and optional issuer, then scan the QR code or copy the otpauth link.
+example:
+  label: The RFC 6238 test secret, which has published expected codes.
+  input: GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ
+  output: |-
+    Secret     12345678901234567890  (ASCII, as base32)
+    At 59 s    287082      (6 digits, SHA-1)
+    At 59 s    94287082    (8 digits, SHA-1)  ← RFC 6238 appendix B
+    Previous   755224
+    Next       359152
+  note: Those numbers come straight from the RFC test vectors, which makes this secret a handy way to check that your own implementation is correct. The live code shown on the page uses the current time, so it will differ.
+faq:
+  - q: Where do I find the secret key for my account?
+    a: When a site offers two-factor authentication it shows a QR code, and usually a link beside it such as "Can't scan it?" or "Enter this key manually". That reveals the secret as a base32 string. Copy it from there at setup time, since most sites will not show it again afterwards. If you only have the QR code, a QR reader gives you an otpauth link that you can paste straight into this tool.
+  - q: Is it safe to put my real secret into this page?
+    a: The calculation runs locally and nothing is sent anywhere, stored, or put in the page address. Even so, anyone who holds a secret can generate your login codes, so for a high-value account such as your bank or main email, use your authenticator app rather than pasting the secret into any web page. This tool is aimed at testing, development and recovery. That is also why it has no share link.
+  - q: Why does a valid-looking code get rejected by the server?
+    a: The usual causes are a clock that is off by more than about thirty seconds, a mismatch in settings (the algorithm, digit count or period), a mistyped secret, or typing the code after it has already rolled over. Check the countdown, compare the settings on both sides, and use Check a code, which also tells you whether you entered the previous or next code by mistake.
+  - q: What do the algorithm, digits and period settings mean?
+    a: Almost every service uses SHA-1, six digits and a thirty-second period, and so does every authenticator app by default. SHA-256 and SHA-512, seven or eight digits, and other periods exist in the standard, but many apps ignore them and silently use the defaults. Only change them if the service tells you to, and test the result in the app you will use.
+  - q: Why is a short secret flagged?
+    a: The standard requires at least 128 bits, which is 26 base32 characters, and recommends 160 bits. A shorter secret is easier to guess and some authenticator apps refuse to import it. Press Generate secret to create a 160-bit one using your browser's secure random number generator.
+  - q: How is this different from HOTP?
+    a: HOTP, defined in RFC 4226, uses a counter that increases each time a code is used. TOTP, the version this tool handles, replaces the counter with the current time divided into steps, so a code expires on its own. A link for a counter-based code starts with otpauth://hotp/ and is rejected with an explanation, since it needs a different workflow.
+related:
+  - qr-code-generator
+  - password-generator
+  - base-encode-decode
+---
+
+## How the code is calculated
+
+A one-time password is a short digest of two things both sides already know. The secret is
+a random value shared when you set up two-factor authentication. The counter is the current Unix
+time divided by the period, so with the usual thirty-second period it ticks up once every thirty
+seconds. The tool runs an HMAC of the counter keyed with the secret, picks four bytes from the
+result using the dynamic-truncation rule, and keeps the last six digits. Because both sides
+repeat the same steps, they get the same number without ever sending it.
+
+## Where to find the secret and how to use it
+
+Wherever a site shows a QR code for two-factor setup, look for **Can't scan it?** or **Enter this
+key manually**. The text key is the base32 secret. Paste it into the Secret box with or without
+spaces and in any case. You can also paste a complete `otpauth://` link, which carries the secret
+and the settings together.
+
+If you would rather start from scratch, press **Generate secret**, give the account a name and
+scan the QR code with your authenticator. The first code it shows should match the one on this
+page. If it does not, check that your device clock is correct.
+
+## Testing against the standard
+
+The secret in the example is the one used by the RFC 4226 and RFC 6238 test vectors, so you can
+confirm any implementation produces the published codes. Use the
+[Base Converter](/base-encode-decode/) to move a secret between base32 and other encodings, and
+the [QR Code Generator](/qr-code-generator/) when you need a code for something other than
+two-factor setup. For strong random passwords to go with your codes, try the
+[Password Generator](/password-generator/).

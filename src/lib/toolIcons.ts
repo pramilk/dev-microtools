@@ -83,6 +83,9 @@ export const TOOL_ICONS: Record<string, string> = {
   'aes-encrypt-decrypt': 'AES',
   'rsa-encrypt-decrypt': 'RSA',
   'phishing-email-checker': 'PHI',
+  'security-headers-analyzer': 'HDR',
+  'totp-generator': 'OTP',
+  'x509-certificate-decoder': 'CRT',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';

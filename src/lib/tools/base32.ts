@@ -73,6 +73,20 @@ export function encodeBase32(input: string, options?: { padding?: boolean }): To
   }
 }
 
+/**
+ * Decodes to raw bytes, for callers whose payload is binary rather than text — a TOTP
+ * shared secret, for example, is random bytes that would fail the UTF-8 check in
+ * `decodeBase32`. Same lenient rules: case-insensitive, padding optional, whitespace ignored.
+ */
+export function decodeBase32ToBytes(input: string): ToolResult<Uint8Array> {
+  const candidate = input.replace(/\s+/g, '').toUpperCase();
+  if (candidate === '') return err('Nothing to decode — paste a base32 string first.');
+  if (!/^[A-Z2-7]*={0,6}$/.test(candidate)) {
+    return err('That is not valid base32 — it contains characters outside the alphabet (A-Z, 2-7).');
+  }
+  return ok(base32ToBytes(candidate.replace(/=+$/, '')));
+}
+
 export function decodeBase32(input: string): ToolResult<string> {
   const trimmed = input.trim();
   if (trimmed === '') return err('Nothing to decode — paste a base32 string first.');

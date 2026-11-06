@@ -68,6 +68,9 @@ import UnlockPdf from '../islands/UnlockPdf';
 import AesEncryptDecrypt from '../islands/AesEncryptDecrypt';
 import RsaEncryptDecrypt from '../islands/RsaEncryptDecrypt';
 import PhishingEmailChecker from '../islands/PhishingEmailChecker';
+import SecurityHeadersAnalyzer from '../islands/SecurityHeadersAnalyzer';
+import TotpGenerator from '../islands/TotpGenerator';
+import CertificateDecoder from '../islands/CertificateDecoder';
 import ChmodCalculator from '../islands/ChmodCalculator';
 import ColorPaletteGenerator from '../islands/ColorPaletteGenerator';
 import CronGenerator from '../islands/CronGenerator';
@@ -167,3 +170,6 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'aes-encrypt-decrypt' && <AesEncryptDecrypt client:load />}
 {slug === 'rsa-encrypt-decrypt' && <RsaEncryptDecrypt client:load />}
 {slug === 'phishing-email-checker' && <PhishingEmailChecker client:load />}
+{slug === 'security-headers-analyzer' && <SecurityHeadersAnalyzer client:load />}
+{slug === 'totp-generator' && <TotpGenerator client:load />}
+{slug === 'x509-certificate-decoder' && <CertificateDecoder client:load />}

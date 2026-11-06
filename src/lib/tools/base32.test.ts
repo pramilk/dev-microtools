@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { encodeBase32, decodeBase32, encodeBytesToBase32 } from './base32';
+import { encodeBase32, decodeBase32, decodeBase32ToBytes, encodeBytesToBase32 } from './base32';
 
 describe('encodeBase32', () => {
   // Known-answer vectors from RFC 4648 section 10.
@@ -110,5 +110,30 @@ describe('encodeBytesToBase32', () => {
 
   it('encodes empty input as an empty string', () => {
     expect(encodeBytesToBase32(new Uint8Array(0))).toEqual({ ok: true, value: '' });
+  });
+});
+
+describe('decodeBase32ToBytes', () => {
+  it('decodes to raw bytes, including binary that is not valid UTF-8', () => {
+    const result = decodeBase32ToBytes('77777777');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(Array.from(result.value)).toEqual([255, 255, 255, 255, 255]);
+  });
+
+  it('round-trips with encodeBytesToBase32', () => {
+    const bytes = Uint8Array.from([0, 1, 2, 250, 251, 252, 253, 254, 255]);
+    const encoded = encodeBytesToBase32(bytes);
+    if (!encoded.ok) throw new Error(encoded.error);
+    const decoded = decodeBase32ToBytes(encoded.value);
+    expect(decoded.ok && Array.from(decoded.value)).toEqual(Array.from(bytes));
+  });
+
+  it('is lenient about case, spaces and padding', () => {
+    expect(decodeBase32ToBytes('mzxw 6ytb oi======')).toEqual(decodeBase32ToBytes('MZXW6YTBOI'));
+  });
+
+  it('rejects empty input and characters outside the alphabet', () => {
+    expect(decodeBase32ToBytes('  ')).toEqual({ ok: false, error: expect.stringMatching(/nothing to decode/i) });
+    expect(decodeBase32ToBytes('ABC1')).toEqual({ ok: false, error: expect.stringMatching(/not valid base32/i) });
   });
 });

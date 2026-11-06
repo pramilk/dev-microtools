@@ -1,0 +1,113 @@
+---
+title: Certificate Decoder
+headline: X.509 Certificate Decoder — Read SSL/TLS Certificates & CSRs
+description: Decode an SSL/TLS certificate or CSR in your browser to see names, expiry, key strength and fingerprints, with problems flagged.
+summary: Decode a PEM certificate or CSR to see names, expiry, key, fingerprints and problems, plus a hostname check.
+category: Security
+order: 66
+updated: 2026-11-05
+whatIsIt: >-
+  An SSL/TLS certificate is a signed file that ties a website's name to a public key, and it
+  is the thing that fails when a site shows a security warning. It is also unreadable as it
+  stands: a block of base64 between BEGIN CERTIFICATE and END CERTIFICATE lines. This tool decodes
+  that block, and a certificate signing request (CSR), in your browser. It shows who the
+  certificate was issued to and by, when it starts and expires, every name it covers, the key
+  type and size, the signature algorithm, the extensions, and the SHA-256 and SHA-1 fingerprints.
+  It then reviews what it finds in plain language: expired or about to expire, a weak key or
+  SHA-1 signature, a missing Subject Alternative Name, a lifetime browsers reject. You can also
+  check whether it covers a given hostname. Pasting a whole chain checks that each certificate
+  was issued by the next. Everything is decoded locally with no library, so nothing is uploaded.
+useCases:
+  - Finding out why a site shows a certificate warning, by checking whether the certificate has expired, covers the hostname you are visiting, or is missing the chain it needs.
+  - Checking a certificate's expiry date and fingerprint before a renewal, a migration, or when someone asks you to confirm which certificate a server presents.
+  - Inspecting a certificate signing request before you submit it to a certificate authority, to confirm the names and key size are what you intended.
+  - Verifying that a certificate chain is complete and in the right order, and reading the revocation and issuer links embedded in it.
+howTo:
+  - Get the certificate as PEM text (see the collapsible steps above the input for Chrome, Firefox and OpenSSL), then paste it into the box, or drop a .pem or .crt file onto it.
+  - Read the status line at the top, then the findings, which are sorted with the most serious first. Open the details for the names, key, extensions and fingerprints.
+  - Type a hostname into the check field to see whether the certificate covers it, including wildcard matching.
+  - Paste several certificates one after another to review a chain. Use Copy report to share the findings, or Clear to start over.
+example:
+  label: A self-signed ECDSA certificate, checked against a hostname.
+  input: |-
+    -----BEGIN CERTIFICATE-----
+    MIICwDCCAmagAwIBAgIUCgoTKANLy9M8GQCqIMX7h0vgeocwCgYIKoZIzj0EAwIw
+    fTELMAkGA1UEBhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExFjAUBgNVBAcMDVNh
+    biBGcmFuY2lzY28xFDASBgNVBAoMC0V4YW1wbGUgSW5jMRQwEgYDVQQLDAtFbmdp
+    bmVlcmluZzEVMBMGA1UEAwwMZXhhbXBsZS50ZXN0MB4XDTI2MTEwNjA2MzAzMloX
+    DTM2MTEwMzA2MzAzMlowfTELMAkGA1UEBhMCVVMxEzARBgNVBAgMCkNhbGlmb3Ju
+    aWExFjAUBgNVBAcMDVNhbiBGcmFuY2lzY28xFDASBgNVBAoMC0V4YW1wbGUgSW5j
+    MRQwEgYDVQQLDAtFbmdpbmVlcmluZzEVMBMGA1UEAwwMZXhhbXBsZS50ZXN0MFkw
+    EwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAESnqKwdvjAj37Z37+eyozoAPrINr9CU1F
+    IWZ1sjh4rD+SJn5BPjigiaaJuqq9ZOGsh2By9STWN8je4dNeLZXx0qOBwzCBwDAd
+    BgNVHQ4EFgQUAe5B56wTeuivycEk9EoH1ts3Df8wHwYDVR0jBBgwFoAUAe5B56wT
+    euivycEk9EoH1ts3Df8wQQYDVR0RBDowOIIMZXhhbXBsZS50ZXN0gg4qLmV4YW1w
+    bGUudGVzdIcEwAACAYESYWRtaW5AZXhhbXBsZS50ZXN0MA4GA1UdDwEB/wQEAwIH
+    gDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDAYDVR0TAQH/BAIwADAK
+    BggqhkjOPQQDAgNIADBFAiBzkTK7D3NiVW9ClnRv3V51czURl9zDCAELz3l82PI9
+    xAIhAPA8ARw0EW2V3QewC/vswwNv0pQfzcVxHQIeRpkI8bV4
+    -----END CERTIFICATE-----
+  output: |-
+    Subject    C=US, ST=California, L=San Francisco, O=Example Inc, OU=Engineering, CN=example.test
+    Issuer     (same: self-signed)
+    Valid      2026-11-06 06:30:32 UTC  to  2036-11-03 06:30:32 UTC
+    Key        EC P-256 (prime256v1), signed with ecdsa-with-SHA256
+    Names      example.test, *.example.test, 192.0.2.1, admin@example.test
+    SHA-256    2E:2A:F1:24:E1:C3:46:AF:C9:4C:23:FA:18:A1:0C:3C: …
+    Host check api.example.test → covered by the wildcard *.example.test
+  note: The wildcard covers api.example.test, but not example.test itself or a.b.example.test, because a wildcard stands for exactly one label. The tool marks it self-signed, so browsers would not trust it unless it were installed.
+faq:
+  - q: How do I get the certificate for a website?
+    a: In Chrome or Edge, click the padlock, choose Connection is secure and then Certificate is valid, open the Details tab and export it as Base64 PEM. In Firefox, use the padlock, More information, View Certificate, then the PEM (cert) link. From a terminal, run openssl s_client with -connect and -servername, and pipe it into openssl x509. Open the file or output as text and paste everything from BEGIN CERTIFICATE to END CERTIFICATE.
+  - q: Is it safe to paste a certificate here?
+    a: Yes. A certificate is public by design, since every visitor to the site receives it, and the decoding runs entirely in your browser. A private key is different, and this tool refuses to decode one. If you paste text containing a private key it stops and tells you not to, because a private key lets anyone impersonate your server and should never be pasted into any web page.
+  - q: Does this verify that the certificate is trusted?
+    a: No. It decodes and reviews what the certificate says about itself. Checking a signature needs the issuer's public key, and deciding trust needs a list of trusted root authorities, which only a browser or operating system has. A certificate shown as having no problems can still be rejected by a client that does not trust its issuer. When you paste a chain it checks that each certificate names the next as its issuer, but it does not verify the signatures.
+  - q: Why does a browser reject a certificate that looks fine here?
+    a: The usual causes are a hostname that is not listed in the Subject Alternative Names, since browsers ignore the Common Name, an incomplete chain where the server does not send its intermediate certificate, an issuer the browser does not trust, a clock that is wrong, or a lifetime above 398 days. The findings flag the ones visible in the certificate, and the hostname check tests the name match directly.
+  - q: What do SAN, CN and wildcard mean?
+    a: The Common Name (CN) is an old free-text field for the site name. The Subject Alternative Name (SAN) is the list browsers actually check today, and it can hold DNS names, IP addresses and email addresses. A wildcard such as *.example.com stands for exactly one label, so it covers www.example.com but neither example.com itself nor a.b.example.com. If the bare domain should work, it needs its own entry.
+  - q: What is a CSR and how is it different from a certificate?
+    a: A certificate signing request is what you send to a certificate authority to get a certificate. It contains your public key, the subject details and the names you want, signed with your private key to prove you hold it, but it has no validity dates and no issuer, because the authority supplies those when it signs. This tool decodes a CSR so you can check the names and key size before you submit it.
+related:
+  - security-headers-analyzer
+  - hash-generator
+  - base-encode-decode
+---
+
+## Getting a certificate to paste
+
+You want the certificate in PEM form: base64 text starting with `-----BEGIN CERTIFICATE-----`.
+
+**Chrome and Edge.** Click the padlock beside the address, then **Connection is secure** and
+**Certificate is valid**. On the **Details** tab choose **Export…** and save as Base64-encoded
+(PEM). Open the file in a text editor and copy all of it.
+
+**Firefox.** Click the padlock, then **Connection secure**, **More information** and **View
+Certificate**. Under Miscellaneous, click the **PEM (cert)** link.
+
+**OpenSSL.** Run this, then copy the block it prints:
+
+`openssl s_client -connect example.com:443 -servername example.com </dev/null | openssl x509`
+
+For a certificate signing request, open the `.csr` file directly. A binary `.cer` file can
+be converted with `openssl x509 -inform der -in file.cer`.
+
+## What the review checks
+
+**Validity.** Whether the certificate is expired, not valid yet, or close to expiring, and
+whether a publicly trusted certificate has a lifetime longer than the 398 days browsers allow.
+
+**Strength.** RSA keys under 2048 bits and EC keys under 256 bits, and MD5 or SHA-1 signatures,
+all of which modern clients reject.
+
+**Names.** Whether a Subject Alternative Name is present, what it covers, and, if you type a
+hostname, whether the certificate matches it using the same wildcard rules as a browser.
+
+**Structure.** Self-signed certificates, CA constraints, key usages, revocation links (OCSP and
+CRL), policies, must-staple and embedded certificate-transparency timestamps.
+
+If you are checking a site's wider setup, run its response headers through the
+[Security Headers Analyzer](/security-headers-analyzer/). For raw fingerprints of other data, use
+the [Hash Generator](/hash-generator/), and the [Base Converter](/base-encode-decode/) handles
+the base64 that PEM is made of.

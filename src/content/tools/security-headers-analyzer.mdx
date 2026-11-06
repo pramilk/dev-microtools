@@ -1,0 +1,108 @@
+---
+title: Security Headers Analyzer
+headline: Security Headers Analyzer — Grade Your HTTP Response Headers
+description: Paste your HTTP response headers to get a graded review of HSTS, CSP, cookies, clickjacking and CORS, with fixes. Runs in your browser.
+summary: Paste HTTP response headers to grade HSTS, CSP, cookies, clickjacking and CORS, with ready-to-use fixes.
+category: Security
+order: 64
+updated: 2026-11-05
+whatIsIt: >-
+  HTTP security headers are instructions your server sends with every page that tell the
+  browser how to protect your visitors: insist on https, refuse to be framed by other sites,
+  stop guessing file types, limit which scripts may run, and lock down cookies. They cost
+  nothing to add and block whole classes of attack, but they are easy to forget and easy to
+  get subtly wrong. This tool takes the response headers you paste, from curl or your browser's
+  network panel, and grades them from A+ to F. Every finding says what is missing or weak, why it
+  matters, and, where there is one, the exact header line that would fix it. It also catches
+  leaky headers that reveal your server software, deprecated headers that should be removed,
+  risky cookie flags and unsafe CORS settings. It runs entirely in your browser and never contacts
+  your site, so you can safely check staging or internal servers.
+useCases:
+  - Auditing a site before launch to confirm HSTS, a Content-Security-Policy, clickjacking protection and safe cookie flags are all in place.
+  - Checking what a CDN, reverse proxy or framework actually sends, since the headers a page ends up with often differ from what you configured.
+  - Reviewing a staging or internal server that online scanners cannot reach, by pasting its headers instead of exposing it to a third-party tool.
+  - Answering a security questionnaire or pen-test finding by seeing exactly which headers are missing and getting the recommended lines to add.
+howTo:
+  - Get the response headers of an HTML page (see the collapsible steps above the input for curl, Chrome, Firefox and Safari) and paste them into the box.
+  - Read the grade and score, then work through the findings from the most severe down. Each shows why it matters and a suggested header line.
+  - Use Copy recommended to take the suggested header lines, adapt them to your site and add them to your server or CDN configuration.
+  - Paste the headers again after deploying to confirm the grade improved. Use Copy report to share the findings, or Clear to start over.
+example:
+  label: A typical server with several common mistakes.
+  input: |-
+    HTTP/2 200
+    content-type: text/html; charset=utf-8
+    server: nginx/1.18.0
+    x-powered-by: Express
+    strict-transport-security: max-age=300
+    content-security-policy: default-src *; script-src 'self' 'unsafe-inline'
+    x-xss-protection: 1; mode=block
+    set-cookie: sessionid=9f2c1; Path=/
+  output: |-
+    Grade      F (28 / 100)
+    Warning    HSTS lifetime is short (5 minutes)
+    Warning    CSP has 1 weakness
+    Warning    The page can be framed by any site (clickjacking)
+    Warning    MIME sniffing is not disabled
+    Warning    Cookies are missing the Secure flag
+    Warning    Session-like cookies are readable by scripts
+    Note       Server header reveals a version · x-powered-by reveals your stack
+  note: Each warning comes with the header line that fixes it, such as X-Content-Type-Options and Strict-Transport-Security with a long max-age.
+faq:
+  - q: How do I get my site's response headers?
+    a: From a terminal, run curl -I followed by your address and copy everything it prints. In Chrome, Edge or Firefox, open DevTools with F12, go to the Network tab, reload, click the first request (the page itself) and copy the Response Headers. In Safari, enable the Develop menu in Settings first, then use Show Web Inspector and the Network tab. Check an HTML page rather than an image or script, because most of these headers only matter for documents.
+  - q: Does this tool visit my website?
+    a: No. It only analyses the text you paste, and nothing is uploaded or requested. That means it works for staging servers, localhost and sites behind a login, but it also means the grade reflects the headers at the moment you copied them. If you change your configuration, copy the headers again and re-check.
+  - q: What do the grades mean?
+    a: A+ means every header checked is present and sound. A and B mean strong with minor gaps, C and D mean several protections are missing, and F means little protection from headers. The score starts at 100 and loses points for each problem, with missing or broken protections costing more than small hints. It is a guide to common hardening, not a complete security audit.
+  - q: Which headers matter most?
+    a: A Content-Security-Policy and Strict-Transport-Security give the biggest protection, then clickjacking protection (frame-ancestors or X-Frame-Options), X-Content-Type-Options set to nosniff, and Secure, HttpOnly and SameSite flags on cookies. A Referrer-Policy and Permissions-Policy are cheap extras. Everything else the tool reports is smaller hardening or tidy-up.
+  - q: Why is X-XSS-Protection flagged when it sounds like a good thing?
+    a: Browsers removed the built-in XSS filter it controlled, because the filter itself could be abused to create vulnerabilities in otherwise safe pages. Today the header does nothing useful in modern browsers and can cause harm in old ones, so the advice is to remove it or set it to 0 and rely on a Content-Security-Policy instead.
+  - q: Is it safe to turn on HSTS with includeSubDomains and preload?
+    a: Only when every subdomain, including internal ones, can serve https permanently. HSTS tells browsers to refuse plain http for the whole lifetime you set, and preload bakes the rule into browsers with no easy undo. Start with a short max-age, raise it as you gain confidence, add includeSubDomains once all subdomains are ready, and consider preload last.
+related:
+  - csp-header-builder
+  - url-parser
+  - jwt-decoder
+---
+
+## Getting the response headers
+
+Open your site, then use whichever route is quickest:
+
+**curl.** Run `curl -I https://your-site.example`. Add `-L` to follow redirects. The tool grades
+the last response in the chain and tells you if there were several.
+
+**Chrome, Edge and Firefox.** Press F12, open the **Network** tab, reload, click the first
+request in the list, and copy everything under **Response Headers**.
+
+**Safari.** Turn on the Develop menu in Settings, choose **Show Web Inspector**, open the
+**Network** tab, reload, select the page request and copy its response headers.
+
+Pick an HTML page. Headers on an image or a script file say little about how the site protects
+visitors.
+
+## What the checks look for
+
+**Transport.** Strict-Transport-Security should be present with a long lifetime. A tiny
+max-age, or max-age=0, defeats the point.
+
+**Script and framing control.** A Content-Security-Policy is the strongest defence against
+cross-site scripting. If one is present it is linted with the same rules as the
+[CSP Header Builder & Analyzer](/csp-header-builder/). Framing should be restricted by
+frame-ancestors or X-Frame-Options so another site cannot overlay yours.
+
+**Browser behaviour.** X-Content-Type-Options: nosniff stops file-type guessing, a
+Referrer-Policy limits what URLs leak to other sites, and Permissions-Policy switches off
+features you do not use.
+
+**Cookies and CORS.** Each Set-Cookie is checked for Secure, HttpOnly on session-like
+names, SameSite, and the rules for the `__Host-` and `__Secure-` prefixes. CORS headers are
+checked for a wildcard origin combined with credentials, and for the `null` origin.
+
+**Leaks and leftovers.** Server and X-Powered-By headers that reveal software versions, and
+deprecated headers such as X-XSS-Protection, Public-Key-Pins and Expect-CT.
+
+If your headers carry a login token, see how it is built with the
+[JWT Debugger](/jwt-decoder/).
