@@ -69,6 +69,7 @@ tools, the three CSS generators).
 | [AES Encrypt / Decrypt](https://devmicrotools.com/aes-encrypt-decrypt/) | Encrypt and decrypt text or files with AES (GCM, CBC or CTR) using a passphrase or a raw hex key. |
 | [RSA Encrypt / Decrypt](https://devmicrotools.com/rsa-encrypt-decrypt/) | Encrypt text with an RSA public key and decrypt it with the private key (RSA-OAEP), or generate a new key pair. |
 | [QR Code Link Checker](https://devmicrotools.com/qr-code-link-checker/) | Scan a QR code and see whether it goes straight to its site or through a redirect service. |
+| [Phishing Email Checker](https://devmicrotools.com/phishing-email-checker/) | Paste an email's source to spot spoofed senders, failed SPF/DKIM/DMARC, deceptive links and risky attachments. |
 
 ### Text
 

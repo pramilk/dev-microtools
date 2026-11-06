@@ -71,6 +71,7 @@ import ProtectPdf from '../islands/ProtectPdf';
 import UnlockPdf from '../islands/UnlockPdf';
 import AesEncryptDecrypt from '../islands/AesEncryptDecrypt';
 import RsaEncryptDecrypt from '../islands/RsaEncryptDecrypt';
+import PhishingEmailChecker from '../islands/PhishingEmailChecker';
 
 /**
  * Maps a content-collection slug to the island that renders that tool.
@@ -151,6 +152,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'unlock-pdf': UnlockPdf,
   'aes-encrypt-decrypt': AesEncryptDecrypt,
   'rsa-encrypt-decrypt': RsaEncryptDecrypt,
+  'phishing-email-checker': PhishingEmailChecker,
 };
 
 /**

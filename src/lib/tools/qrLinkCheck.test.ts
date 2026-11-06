@@ -154,6 +154,14 @@ describe('analyzeQrContent — other content', () => {
     expect(ids(text)).toContain('url-in-text');
   });
 
+  it('treats text that starts with a link but has more words as text, not one URL', () => {
+    const result = analyzeQrContent(['https://devmicrotools.com', 'sdfsdf sdf sd', '', 'sd sd'].join(' | '));
+    expect(result.kind).toBe('text');
+    expect(result.url).toBeNull();
+    expect(result.findings.find((f) => f.id === 'url-in-text')?.detail).toContain('https://devmicrotools.com');
+    expect(JSON.stringify(result)).not.toContain('%20');
+  });
+
   it('handles plain text and empty-ish input', () => {
     expect(analyzeQrContent('hello there').verdict).toBe('not-link');
     expect(analyzeQrContent('   ').verdict).toBe('not-link');

@@ -1,0 +1,123 @@
+---
+title: Phishing Email Checker
+headline: Phishing Email Checker — Analyze Email Headers, Links & Senders
+description: Paste an email's source to check for spoofed senders, failed SPF/DKIM/DMARC, deceptive links and risky attachments. Runs in your browser.
+summary: Paste an email's source to spot spoofed senders, failed SPF/DKIM/DMARC, deceptive links and risky attachments.
+category: Security
+order: 63
+updated: 2026-11-05
+whatIsIt: >-
+  A phishing email works by looking more trustworthy than it is, and almost every trick it
+  uses leaves evidence in the message source that a mail app hides from you: the display name
+  that has nothing to do with the real address, a Reply-To that quietly redirects your answer,
+  a link whose visible text says one site while the underlying address goes to another, and the
+  SPF, DKIM and DMARC results that your mail provider recorded when the message arrived. This
+  tool reads the full source of an email you paste in and surfaces those signals in plain
+  language, with a risk score and a reason for every finding. It checks the sender, the
+  authentication results, every link, the wording of the message and any attachments. It runs
+  entirely in your browser, so the email, which may contain personal details, is never uploaded,
+  and it never opens or contacts any link inside the message.
+useCases:
+  - Checking a message that claims to be from your bank, a delivery company or IT support before you click anything, by looking at who really sent it and where its links actually go.
+  - Triaging reports in a small company or school, where staff forward suspicious emails and someone needs to decide quickly which are genuine and which are phishing.
+  - Learning what a phishing email looks like by loading the example and reading why each part is flagged, for security-awareness training or a personal sanity check.
+  - Reading a message's SPF, DKIM and DMARC results and routing hops without decoding the raw headers by hand, for example when debugging why your own mail lands in spam.
+howTo:
+  - Get the full source of the email (see the collapsible Gmail and Outlook steps above the input), then paste it into the box, or drop a saved .eml file onto it.
+  - Read the verdict and risk score at the top, then work through the findings grouped by sender, authentication, links, content and attachments.
+  - Look at the Links section, which shows each link's visible text next to its real address as plain text, so you can see mismatches without clicking anything.
+  - Use Copy report to save the findings, or Copy link to share the check with a colleague. Use Clear when you are done.
+example:
+  label: A fake PayPal alert sent from a look-alike domain.
+  input: |-
+    From: "PayPal Support" <service@paypa1-secure.top>
+    Reply-To: helpdesk@mail-recovery.example
+    Return-Path: <bounce@mailer.example.net>
+    To: you@example.com
+    Subject: Urgent: your account has been suspended
+    Date: Tue, 03 Nov 2026 08:14:09 +0000
+    Message-ID: <8841.2210@mailer.example.net>
+    Authentication-Results: mx.example.com; spf=fail smtp.mailfrom=mailer.example.net; dkim=none; dmarc=fail header.from=paypa1-secure.top
+    Content-Type: text/html; charset=utf-8
+
+    <p>Dear customer,</p>
+    <p>We detected unauthorized activity. Your account will be closed within 24 hours unless you verify your password immediately.</p>
+    <p><a href="http://198.51.100.7/login">https://www.paypal.com/verify</a></p>
+  output: |-
+    Verdict    Strong phishing signals (risk score 100 / 100)
+    Danger     Claims to be paypal but is not sent from paypal's domain
+    Danger     SPF failed · DMARC failed
+    Danger     Link text shows paypal.com but goes to 198.51.100.7
+    Danger     Urgent request to verify credentials through a link
+    Warning    Replies go to a different domain (mail-recovery.example)
+    Warning    Link points to a raw IP address
+  note: Every one of these tricks is invisible in a normal mail app, which shows only "PayPal Support" and a link that reads paypal.com.
+faq:
+  - q: How do I get the raw source of an email in Gmail or Outlook?
+    a: In Gmail, open the message, click the three-dot More menu beside Reply, choose Show original, then Copy to clipboard. In Outlook on the web or new Outlook, open the message, click the three dots at the top right, then View and View message source, and copy everything. In classic Outlook for Windows, double-click the message, choose File then Properties, and copy the Internet headers box. That last route gives headers only, so paste the message text under them if you also want the links and attachments checked.
+  - q: Can this tell me for certain whether an email is phishing?
+    a: No. It reports indicators, not a verdict, and a clean result is never a guarantee. A careful attacker who compromises a real account or registers a convincing domain can pass every check here. A high score is a strong reason to stay away, but a low score only means nothing obvious was found. When a message asks for money, passwords or urgent action, confirm it through a phone number or website you already trust.
+  - q: Why doesn't it look up the domain's age or reputation?
+    a: Doing that would mean sending the domains from your email to a third-party service, which breaks this site's promise that nothing you paste leaves your browser. The tool works only from the message itself. Readings such as SPF, DKIM and DMARC come from the results your own mail provider already recorded in the headers, rather than a fresh lookup.
+  - q: What do SPF, DKIM and DMARC mean?
+    a: SPF checks that the server that delivered the message is allowed to send for the domain. DKIM checks a cryptographic signature proving the message was not altered and was signed by the domain. DMARC ties them to the address you actually see in the From line and tells receivers what to do on failure. A failure on any of them is a strong warning, but a pass only proves the message really came from that domain, and scammers pass them on domains they own.
+  - q: Is it safe to paste a real email here?
+    a: The analysis runs locally in your browser and nothing is uploaded. The Copy link button, if you press it, builds a link that contains the pasted email inside the address, so only share that link with people you would show the email to. Phishing emails often carry live login or tracking links, which is why the tool shows links as plain text you cannot click by accident.
+  - q: Why was a genuine email flagged?
+    a: Legitimate bulk mail often sends through a marketing service, which can trigger notes such as a bounce address on another domain, a link that goes through a click tracker, or a tracking pixel. Those are marked as notes or warnings, not danger, and they matter most when combined with failed authentication or pressure language. Judge the whole picture rather than a single finding.
+related:
+  - qr-code-link-checker
+  - url-parser
+  - invisible-char-inspector
+---
+
+## Getting the raw email
+
+A normal mail app hides the evidence this tool needs. You want the full original source: all
+the headers followed by the body.
+
+**Gmail.** Open the email without clicking anything inside it. Click the **⋮ More** menu next
+to Reply, choose **Show original**, then **Copy to clipboard**. **Download original** saves an
+`.eml` file you can drop onto the input box.
+
+**Outlook on the web and new Outlook.** Open the message, click the **⋯** menu at the top
+right, then **View**, then **View message source**. Press Ctrl+A in the window that opens, copy
+it and paste it here.
+
+**Outlook for Windows (classic).** Double-click the message to open it in its own window, then
+choose **File**, then **Properties**, and copy the **Internet headers** box. This gives headers
+only, which is enough to check the sender and authentication. Paste the message text below
+the headers to get the links and attachments checked too.
+
+Always use the original, not a forwarded copy. Forwarding rewrites the headers and destroys
+the very signals that expose a forgery.
+
+## What the checks look for
+
+**The sender.** The display name is free text, so the tool compares it with the real address
+and flags names that mention a well-known brand but come from another domain, names that show a
+different email address, look-alike and international-character domains, a Reply-To pointing
+elsewhere, and a "Re:" subject with no real conversation behind it.
+
+**Authentication.** It reads the SPF, DKIM and DMARC results your mail provider stamped into
+the headers. A failed DMARC or SPF on mail that claims to be a bank is one of the clearest
+signs of forgery there is.
+
+**Links.** It decodes the HTML, pairs each link's visible text with its real destination and
+flags mismatches, raw IP addresses, URL shorteners, hidden redirects, credentials smuggled
+before the host, plain `http` and look-alike domains. Paste any single address into the
+[URL Parser](/url-parser/) to break it down further, or check a code on a poster with the
+[QR Code Link Checker](/qr-code-link-checker/).
+
+**The message and attachments.** Pressure to act fast, threats about your account, requests to
+verify credentials, gift-card and wire-transfer language, embedded forms, and attachments
+such as executables, disk images, HTML files, macro documents and double extensions like
+`invoice.pdf.exe`. Hidden characters in text can also be used to disguise a message; the
+[Invisible Character Inspector](/invisible-char-inspector/) reveals them.
+
+## What to do with the result
+
+If the score is high, do not click or reply. Report the message as phishing in your mail app,
+tell your IT team if it arrived at work, and delete it. If you already clicked a link or
+entered a password, change that password at once from a fresh browser tab and turn on
+two-factor authentication.

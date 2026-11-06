@@ -67,6 +67,7 @@ import ProtectPdf from '../islands/ProtectPdf';
 import UnlockPdf from '../islands/UnlockPdf';
 import AesEncryptDecrypt from '../islands/AesEncryptDecrypt';
 import RsaEncryptDecrypt from '../islands/RsaEncryptDecrypt';
+import PhishingEmailChecker from '../islands/PhishingEmailChecker';
 import ChmodCalculator from '../islands/ChmodCalculator';
 import ColorPaletteGenerator from '../islands/ColorPaletteGenerator';
 import CronGenerator from '../islands/CronGenerator';
@@ -165,3 +166,4 @@ if (!registeredSlugs().includes(slug)) {
 {slug === 'unlock-pdf' && <UnlockPdf client:load />}
 {slug === 'aes-encrypt-decrypt' && <AesEncryptDecrypt client:load />}
 {slug === 'rsa-encrypt-decrypt' && <RsaEncryptDecrypt client:load />}
+{slug === 'phishing-email-checker' && <PhishingEmailChecker client:load />}

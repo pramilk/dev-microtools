@@ -103,7 +103,7 @@ const DYNAMIC_QR_DOMAINS = new Set([
 ]);
 
 /** General-purpose link shorteners — same mechanism, the destination lives on their server. */
-const SHORTENER_DOMAINS = new Set([
+export const SHORTENER_DOMAINS = new Set([
   'bit.ly',
   'bitly.com',
   'tinyurl.com',
@@ -179,7 +179,7 @@ const REDIRECTOR_HOSTS = new Set([
 const TRACKING_PARAM = /^(utm_[a-z0-9_]+|fbclid|gclid|gbraid|wbraid|msclkid|dclid|twclid|ttclid|li_fat_id|igshid|mc_cid|mc_eid|_hsenc|_hsmi|yclid|vero_id|ref_src)$/i;
 
 /** Brand → registrable domains that legitimately belong to it, for look-alike detection. */
-const BRANDS: Record<string, string[]> = {
+export const BRANDS: Record<string, string[]> = {
   paypal: ['paypal.com', 'paypal.me'],
   google: ['google.com', 'goo.gl', 'g.co', 'googleapis.com', 'googleusercontent.com', 'gstatic.com', 'youtube.com', 'youtu.be'],
   apple: ['apple.com', 'icloud.com'],
@@ -200,7 +200,7 @@ const BRANDS: Record<string, string[]> = {
 };
 
 /** TLDs often seen on throwaway or look-alike domains. A hint, never proof. */
-const SUSPICIOUS_TLDS = new Set(['zip', 'mov', 'tk', 'ml', 'ga', 'cf', 'gq', 'top', 'click', 'country', 'work', 'rest']);
+export const SUSPICIOUS_TLDS = new Set(['zip', 'mov', 'tk', 'ml', 'ga', 'cf', 'gq', 'top', 'click', 'country', 'work', 'rest']);
 
 /** Two-label public suffixes so `example.co.uk` isn't mistaken for the domain `co.uk`. */
 const TWO_LABEL_SUFFIXES = new Set([
@@ -221,7 +221,7 @@ export function registrableDomain(host: string): string {
   return lastTwo;
 }
 
-const isIpHost = (host: string): boolean => host.startsWith('[') || /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+export const isIpHost = (host: string): boolean => host.startsWith('[') || /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
 
 // RFC 3492 punycode decoding, so an `xn--` host can be shown the way a person would read it.
 const BASE = 36;
@@ -326,6 +326,10 @@ const KIND_LABELS: Record<Exclude<ContentKind, 'url'>, string> = {
 export function detectKind(content: string): ContentKind {
   const text = content.trim();
   for (const [pattern, kind] of SCHEME_KINDS) if (pattern.test(text)) return kind;
+  // A real address never contains whitespace. Text that merely starts with a link ("https://a.com
+  // see our menu") is shown by scanners as plain text, so it must not be parsed as one URL —
+  // the URL parser would percent-encode the spaces and merge the words into the host.
+  if (/\s/.test(text)) return 'text';
   if (/^[a-z][a-z0-9+.-]*:\/\//i.test(text) || /^(javascript|data|vbscript|mailto|tel|sms|intent|market):/i.test(text)) {
     return 'url';
   }
@@ -607,7 +611,7 @@ function safeHost(value: string): string | null {
   }
 }
 
-function brandImpersonation(host: string, domain: string): string | null {
+export function brandImpersonation(host: string, domain: string): string | null {
   // Whole-word match on the labels (split further at hyphens), so "paypal-login.xyz" and
   // "paypal.com.evil.xyz" are caught but "pineapple-shop.com" is not.
   const labels = host.split('.');
@@ -663,7 +667,8 @@ function sortFindings(findings: Finding[]): Finding[] {
 
 function analyzeNonUrl(text: string, kind: ContentKind): QrAnalysis {
   const findings: Finding[] = [];
-  const label = kind === 'text' ? 'plain text' : KIND_LABELS[kind as Exclude<ContentKind, 'url'>];
+  const label = KIND_LABELS[kind as Exclude<ContentKind, 'url'>];
+  const holds = kind === 'text' ? 'plain text' : `a ${label}`;
 
   if (kind === 'wifi') {
     const hidden = /(^|;)H:true/i.test(text);
@@ -693,15 +698,18 @@ function analyzeNonUrl(text: string, kind: ContentKind): QrAnalysis {
   // A URL buried in free text is still worth surfacing.
   const buried = text.match(/https?:\/\/[^\s"'<>]+/i);
   if (buried && kind === 'text') {
-    findings.push(finding('warning', 'url-in-text', 'Contains a link inside the text', `Found ${buried[0]}. Paste it on its own to check it.`));
+    findings.push(finding('warning', 'url-in-text', 'Contains a link inside the text', `Found ${buried[0]}. Paste just that link above to check where it goes.`));
   }
 
   const verdict: Verdict = findings.some((f) => f.severity === 'warning') ? 'caution' : 'not-link';
   return {
     kind,
     verdict,
-    headline: verdict === 'caution' ? `Not a web link — it holds a ${label}` : HEADLINES['not-link'],
-    summary: `This code holds a ${label}, not a web address, so there is no redirect to trace.`,
+    headline: verdict === 'caution' ? `Not a web link — it holds ${holds}` : HEADLINES['not-link'],
+    summary:
+      kind === 'text'
+        ? 'This code holds plain text, not a single web address, so a scanner will just show it. Any link inside it is listed below.'
+        : `This code holds ${holds}, not a web address, so there is no redirect to trace.`,
     url: null,
     embedded: null,
     findings: sortFindings(findings),

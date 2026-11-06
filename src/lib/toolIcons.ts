@@ -82,6 +82,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'unlock-pdf': 'UNL',
   'aes-encrypt-decrypt': 'AES',
   'rsa-encrypt-decrypt': 'RSA',
+  'phishing-email-checker': 'PHI',
 };
 
 export const DEFAULT_TOOL_ICON = '▪';
