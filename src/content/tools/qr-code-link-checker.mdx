@@ -1,0 +1,80 @@
+---
+title: QR Code Link Checker
+headline: QR Code Link Checker — See Where a QR Code Really Goes
+description: Check where a QR code really goes. Scan an image to spot dynamic-QR redirects, link shorteners and phishing signs, all in your browser.
+summary: Scan a QR code and see whether it goes straight to its site or through a redirect service.
+category: Security
+order: 62
+updated: 2026-11-05
+whatIsIt: >-
+  Many QR codes do not contain the address you end up on. Instead they hold a short link
+  on a third-party service, and that service's server forwards you to the real page. These
+  are called dynamic QR codes, and they are the reason a code printed on a menu or a flyer
+  can stop working, or start demanding a subscription, months after it was created: the
+  vendor controls the redirect, so the vendor controls the code. This tool reads a QR code
+  from an image you drop, choose or paste, shows exactly what is encoded in it, and tells you
+  whether it points straight at a site or goes through a middleman such as a dynamic-QR
+  service, a link shortener or a tracking redirect. It also checks for the usual signs of a
+  malicious link, and lets you enter the address you expected so it can confirm the code
+  really leads there. Everything happens in your browser and nothing is uploaded.
+useCases:
+  - Checking a QR code you received from a vendor or agency before printing it, to confirm it holds your own address rather than a link on their domain that they can switch off.
+  - Finding out why a code on a menu, poster or product label suddenly asks for payment or shows an "expired" page, by seeing which service it routes through.
+  - Inspecting a code on a parking meter, flyer or sticker before scanning it, since scammers stick their own codes over real ones.
+  - Auditing a batch of existing QR codes in a business to find which ones depend on a paid third-party service and which are plain, permanent links.
+howTo:
+  - Drop an image of the QR code onto the box, choose a file, or paste a screenshot with Ctrl+V. A sharp, whole code with its white border works best.
+  - Read the verdict at the top. "Goes directly" means the code holds the address itself; "Goes through a middleman" means a service sits in between.
+  - Optionally type the address you expected into the second field to see whether the code matches it, partly matches, or points somewhere else.
+  - Review the list of checks for details such as the service name, a hidden redirect target, or look-alike characters in the domain.
+example:
+  label: A menu QR code that actually belongs to a dynamic-QR vendor.
+  input: https://qrco.de/bgK4mP?utm_source=poster
+  output: |-
+    Verdict   Goes through a middleman first
+    Domain    qrco.de
+    Warning   Dynamic QR service: qrco.de
+    Note      Contains 1 tracking parameter (utm_source)
+    Expected  https://acme-bakery.com/menu  ->  Does not match
+  note: The code never mentions the bakery's own site. Whoever runs qrco.de decides where it lands, and can change or stop it.
+faq:
+  - q: How can I tell if a QR code is dynamic or static?
+    a: A static QR code stores the final address directly, so decoding it shows your real domain. A dynamic one stores a short link on the vendor's domain and the vendor redirects it. Scan the code with this tool and look at the domain. If it is not the website you expected, the code is dynamic. The practical difference is that a static code cannot expire, while a dynamic one works only as long as the vendor keeps redirecting it.
+  - q: Why did my QR code start charging me or stop working?
+    a: Dynamic QR services often offer a free trial and then require a subscription to keep the redirect running. When the trial ends or a payment fails, the vendor can disable the link or show their own page instead, and the printed code gives you no way around it. The fix is to create a new static code that contains your real address, using the QR Code Generator on this site, and reprint it.
+  - q: Does this tool follow the link and show the final destination?
+    a: No. It never contacts the address, which is also why nothing you scan is sent anywhere. It reports what is written inside the code, and when the code contains a redirect parameter it shows the address hidden in it. It cannot see what a server does after you open the link, so a normal-looking address can still redirect. To follow a redirect safely, use a link-expanding service in a sandboxed environment rather than opening it directly.
+  - q: Is a code marked "direct" safe to open?
+    a: Not necessarily. Direct means the code contains no short-link, dynamic-QR or redirect wrapper. It says nothing about whether the site itself is trustworthy. The tool still flags warning signs such as http without encryption, raw IP addresses, look-alike characters and brand names on unrelated domains, but a clean result is not a guarantee. Check that the domain is the one you expect.
+  - q: Can it read codes that are not links, such as Wi-Fi or payment codes?
+    a: Yes. It identifies Wi-Fi logins, payment requests, contacts, phone numbers, emails and two-factor secrets, and explains what scanning would do. The share-link button is hidden for Wi-Fi, payment and two-factor codes because a shared URL would carry the password or secret inside it.
+  - q: Why can't it find the QR code in my photo?
+    a: The reader needs the whole code, its quiet white border, and enough sharpness to separate the modules. Blurry, heavily angled, glared or very small codes can fail, as can images that contain several codes, since only one is read. Crop to the single code, take the photo straight on, and try again.
+related:
+  - qr-code-generator
+  - url-parser
+  - barcode-generator
+---
+
+## Why the domain is the whole story
+
+The single most useful fact about a QR code is the domain it contains. If the domain is
+yours, or the organisation you expect, the code is as permanent as that website. If it
+belongs to a QR vendor or a link shortener, your code lasts only as long as their service,
+account and pricing do. This tool puts that domain at the top and explains what it means.
+
+## Replacing a dynamic code
+
+If the checker shows a dynamic-QR domain on a code you own, make a replacement that holds
+your real address with the [QR Code Generator](/qr-code-generator/), test it with this
+tool, and reprint. You give up scan analytics and the ability to change the destination
+without reprinting, which are the things dynamic services charge for.
+
+## What the checks look for
+
+The tool recognises well-known dynamic-QR and short-link domains, destinations tucked
+inside redirect parameters, and tracking parameters such as `utm_source` or `fbclid`. It
+also flags credentials placed before the host (`https://trusted.com@evil.example`),
+international look-alike characters, raw IP addresses, unusual ports, plain `http`, and
+script-style schemes such as `javascript:`. Paste a full address into the
+[URL Parser](/url-parser/) if you want every component broken out.

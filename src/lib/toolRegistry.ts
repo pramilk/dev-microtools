@@ -12,6 +12,7 @@ import ColorConverter from '../islands/ColorConverter';
 import DiffChecker from '../islands/DiffChecker';
 import PasswordGenerator from '../islands/PasswordGenerator';
 import QrCodeGenerator from '../islands/QrCodeGenerator';
+import QrLinkChecker from '../islands/QrLinkChecker';
 import CssGradientGenerator from '../islands/CssGradientGenerator';
 import CssBoxShadowGenerator from '../islands/CssBoxShadowGenerator';
 import UserAgentParser from '../islands/UserAgentParser';
@@ -91,6 +92,7 @@ const REGISTRY: Record<string, FunctionComponent> = {
   'diff-checker': DiffChecker,
   'password-generator': PasswordGenerator,
   'qr-code-generator': QrCodeGenerator,
+  'qr-code-link-checker': QrLinkChecker,
   'css-gradient-generator': CssGradientGenerator,
   'css-box-shadow-generator': CssBoxShadowGenerator,
   'user-agent-parser': UserAgentParser,

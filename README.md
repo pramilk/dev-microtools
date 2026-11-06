@@ -68,6 +68,7 @@ tools, the three CSS generators).
 | [security.txt Generator](https://devmicrotools.com/security-txt-generator/) | Build a standards-compliant security.txt file (RFC 9116) with validated Contact and Expires fields. |
 | [AES Encrypt / Decrypt](https://devmicrotools.com/aes-encrypt-decrypt/) | Encrypt and decrypt text or files with AES (GCM, CBC or CTR) using a passphrase or a raw hex key. |
 | [RSA Encrypt / Decrypt](https://devmicrotools.com/rsa-encrypt-decrypt/) | Encrypt text with an RSA public key and decrypt it with the private key (RSA-OAEP), or generate a new key pair. |
+| [QR Code Link Checker](https://devmicrotools.com/qr-code-link-checker/) | Scan a QR code and see whether it goes straight to its site or through a redirect service. |
 
 ### Text
 

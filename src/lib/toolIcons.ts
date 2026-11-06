@@ -23,6 +23,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'diff-checker': 'DIF',
   'password-generator': 'PWD',
   'qr-code-generator': 'QR',
+  'qr-code-link-checker': 'QRC',
   'css-gradient-generator': 'GRD',
   'css-box-shadow-generator': 'SHD',
   'user-agent-parser': 'UA',

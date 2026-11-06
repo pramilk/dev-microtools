@@ -64,7 +64,7 @@ export const CATEGORY_INTROS: Record<Category, string> = {
   Generate:
     'Generate the small artifacts a project always needs: UUIDs, QR codes, barcodes, placeholder text, realistic fake test data, URL-safe slugs, curl commands built from a form, and the meta tags or JSON-LD structured data a page is missing. No sign-up, no rate limits, no watermarks.',
   Security:
-    'Work with secrets, hashes and headers without sending them anywhere: decode and verify JWTs, hash and check bcrypt passwords, compute MD5/SHA hashes and HMACs, encrypt and decrypt text with AES or an RSA public/private key pair, generate strong random passwords, build a Content-Security-Policy header, and produce an RFC 9116 security.txt file.',
+    'Work with secrets, hashes and headers without sending them anywhere: decode and verify JWTs, hash and check bcrypt passwords, compute MD5/SHA hashes and HMACs, encrypt and decrypt text with AES or an RSA public/private key pair, generate strong random passwords, build a Content-Security-Policy header, produce an RFC 9116 security.txt file, and check whether a QR code goes straight to its site or through a redirect service.',
   Text: 'Manipulate and inspect plain text: test a regex against sample input live, diff two blocks of text or JSON line by line, count words and characters, convert between camelCase/snake_case/Title Case, strip duplicate lines, and reveal invisible Unicode characters hiding in pasted text.',
   AI: 'Tools for working with AI systems and the crawlers behind them: count how many tokens a prompt costs against a model’s context window, and generate a robots.txt with an explicit policy for which AI crawlers may train on or cite your site.',
   'Web & Network':
